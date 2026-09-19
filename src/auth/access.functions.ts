@@ -26,17 +26,15 @@ export const getAccessContext = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await ensureProfile(context.supabase, context.userId);
 
-    return readAccessContext(
-      context.supabase,
-      context.userId,
-      emailFromClaims(context.claims),
-    );
+    return readAccessContext(context.supabase, context.userId, emailFromClaims(context.claims));
   });
 
 export const getAuthorizedStore = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => authorizedStoreInput.parse(input))
   .handler(async ({ data, context }) => {
+    await ensureProfile(context.supabase, context.userId);
+
     const access = await readAccessContext(
       context.supabase,
       context.userId,
