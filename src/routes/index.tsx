@@ -1,24 +1,64 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "VSMS Solutions — Plataforma" },
+      {
+        name: "description",
+        content: "Fundação técnica da plataforma profissional da VSMS Solutions.",
+      },
+      { property: "og:title", content: "VSMS Solutions — Plataforma" },
+      {
+        property: "og:description",
+        content: "Fundação técnica da plataforma profissional da VSMS Solutions.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
+    <main className="min-h-screen bg-background px-6 py-8 text-foreground sm:px-10 sm:py-10">
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl flex-col sm:min-h-[calc(100vh-5rem)]">
+        <header className="flex items-center justify-between border-b border-border pb-6">
+          <div className="flex items-center gap-3">
+            <div
+              className="flex size-9 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground"
+              aria-hidden="true"
+            >
+              V
+            </div>
+            <p className="text-sm font-semibold">VSMS Solutions</p>
+          </div>
+          <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <span className="size-2 rounded-full bg-status" aria-hidden="true" />
+            Estrutura inicial
+          </span>
+        </header>
+
+        <section className="flex flex-1 items-center py-16">
+          <div className="max-w-3xl">
+            <p className="mb-5 text-sm font-semibold uppercase tracking-widest text-accent-foreground">
+              Plataforma profissional
+            </p>
+            <h1 className="text-4xl font-semibold leading-tight sm:text-6xl">
+              Uma base sólida para o que vem a seguir.
+            </h1>
+            <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
+              O ambiente inicial da VSMS Solutions está preparado para evoluir com segurança,
+              clareza e consistência.
+            </p>
+          </div>
+        </section>
+
+        <footer className="border-t border-border pt-6 text-xs text-muted-foreground">
+          VSMS Solutions
+        </footer>
+      </div>
+    </main>
   );
 }
