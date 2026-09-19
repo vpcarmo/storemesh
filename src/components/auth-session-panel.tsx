@@ -71,6 +71,7 @@ export function AuthSessionPanel() {
       await queryClient.cancelQueries();
       queryClient.clear();
       await signOut();
+      queryClient.setQueryData(sessionQueryKey, null);
     } catch (error) {
       setFeedback(messageFrom(error));
     } finally {
