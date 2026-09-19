@@ -35,6 +35,89 @@ export type Database = {
         }
         Relationships: []
       }
+      store_settings: {
+        Row: {
+          accent_color: string | null
+          address: Json
+          background_color: string | null
+          business_hours: Json
+          contact_email: string | null
+          created_at: string
+          display_name: string | null
+          favicon_url: string | null
+          institutional_text: string | null
+          logo_url: string | null
+          phone: string | null
+          primary_color: string | null
+          privacy_policy: string | null
+          return_policy: string | null
+          secondary_color: string | null
+          short_description: string | null
+          social_links: Json
+          store_id: string
+          terms_of_use: string | null
+          text_color: string | null
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          accent_color?: string | null
+          address?: Json
+          background_color?: string | null
+          business_hours?: Json
+          contact_email?: string | null
+          created_at?: string
+          display_name?: string | null
+          favicon_url?: string | null
+          institutional_text?: string | null
+          logo_url?: string | null
+          phone?: string | null
+          primary_color?: string | null
+          privacy_policy?: string | null
+          return_policy?: string | null
+          secondary_color?: string | null
+          short_description?: string | null
+          social_links?: Json
+          store_id: string
+          terms_of_use?: string | null
+          text_color?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          accent_color?: string | null
+          address?: Json
+          background_color?: string | null
+          business_hours?: Json
+          contact_email?: string | null
+          created_at?: string
+          display_name?: string | null
+          favicon_url?: string | null
+          institutional_text?: string | null
+          logo_url?: string | null
+          phone?: string | null
+          primary_color?: string | null
+          privacy_policy?: string | null
+          return_policy?: string | null
+          secondary_color?: string | null
+          short_description?: string | null
+          social_links?: Json
+          store_id?: string
+          terms_of_use?: string | null
+          text_color?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_settings_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: true
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stores: {
         Row: {
           created_at: string
