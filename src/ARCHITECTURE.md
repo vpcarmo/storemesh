@@ -17,3 +17,10 @@ Novos módulos devem ser criados somente quando uma funcionalidade real exigir. 
 - A autorização efetiva reside nas políticas RLS e nas funções de autorização do banco; verificações de interface são apenas apresentação.
 - `super_admin` possui escopo global. `store_admin` sempre possui uma loja e só acessa registros autorizados para ela.
 - Atribuição de papéis e gestão de lojas não fazem parte da interface desta etapa e permanecem restritas a operações privilegiadas do backend.
+
+## Isolamento entre lojas
+
+- `store_id` é o limite de isolamento dos dados de cada loja. Toda tabela futura pertencente a uma loja deve referenciá-lo e aplicar políticas RLS com `private.has_store_access(store_id)`.
+- A loja atual é resolvida pela camada autenticada em `auth/`, consultada por `data/` e validada novamente pelas regras puras de `domain/`.
+- A identidade do usuário vem exclusivamente da sessão validada. Um identificador de usuário enviado pelo cliente nunca define o escopo.
+- Um único vínculo de `store_admin` pode ser resolvido implicitamente. `super_admin` e usuários com mais de uma loja devem informar o slug desejado, sem seleção global implícita.

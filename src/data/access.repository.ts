@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { AccessContext, RoleAssignment } from "@/domain/access";
+import type { AccessContext, RoleAssignment, StoreAccess } from "@/domain/access";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppClient = SupabaseClient<Database>;
@@ -29,7 +29,7 @@ export async function readAccessContext(
     .filter((storeId): storeId is string => storeId !== null);
 
   const storesResult = storeIds.length
-    ? await client.from("stores").select("id, name").in("id", storeIds)
+    ? await client.from("stores").select("id, name, slug, status").in("id", storeIds)
     : { data: [], error: null };
 
   if (storesResult.error) throw storesResult.error;
@@ -47,4 +47,18 @@ export async function readAccessContext(
     fullName: profileResult.data.full_name,
     assignments,
   };
+}
+
+export async function readAuthorizedStoreBySlug(
+  client: AppClient,
+  slug: string,
+): Promise<StoreAccess | null> {
+  const { data, error } = await client
+    .from("stores")
+    .select("id, name, slug, status")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
 }

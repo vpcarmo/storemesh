@@ -1,10 +1,14 @@
 export const APP_ROLES = ["super_admin", "store_admin"] as const;
+export const STORE_STATUSES = ["active", "inactive"] as const;
 
 export type AppRole = (typeof APP_ROLES)[number];
+export type StoreStatus = (typeof STORE_STATUSES)[number];
 
 export interface StoreAccess {
   id: string;
   name: string;
+  slug: string;
+  status: StoreStatus;
 }
 
 export interface RoleAssignment {
@@ -31,4 +35,18 @@ export function canAccessStore(context: AccessContext, storeId: string): boolean
       (assignment) => assignment.role === "store_admin" && assignment.storeId === storeId,
     )
   );
+}
+
+export function resolveAssignedStore(context: AccessContext): StoreAccess | null {
+  if (isSuperAdmin(context)) return null;
+
+  const stores = new Map<string, StoreAccess>();
+
+  for (const assignment of context.assignments) {
+    if (assignment.role === "store_admin" && assignment.store) {
+      stores.set(assignment.store.id, assignment.store);
+    }
+  }
+
+  return stores.size === 1 ? (stores.values().next().value ?? null) : null;
 }
