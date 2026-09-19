@@ -1,0 +1,1 @@
+REVOKE ALL ON public.store_settings FROM PUBLIC, anon;
