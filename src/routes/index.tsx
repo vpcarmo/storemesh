@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { AuthSessionPanel } from "@/components/auth-session-panel";
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -40,18 +42,21 @@ function Index() {
           </span>
         </header>
 
-        <section className="flex flex-1 items-center py-16">
-          <div className="max-w-3xl">
-            <p className="mb-5 text-sm font-semibold uppercase tracking-widest text-accent-foreground">
-              Plataforma profissional
-            </p>
-            <h1 className="text-4xl font-semibold leading-tight sm:text-6xl">
-              Uma base sólida para o que vem a seguir.
-            </h1>
-            <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-              O ambiente inicial da VSMS Solutions está preparado para evoluir com segurança,
-              clareza e consistência.
-            </p>
+        <section className="flex flex-1 items-center py-12 sm:py-16">
+          <div className="grid w-full gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)] lg:items-center">
+            <div className="max-w-3xl">
+              <p className="mb-5 text-sm font-semibold uppercase tracking-widest text-accent-foreground">
+                Plataforma profissional
+              </p>
+              <h1 className="text-4xl font-semibold leading-tight sm:text-6xl">
+                Uma base sólida para o que vem a seguir.
+              </h1>
+              <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
+                O ambiente inicial da VSMS Solutions está preparado para evoluir com segurança,
+                clareza e consistência.
+              </p>
+            </div>
+            <AuthSessionPanel />
           </div>
         </section>
 
