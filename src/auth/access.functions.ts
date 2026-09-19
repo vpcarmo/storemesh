@@ -31,7 +31,7 @@ export const getAccessContext = createServerFn({ method: "POST" })
 
 export const getAuthorizedStore = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => authorizedStoreInput.parse(input))
+  .validator((input) => authorizedStoreInput.parse(input))
   .handler(async ({ data, context }) => {
     await ensureProfile(context.supabase, context.userId);
 
