@@ -1,12 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+import { resolveAuthorizedStore } from "@/auth/authorized-store";
 import {
   ensureProfile,
   readAccessContext,
-  readAuthorizedStoreBySlug,
 } from "@/data/access.repository";
-import { canAccessStore, resolveAssignedStore } from "@/domain/access";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const authorizedStoreInput = z.object({
@@ -32,19 +31,11 @@ export const getAccessContext = createServerFn({ method: "POST" })
 export const getAuthorizedStore = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => authorizedStoreInput.parse(input))
-  .handler(async ({ data, context }) => {
-    await ensureProfile(context.supabase, context.userId);
-
-    const access = await readAccessContext(
+  .handler(({ data, context }) =>
+    resolveAuthorizedStore(
       context.supabase,
       context.userId,
       emailFromClaims(context.claims),
-    );
-
-    if (!data.slug) return resolveAssignedStore(access);
-
-    const store = await readAuthorizedStoreBySlug(context.supabase, data.slug);
-    if (!store || !canAccessStore(access, store.id)) return null;
-
-    return store;
-  });
+      data.slug,
+    ),
+  );

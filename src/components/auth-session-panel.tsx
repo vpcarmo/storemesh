@@ -8,6 +8,7 @@ import { getCurrentUser, signIn, signOut, signUp } from "@/auth/session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StoreSettingsPanel } from "@/components/store-settings-panel";
 
 const sessionQueryKey = ["auth", "user"] as const;
 const accessQueryKey = ["auth", "access-context"] as const;
@@ -124,6 +125,9 @@ export function AuthSessionPanel() {
           </Button>
         </div>
         {feedback ? <p className="mt-4 text-sm text-muted-foreground">{feedback}</p> : null}
+        {!accessQuery.isPending && !accessQuery.isError && assignments.length > 0 ? (
+          <StoreSettingsPanel />
+        ) : null}
       </section>
     );
   }

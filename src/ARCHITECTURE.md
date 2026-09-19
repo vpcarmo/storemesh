@@ -24,3 +24,11 @@ Novos módulos devem ser criados somente quando uma funcionalidade real exigir. 
 - A loja atual é resolvida pela camada autenticada em `auth/`, consultada por `data/` e validada novamente pelas regras puras de `domain/`.
 - A identidade do usuário vem exclusivamente da sessão validada. Um identificador de usuário enviado pelo cliente nunca define o escopo.
 - Um único vínculo de `store_admin` pode ser resolvido implicitamente. `super_admin` e usuários com mais de uma loja devem informar o slug desejado, sem seleção global implícita.
+
+## Configurações da loja
+
+- `store_settings` mantém uma única configuração principal por loja, vinculada obrigatoriamente por `store_id`.
+- Dados operacionais, textos institucionais e identidade visual básica ficam nessa configuração; arquivos de logo e favicon não são armazenados nesta etapa, apenas referências HTTPS opcionais.
+- Leitura e escrita passam por funções autenticadas em `auth/`, regras puras em `domain/` e um repositório em `data/`; componentes não consultam o backend diretamente.
+- As políticas RLS reutilizam `private.has_store_access(store_id)`: `super_admin` mantém acesso global e `store_admin` fica limitado às lojas vinculadas.
+- Uma futura interface administrativa deve consumir as mesmas funções e o mesmo repositório, sem implementar autorização paralela no cliente.
