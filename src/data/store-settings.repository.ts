@@ -54,10 +54,7 @@ export async function saveStoreDisplayName(
 ): Promise<StoreSettings> {
   const { data, error } = await client
     .from("store_settings")
-    .upsert(
-      { store_id: storeId, display_name: displayName, updated_at: new Date().toISOString() },
-      { onConflict: "store_id" },
-    )
+    .upsert({ store_id: storeId, display_name: displayName }, { onConflict: "store_id" })
     .select("*")
     .single();
 
