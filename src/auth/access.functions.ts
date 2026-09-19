@@ -18,7 +18,7 @@ const authorizedStoreInput = z.object({
 });
 
 function emailFromClaims(claims: Record<string, unknown>): string | null {
-  return typeof claims.email === "string" ? claims.email : null;
+  return typeof claims["email"] === "string" ? claims["email"] : null;
 }
 
 export const getAccessContext = createServerFn({ method: "POST" })
