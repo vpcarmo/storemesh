@@ -106,7 +106,9 @@ export function AuthSessionPanel() {
                 {assignments.map((assignment) => (
                   <li key={`${assignment.role}-${assignment.storeId ?? "global"}`}>
                     <span className="font-medium">
-                      {assignment.role === "super_admin" ? "Administrador da plataforma" : "Administrador da loja"}
+                      {assignment.role === "super_admin"
+                        ? "Administrador da plataforma"
+                        : "Administrador da loja"}
                     </span>
                     {assignment.store ? (
                       <span className="text-muted-foreground"> · {assignment.store.name}</span>
