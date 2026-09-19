@@ -10,6 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import { observeSession } from "../auth/session";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -111,6 +112,20 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+
+  useEffect(
+    () =>
+      observeSession((event, session) => {
+        if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+
+        router.invalidate();
+        if (session) {
+          queryClient.invalidateQueries();
+        }
+      }),
+    [queryClient, router],
+  );
 
   return (
     <QueryClientProvider client={queryClient}>
