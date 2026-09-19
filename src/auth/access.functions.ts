@@ -2,10 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { resolveAuthorizedStore } from "@/auth/authorized-store";
-import {
-  ensureProfile,
-  readAccessContext,
-} from "@/data/access.repository";
+import { ensureProfile, readAccessContext } from "@/data/access.repository";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const authorizedStoreInput = z.object({

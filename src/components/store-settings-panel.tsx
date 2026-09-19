@@ -68,7 +68,10 @@ export function StoreSettingsPanel() {
   }
 
   return (
-    <section className="mt-6 w-full max-w-xl border-t border-border pt-6" aria-label="Configuração da loja">
+    <section
+      className="mt-6 w-full max-w-xl border-t border-border pt-6"
+      aria-label="Configuração da loja"
+    >
       <p className="text-sm font-semibold">Configuração da loja</p>
       <p className="mt-1 text-sm text-muted-foreground">{settingsQuery.data.store.name}</p>
       <form className="mt-4 grid gap-3" onSubmit={handleSubmit}>

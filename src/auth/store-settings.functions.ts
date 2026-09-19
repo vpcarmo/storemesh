@@ -2,15 +2,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { resolveAuthorizedStore } from "@/auth/authorized-store";
-import {
-  readStoreSettings,
-  saveStoreDisplayName,
-} from "@/data/store-settings.repository";
+import { readStoreSettings, saveStoreDisplayName } from "@/data/store-settings.repository";
 import { normalizeDisplayName } from "@/domain/store-settings";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const storeSelectionInput = z.object({
-  slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).nullable().optional(),
+  slug: z
+    .string()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    .nullable()
+    .optional(),
 });
 
 const updateDisplayNameInput = storeSelectionInput.extend({
@@ -53,9 +54,5 @@ export const updateCurrentStoreDisplayName = createServerFn({ method: "POST" })
 
     if (!store) throw new Error("Nenhuma loja autorizada foi selecionada.");
 
-    return saveStoreDisplayName(
-      context.supabase,
-      store.id,
-      normalizeDisplayName(data.displayName),
-    );
+    return saveStoreDisplayName(context.supabase, store.id, normalizeDisplayName(data.displayName));
   });
