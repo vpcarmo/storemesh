@@ -43,6 +43,13 @@
       "when": 1789851840079,
       "tag": "0005_restrict_store_settings_to_authenticated",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789866367769,
+      "tag": "0006_create_catalog_foundation",
+      "breakpoints": true
     }
   ]
 }
