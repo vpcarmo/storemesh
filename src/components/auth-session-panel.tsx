@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 
 import { getAccessContext } from "@/auth/access.functions";
 import { getCurrentUser, signIn, signOut, signUp } from "@/auth/session";
+import { CatalogPanel } from "@/components/catalog-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -126,7 +127,10 @@ export function AuthSessionPanel() {
         </div>
         {feedback ? <p className="mt-4 text-sm text-muted-foreground">{feedback}</p> : null}
         {!accessQuery.isPending && !accessQuery.isError && assignments.length > 0 ? (
-          <StoreSettingsPanel />
+          <>
+            <StoreSettingsPanel />
+            <CatalogPanel />
+          </>
         ) : null}
       </section>
     );
