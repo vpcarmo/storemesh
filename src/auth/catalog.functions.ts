@@ -6,7 +6,10 @@ import { readCatalog, saveCategory, saveProduct } from "@/data/catalog.repositor
 import { normalizeOptionalText } from "@/domain/catalog";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const slugSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(160);
+const slugSchema = z
+  .string()
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+  .max(160);
 const storeSelectionSchema = z.object({ slug: slugSchema.nullable().optional() });
 const categorySchema = storeSelectionSchema.extend({
   id: z.string().uuid().nullable(),
