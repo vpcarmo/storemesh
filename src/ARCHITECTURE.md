@@ -24,6 +24,8 @@ Novos módulos devem ser criados somente quando uma funcionalidade real exigir. 
 - A loja atual é resolvida pela camada autenticada em `auth/`, consultada por `data/` e validada novamente pelas regras puras de `domain/`.
 - A identidade do usuário vem exclusivamente da sessão validada. Um identificador de usuário enviado pelo cliente nunca define o escopo.
 - Um único vínculo de `store_admin` pode ser resolvido implicitamente. `super_admin` e usuários com mais de uma loja devem informar o slug desejado, sem seleção global implícita.
+- `stores.id` é a identidade estável do tenant. Slug e um futuro domínio customizado são apenas formas de resolução que devem convergir para esse identificador antes da autorização.
+- Os repositórios recebem o cliente de dados autenticado por parâmetro e não escolhem infraestrutura. Isso permite trocar futuramente a conexão de uma loja sem acoplar regras de domínio, sem implementar banco dedicado nesta etapa.
 
 ## Configurações da loja
 
@@ -32,3 +34,10 @@ Novos módulos devem ser criados somente quando uma funcionalidade real exigir. 
 - Leitura e escrita passam por funções autenticadas em `auth/`, regras puras em `domain/` e um repositório em `data/`; componentes não consultam o backend diretamente.
 - As políticas RLS reutilizam `private.has_store_access(store_id)`: `super_admin` mantém acesso global e `store_admin` fica limitado às lojas vinculadas.
 - Uma futura interface administrativa deve consumir as mesmas funções e o mesmo repositório, sem implementar autorização paralela no cliente.
+
+## Catálogo
+
+- `categories` e `products` pertencem obrigatoriamente a uma loja e usam slug único apenas dentro dela.
+- A relação composta entre produto, categoria e loja impede no banco que um produto use categoria de outro tenant.
+- Leitura e escrita administrativas passam por funções autenticadas, domínio e repositório; as políticas RLS reutilizam `private.has_store_access(store_id)`.
+- Esta fundação não inclui vitrine pública, estoque, variantes nem etapas de venda.
