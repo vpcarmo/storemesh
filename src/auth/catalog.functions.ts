@@ -23,7 +23,7 @@ const productSchema = storeSelectionSchema.extend({
   categoryId: z.string().uuid().nullable(),
   name: z.string().trim().min(1).max(160),
   productSlug: slugSchema,
-  description: z.string().max(20000),
+  description: z.string().trim().min(1).max(20000),
   price: z.number().min(0).max(9_999_999_999.99),
   isActive: z.boolean(),
 });
