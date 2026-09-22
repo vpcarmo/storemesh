@@ -95,7 +95,7 @@ export function StorefrontPreviewPanel({
         id: "store-introduction",
         type: "hero",
         title: settings?.displayName ?? store.name,
-        description: settings?.shortDescription,
+        description: settings?.shortDescription ?? null,
       },
       {
         id: "store-categories",
