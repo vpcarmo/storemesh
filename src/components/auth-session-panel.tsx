@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StoreSettingsPanel } from "@/components/store-settings-panel";
+import { StorefrontPreviewPanel } from "@/components/storefront-preview-panel";
 
 const sessionQueryKey = ["auth", "user"] as const;
 const accessQueryKey = ["auth", "access-context"] as const;
@@ -129,6 +130,11 @@ export function AuthSessionPanel() {
         {!accessQuery.isPending && !accessQuery.isError && assignments.length > 0 ? (
           <>
             <StoreSettingsPanel />
+            <StorefrontPreviewPanel
+              requiresStoreSelection={assignments.some(
+                (assignment) => assignment.role === "super_admin",
+              )}
+            />
             <CatalogPanel
               requiresStoreSelection={assignments.some(
                 (assignment) => assignment.role === "super_admin",
