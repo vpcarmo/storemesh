@@ -30,7 +30,11 @@ function messageFrom(error: unknown): string {
   return error instanceof Error ? error.message : "Não foi possível salvar o catálogo.";
 }
 
-export function CatalogPanel({ requiresStoreSelection = false }: { requiresStoreSelection?: boolean }) {
+export function CatalogPanel({
+  requiresStoreSelection = false,
+}: {
+  requiresStoreSelection?: boolean;
+}) {
   const queryClient = useQueryClient();
   const loadCatalog = useServerFn(getCurrentStoreCatalog);
   const saveCategory = useServerFn(saveCurrentStoreCategory);
@@ -158,7 +162,10 @@ export function CatalogPanel({ requiresStoreSelection = false }: { requiresStore
 
   if (requiresStoreSelection && storeSlug === null) {
     return (
-      <section className="mt-6 w-full border-t border-border pt-6" aria-label="Selecionar loja do catálogo">
+      <section
+        className="mt-6 w-full border-t border-border pt-6"
+        aria-label="Selecionar loja do catálogo"
+      >
         <p className="text-sm font-semibold">Catálogo</p>
         <form
           className="mt-3 flex items-end gap-2"
@@ -168,7 +175,13 @@ export function CatalogPanel({ requiresStoreSelection = false }: { requiresStore
           }}
         >
           <Field label="Slug da loja" id="catalog-store-slug">
-            <Input id="catalog-store-slug" value={storeSlugInput} onChange={(event) => setStoreSlugInput(event.target.value)} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" required />
+            <Input
+              id="catalog-store-slug"
+              value={storeSlugInput}
+              onChange={(event) => setStoreSlugInput(event.target.value)}
+              pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+              required
+            />
           </Field>
           <Button type="submit">Abrir</Button>
         </form>
