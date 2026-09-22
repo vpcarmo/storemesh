@@ -50,6 +50,13 @@
       "when": 1789866367769,
       "tag": "0006_create_catalog_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790036859295,
+      "tag": "0007_require_product_description",
+      "breakpoints": true
     }
   ]
 }
