@@ -41,3 +41,11 @@ Novos módulos devem ser criados somente quando uma funcionalidade real exigir. 
 - A relação composta entre produto, categoria e loja impede no banco que um produto use categoria de outro tenant.
 - Leitura e escrita administrativas passam por funções autenticadas, domínio e repositório; as políticas RLS reutilizam `private.has_store_access(store_id)`.
 - Esta fundação não inclui vitrine pública, estoque, variantes nem etapas de venda.
+
+## Storefront e tema
+
+- A composição segue `store → store_settings → theme → layout → page → sections`; a identidade visual não possui configuração global paralela.
+- `store_settings` continua sendo a fonte única para logo, favicon e cores. O domínio converte esses campos opcionais em tokens visuais limitados, com padrões seguros e sem aceitar CSS arbitrário.
+- Header, navegação, footer e seções recebem somente dados e slots; não consultam o backend e não assumem categorias, páginas ou composição iguais entre lojas.
+- Páginas são definições compostas por seções conhecidas e tipadas. A fundação reconhece Home, Catalog, Category, Product, About, Contact e páginas Static/Policy sem implementar rotas públicas ou persistência de páginas nesta etapa.
+- A prévia autenticada usa as funções e os repositórios existentes para carregar configurações e catálogo reais da loja autorizada. Nenhum conteúdo comercial de demonstração é persistido.

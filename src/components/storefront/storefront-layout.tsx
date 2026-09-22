@@ -1,4 +1,3 @@
-import { Link as LinkIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { StoreSettings } from "@/domain/store-settings";
@@ -122,9 +121,6 @@ export function StorefrontLayout({
       {header}
       <main>{children}</main>
       {footer}
-      <span className="sr-only">
-        <LinkIcon aria-hidden="true" />
-      </span>
     </div>
   );
 }

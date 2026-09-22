@@ -149,3 +149,198 @@
     margin: 0;
   }
 }
+
+@utility storefront-button {
+  border-radius: var(--storefront-button-radius);
+  background: var(--storefront-primary);
+  color: var(--storefront-primary-foreground);
+  font-weight: var(--storefront-button-weight);
+
+  &:hover {
+    background: color-mix(in oklab, var(--storefront-primary) 88%, black);
+  }
+}
+
+@layer components {
+  .storefront-theme {
+    background: var(--storefront-background);
+    color: var(--storefront-text);
+    font-family: var(--storefront-font-body);
+  }
+
+  .storefront-layout {
+    min-width: 0;
+    background: var(--storefront-background);
+  }
+
+  .storefront-header {
+    border-bottom: 1px solid color-mix(in oklab, var(--storefront-text) 18%, transparent);
+    padding: 1rem var(--storefront-content-space);
+  }
+
+  .storefront-header-row,
+  .storefront-header-actions,
+  .storefront-brand,
+  .storefront-navigation,
+  .storefront-banner,
+  .storefront-cta {
+    display: flex;
+    align-items: center;
+  }
+
+  .storefront-header-row {
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .storefront-brand {
+    min-width: 0;
+    gap: 0.75rem;
+    font-family: var(--storefront-font-heading);
+    font-weight: 700;
+  }
+
+  .storefront-logo {
+    height: 2rem;
+    width: auto;
+    max-width: 8rem;
+    object-fit: contain;
+  }
+
+  .storefront-header-actions {
+    gap: 1rem;
+  }
+
+  .storefront-navigation {
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+  }
+
+  .storefront-nav-link,
+  .storefront-nav-label {
+    color: color-mix(in oklab, var(--storefront-text) 78%, transparent);
+  }
+
+  .storefront-section,
+  .storefront-hero {
+    padding: var(--storefront-section-space) var(--storefront-content-space);
+  }
+
+  .storefront-hero {
+    background: var(--storefront-secondary);
+  }
+
+  .storefront-section-inner {
+    width: min(100%, 72rem);
+    margin-inline: auto;
+  }
+
+  .storefront-hero h1,
+  .storefront-section h2,
+  .storefront-cta h2 {
+    font-family: var(--storefront-font-heading);
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .storefront-hero h1 {
+    max-width: 16ch;
+    font-size: clamp(2rem, 7vw, 4.5rem);
+  }
+
+  .storefront-hero p,
+  .storefront-prose {
+    max-width: 42rem;
+  }
+
+  .storefront-hero p,
+  .storefront-section p,
+  .storefront-cta p,
+  .storefront-footer p {
+    margin-top: 0.75rem;
+    line-height: 1.65;
+    color: color-mix(in oklab, var(--storefront-text) 72%, transparent);
+  }
+
+  .storefront-hero .storefront-button {
+    margin-top: 1.5rem;
+  }
+
+  .storefront-banner,
+  .storefront-cta {
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 1.25rem var(--storefront-content-space);
+    background: var(--storefront-primary);
+    color: var(--storefront-primary-foreground);
+  }
+
+  .storefront-banner p,
+  .storefront-cta p {
+    color: inherit;
+  }
+
+  .storefront-category-grid,
+  .storefront-product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .storefront-card {
+    overflow: hidden;
+    border: var(--storefront-card-border-width) solid
+      color-mix(in oklab, var(--storefront-text) 16%, transparent);
+    border-radius: var(--storefront-card-radius);
+    padding: 1.25rem;
+  }
+
+  .storefront-product-card {
+    padding: 0;
+  }
+
+  .storefront-product-card > div:last-child {
+    padding: 1.25rem;
+  }
+
+  .storefront-product-media {
+    aspect-ratio: 4 / 3;
+    background: var(--storefront-secondary);
+  }
+
+  .storefront-product-card strong {
+    display: block;
+    margin-top: 1rem;
+    color: var(--storefront-primary);
+  }
+
+  .storefront-footer {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+    gap: 2rem;
+    border-top: 1px solid color-mix(in oklab, var(--storefront-text) 18%, transparent);
+    padding: 2rem var(--storefront-content-space);
+    font-size: 0.875rem;
+  }
+
+  .storefront-footer .storefront-navigation {
+    align-content: start;
+    margin-top: 0;
+  }
+
+  .storefront-footer-title {
+    font-weight: 700;
+  }
+
+  @media (max-width: 40rem) {
+    .storefront-header-row,
+    .storefront-banner,
+    .storefront-cta {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+}

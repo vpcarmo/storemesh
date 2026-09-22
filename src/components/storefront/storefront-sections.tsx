@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import type { Category, Product } from "@/domain/catalog";
 
-function SectionAction({ action }: { action?: { label: string; href: string } }) {
+function SectionAction({ action }: { action: { label: string; href: string } | undefined }) {
   if (!action) return null;
   return (
     <Button asChild className="storefront-button">
