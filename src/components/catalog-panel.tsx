@@ -30,7 +30,7 @@ function messageFrom(error: unknown): string {
   return error instanceof Error ? error.message : "Não foi possível salvar o catálogo.";
 }
 
-export function CatalogPanel() {
+export function CatalogPanel({ requiresStoreSelection = false }: { requiresStoreSelection?: boolean }) {
   const queryClient = useQueryClient();
   const loadCatalog = useServerFn(getCurrentStoreCatalog);
   const saveCategory = useServerFn(saveCurrentStoreCategory);
@@ -42,9 +42,12 @@ export function CatalogPanel() {
   const [categoryActive, setCategoryActive] = useState(true);
   const [productActive, setProductActive] = useState(true);
   const [categoryId, setCategoryId] = useState(noCategory);
+  const [storeSlugInput, setStoreSlugInput] = useState("");
+  const [storeSlug, setStoreSlug] = useState<string | null>(null);
   const catalogQuery = useQuery({
-    queryKey: catalogQueryKey,
-    queryFn: () => loadCatalog({ data: {} }),
+    queryKey: [...catalogQueryKey, storeSlug],
+    queryFn: () => loadCatalog({ data: { slug: storeSlug } }),
+    enabled: !requiresStoreSelection || storeSlug !== null,
   });
 
   async function refresh(message: string) {
@@ -60,6 +63,7 @@ export function CatalogPanel() {
     try {
       await saveCategory({
         data: {
+          slug: storeSlug,
           id: category?.id ?? null,
           name: String(form.get("categoryName") ?? ""),
           categorySlug: String(form.get("categorySlug") ?? ""),
@@ -86,6 +90,7 @@ export function CatalogPanel() {
     try {
       await saveProduct({
         data: {
+          slug: storeSlug,
           id: product?.id ?? null,
           categoryId: categoryId === noCategory ? null : categoryId,
           name: String(form.get("productName") ?? ""),
@@ -112,6 +117,7 @@ export function CatalogPanel() {
     try {
       await saveCategory({
         data: {
+          slug: storeSlug,
           id: item.id,
           name: item.name,
           categorySlug: item.slug,
@@ -132,6 +138,7 @@ export function CatalogPanel() {
     try {
       await saveProduct({
         data: {
+          slug: storeSlug,
           id: item.id,
           categoryId: item.categoryId,
           name: item.name,
@@ -147,6 +154,26 @@ export function CatalogPanel() {
     } finally {
       setPending(false);
     }
+  }
+
+  if (requiresStoreSelection && storeSlug === null) {
+    return (
+      <section className="mt-6 w-full border-t border-border pt-6" aria-label="Selecionar loja do catálogo">
+        <p className="text-sm font-semibold">Catálogo</p>
+        <form
+          className="mt-3 flex items-end gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setStoreSlug(storeSlugInput);
+          }}
+        >
+          <Field label="Slug da loja" id="catalog-store-slug">
+            <Input id="catalog-store-slug" value={storeSlugInput} onChange={(event) => setStoreSlugInput(event.target.value)} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" required />
+          </Field>
+          <Button type="submit">Abrir</Button>
+        </form>
+      </section>
+    );
   }
 
   if (catalogQuery.isPending)

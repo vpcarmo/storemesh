@@ -129,7 +129,11 @@ export function AuthSessionPanel() {
         {!accessQuery.isPending && !accessQuery.isError && assignments.length > 0 ? (
           <>
             <StoreSettingsPanel />
-            <CatalogPanel />
+            <CatalogPanel
+              requiresStoreSelection={assignments.some(
+                (assignment) => assignment.role === "super_admin",
+              )}
+            />
           </>
         ) : null}
       </section>
