@@ -26,7 +26,5 @@ function StorefrontSection({ section }: { section: StorefrontSectionDefinition }
 }
 
 export function StorefrontPage({ page }: { page: StorefrontPageDefinition }) {
-  return page.sections.map((section) => (
-    <StorefrontSection key={section.id} section={section} />
-  ));
+  return page.sections.map((section) => <StorefrontSection key={section.id} section={section} />);
 }

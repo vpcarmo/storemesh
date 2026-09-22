@@ -68,9 +68,7 @@ function socialItems(value: StoreSettings["socialLinks"]): StorefrontNavigationI
   if (!value || typeof value !== "object" || Array.isArray(value)) return [];
 
   return Object.entries(value).flatMap(([label, href]) =>
-    typeof href === "string" && /^https?:\/\//.test(href)
-      ? [{ id: label, label, href }]
-      : [],
+    typeof href === "string" && /^https?:\/\//.test(href) ? [{ id: label, label, href }] : [],
   );
 }
 
