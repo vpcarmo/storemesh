@@ -450,6 +450,20 @@ export type Database = {
     Functions: {
       has_store_access: { Args: { _store_id: string }; Returns: boolean };
       is_super_admin: { Args: never; Returns: boolean };
+      save_product_variant_with_attribute_values: {
+        Args: {
+          p_store_id: string;
+          p_product_id: string;
+          p_variant_id: string | null;
+          p_sku: string | null;
+          p_price: number;
+          p_compare_at_price: number | null;
+          p_is_active: boolean;
+          p_position: number;
+          p_values: Json;
+        };
+        Returns: Database["public"]["Tables"]["product_variants"]["Row"];
+      };
     };
     Enums: {
       app_role: "super_admin" | "store_admin";

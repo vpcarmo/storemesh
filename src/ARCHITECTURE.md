@@ -51,3 +51,9 @@ Novos módulos devem ser criados somente quando uma funcionalidade real exigir. 
 - Header, navegação, footer e seções recebem somente dados e slots; não consultam o backend e não assumem categorias, páginas ou composição iguais entre lojas.
 - Páginas são definições compostas por seções conhecidas e tipadas. A fundação reconhece Home, Catalog, Category, Product, About, Contact e páginas Static/Policy sem implementar rotas públicas ou persistência de páginas nesta etapa.
 - A prévia autenticada usa as funções e os repositórios existentes para carregar configurações e catálogo reais da loja autorizada. Nenhum conteúdo comercial de demonstração é persistido.
+
+### Administração de catálogo (Stage 8)
+
+- A interface autenticada administra atributos, valores, produtos, imagens por URL e variantes usando exclusivamente funções de servidor que resolvem a loja com `resolveAuthorizedStore`; `store_id` nunca é aceito como escopo do cliente.
+- As associações de atributos são lidas junto ao catálogo para edição. O repositório confirma que produtos, variantes e valores pertencem à loja resolvida antes de gravar, além das chaves compostas e das políticas RLS.
+- A gravação de uma variante e de sua combinação é atômica por função SQL (`save_product_variant_with_attribute_values`), para que a proteção deferida contra combinações duplicadas continue válida durante edição.
