@@ -57,6 +57,13 @@
       "when": 1790036859295,
       "tag": "0007_require_product_description",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790163000000,
+      "tag": "0008_create_generic_catalog_commerce_foundation",
+      "breakpoints": true
     }
   ]
 }
