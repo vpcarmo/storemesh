@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { AccessContext, RoleAssignment, StoreAccess } from "@/domain/access";
+import {
+  isSuperAdmin,
+  type AccessContext,
+  type RoleAssignment,
+  type StoreAccess,
+} from "@/domain/access";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppClient = SupabaseClient<Database>;
@@ -61,4 +66,30 @@ export async function readAuthorizedStoreBySlug(
 
   if (error) throw error;
   return data;
+}
+
+export async function readAuthorizedStores(
+  client: AppClient,
+  access: AccessContext,
+): Promise<StoreAccess[]> {
+  if (isSuperAdmin(access)) {
+    const { data, error } = await client
+      .from("stores")
+      .select("id, name, slug, status")
+      .eq("status", "active")
+      .order("name");
+
+    if (error) throw error;
+    return data;
+  }
+
+  const stores = new Map<string, StoreAccess>();
+
+  for (const assignment of access.assignments) {
+    if (assignment.role === "store_admin" && assignment.store?.status === "active") {
+      stores.set(assignment.store.id, assignment.store);
+    }
+  }
+
+  return [...stores.values()].sort((left, right) => left.name.localeCompare(right.name));
 }

@@ -17,7 +17,7 @@ function messageFrom(error: unknown): string {
   return error instanceof Error ? error.message : "Não foi possível salvar a configuração.";
 }
 
-export function StoreSettingsPanel() {
+export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null }) {
   const queryClient = useQueryClient();
   const loadSettings = useServerFn(getCurrentStoreSettings);
   const saveDisplayName = useServerFn(updateCurrentStoreDisplayName);
@@ -25,8 +25,8 @@ export function StoreSettingsPanel() {
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const settingsQuery = useQuery({
-    queryKey: settingsQueryKey,
-    queryFn: () => loadSettings({ data: {} }),
+    queryKey: [...settingsQueryKey, storeSlug],
+    queryFn: () => loadSettings({ data: { slug: storeSlug } }),
   });
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export function StoreSettingsPanel() {
     setFeedback(null);
 
     try {
-      await saveDisplayName({ data: { displayName } });
+      await saveDisplayName({ data: { displayName, slug: storeSlug } });
       await queryClient.invalidateQueries({ queryKey: settingsQueryKey });
       setFeedback("Configuração salva.");
     } catch (error) {
