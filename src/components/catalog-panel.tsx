@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Plus, Save, Trash2 } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
 import {
   deleteCurrentStoreCatalogAttribute,
@@ -39,8 +39,10 @@ const number = (form: FormData, name: string) => Number(form.get(name));
 
 export function CatalogPanel({
   requiresStoreSelection = false,
+  storeSlug: selectedStoreSlug,
 }: {
   requiresStoreSelection?: boolean;
+  storeSlug?: string | null;
 }) {
   const client = useQueryClient();
   const load = useServerFn(getCurrentStoreCatalog);
@@ -56,7 +58,8 @@ export function CatalogPanel({
   const saveImage = useServerFn(saveCurrentStoreProductImage);
   const removeImage = useServerFn(deleteCurrentStoreProductImage);
   const [slugInput, setSlugInput] = useState("");
-  const [slug, setSlug] = useState<string | null>(null);
+  const [slug, setSlug] = useState<string | null>(selectedStoreSlug ?? null);
+  useEffect(() => setSlug(selectedStoreSlug ?? null), [selectedStoreSlug]);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [category, setCategory] = useState<Category | null>(null);

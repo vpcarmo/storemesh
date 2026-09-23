@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { LogIn, LogOut, ShieldCheck, UserPlus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
-import { getAccessContext } from "@/auth/access.functions";
+import { getAccessContext, getAuthorizedStores } from "@/auth/access.functions";
 import { getCurrentUser, signIn, signOut, signUp } from "@/auth/session";
 import { CatalogPanel } from "@/components/catalog-panel";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { StorefrontPreviewPanel } from "@/components/storefront-preview-panel";
 
 const sessionQueryKey = ["auth", "user"] as const;
 const accessQueryKey = ["auth", "access-context"] as const;
+const authorizedStoresQueryKey = ["auth", "authorized-stores"] as const;
 
 type AuthMode = "sign-in" | "sign-up";
 
@@ -25,15 +26,26 @@ function messageFrom(error: unknown): string {
 export function AuthSessionPanel() {
   const queryClient = useQueryClient();
   const loadAccessContext = useServerFn(getAccessContext);
+  const loadAuthorizedStores = useServerFn(getAuthorizedStores);
   const [mode, setMode] = useState<AuthMode>("sign-in");
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [selectedStoreSlug, setSelectedStoreSlug] = useState<string | null>(null);
 
   const userQuery = useQuery({ queryKey: sessionQueryKey, queryFn: getCurrentUser });
   const accessQuery = useQuery({
     queryKey: accessQueryKey,
     queryFn: () => loadAccessContext(),
     enabled: Boolean(userQuery.data),
+  });
+  const authorizedStoresQuery = useQuery({
+    queryKey: authorizedStoresQueryKey,
+    queryFn: () => loadAuthorizedStores(),
+    enabled:
+      Boolean(userQuery.data) &&
+      Boolean(
+        accessQuery.data?.assignments.some((assignment) => assignment.role === "super_admin"),
+      ),
   });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -59,6 +71,7 @@ export function AuthSessionPanel() {
 
       await queryClient.invalidateQueries({ queryKey: sessionQueryKey });
       await queryClient.invalidateQueries({ queryKey: accessQueryKey });
+      await queryClient.invalidateQueries({ queryKey: authorizedStoresQueryKey });
     } catch (error) {
       setFeedback(messageFrom(error));
     } finally {
@@ -88,6 +101,7 @@ export function AuthSessionPanel() {
 
   if (userQuery.data) {
     const assignments = accessQuery.data?.assignments ?? [];
+    const isSuperAdmin = assignments.some((assignment) => assignment.role === "super_admin");
 
     return (
       <section className="w-full max-w-xl border-t border-border pt-6" aria-label="Sessão atual">
@@ -127,19 +141,36 @@ export function AuthSessionPanel() {
           </Button>
         </div>
         {feedback ? <p className="mt-4 text-sm text-muted-foreground">{feedback}</p> : null}
+        {isSuperAdmin ? (
+          <div className="mt-6 grid max-w-sm gap-2">
+            <Label htmlFor="authorized-store">Loja autorizada</Label>
+            <select
+              id="authorized-store"
+              className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
+              value={selectedStoreSlug ?? ""}
+              onChange={(event) => setSelectedStoreSlug(event.target.value || null)}
+              disabled={authorizedStoresQuery.isPending || authorizedStoresQuery.isError}
+            >
+              <option value="">Selecione uma loja</option>
+              {authorizedStoresQuery.data?.map((store) => (
+                <option key={store.id} value={store.slug}>
+                  {store.name}
+                </option>
+              ))}
+            </select>
+            {authorizedStoresQuery.isError ? (
+              <p className="text-sm text-destructive">{messageFrom(authorizedStoresQuery.error)}</p>
+            ) : null}
+          </div>
+        ) : null}
         {!accessQuery.isPending && !accessQuery.isError && assignments.length > 0 ? (
           <>
-            <StoreSettingsPanel />
+            <StoreSettingsPanel storeSlug={selectedStoreSlug} />
             <StorefrontPreviewPanel
-              requiresStoreSelection={assignments.some(
-                (assignment) => assignment.role === "super_admin",
-              )}
+              requiresStoreSelection={isSuperAdmin}
+              storeSlug={selectedStoreSlug}
             />
-            <CatalogPanel
-              requiresStoreSelection={assignments.some(
-                (assignment) => assignment.role === "super_admin",
-              )}
-            />
+            <CatalogPanel requiresStoreSelection={isSuperAdmin} storeSlug={selectedStoreSlug} />
           </>
         ) : null}
       </section>

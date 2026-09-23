@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Search, ShoppingBag, UserRound } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { getCurrentStorefrontFoundation } from "@/auth/storefront.functions";
 import {
@@ -25,12 +25,15 @@ function messageFrom(error: unknown): string {
 
 export function StorefrontPreviewPanel({
   requiresStoreSelection = false,
+  storeSlug: selectedStoreSlug,
 }: {
   requiresStoreSelection?: boolean;
+  storeSlug?: string | null;
 }) {
   const loadStorefront = useServerFn(getCurrentStorefrontFoundation);
   const [storeSlugInput, setStoreSlugInput] = useState("");
-  const [storeSlug, setStoreSlug] = useState<string | null>(null);
+  const [storeSlug, setStoreSlug] = useState<string | null>(selectedStoreSlug ?? null);
+  useEffect(() => setStoreSlug(selectedStoreSlug ?? null), [selectedStoreSlug]);
   const storefrontQuery = useQuery({
     queryKey: [...storefrontQueryKey, storeSlug],
     queryFn: () => loadStorefront({ data: { slug: storeSlug } }),
