@@ -5,7 +5,9 @@ import type {
   CatalogAttributeValue,
   Category,
   Product,
+  ProductAttributeValue,
   ProductImage,
+  VariantAttributeValue,
   ProductVariant,
 } from "@/domain/catalog";
 import type { Database, Tables } from "@/integrations/supabase/types";
@@ -17,6 +19,8 @@ type AttributeRow = Tables<"catalog_attributes">;
 type AttributeValueRow = Tables<"catalog_attribute_values">;
 type VariantRow = Tables<"product_variants">;
 type ImageRow = Tables<"product_images">;
+type ProductAttributeValueRow = Tables<"product_attribute_values">;
+type VariantAttributeValueRow = Tables<"variant_attribute_values">;
 
 export interface CategoryValues {
   name: string;
@@ -120,6 +124,21 @@ function toAttributeValue(row: AttributeValueRow): CatalogAttributeValue {
     updatedAt: row.updated_at,
   };
 }
+function toProductAttributeValue(row: ProductAttributeValueRow): ProductAttributeValue {
+  return {
+    productId: row.product_id,
+    attributeValueId: row.attribute_value_id,
+    storeId: row.store_id,
+  };
+}
+function toVariantAttributeValue(row: VariantAttributeValueRow): VariantAttributeValue {
+  return {
+    variantId: row.variant_id,
+    attributeId: row.attribute_id,
+    attributeValueId: row.attribute_value_id,
+    storeId: row.store_id,
+  };
+}
 function toVariant(row: VariantRow): ProductVariant {
   return {
     id: row.id,
@@ -156,6 +175,8 @@ export async function readCatalog(client: AppClient, storeId: string) {
     attributeValuesResult,
     variantsResult,
     imagesResult,
+    productAttributeValuesResult,
+    variantAttributeValuesResult,
   ] = await Promise.all([
     client.from("categories").select("*").eq("store_id", storeId).order("name"),
     client.from("products").select("*").eq("store_id", storeId).order("name"),
@@ -173,6 +194,8 @@ export async function readCatalog(client: AppClient, storeId: string) {
       .order("label"),
     client.from("product_variants").select("*").eq("store_id", storeId).order("position"),
     client.from("product_images").select("*").eq("store_id", storeId).order("position"),
+    client.from("product_attribute_values").select("*").eq("store_id", storeId),
+    client.from("variant_attribute_values").select("*").eq("store_id", storeId),
   ]);
 
   if (categoriesResult.error) throw categoriesResult.error;
@@ -181,6 +204,8 @@ export async function readCatalog(client: AppClient, storeId: string) {
   if (attributeValuesResult.error) throw attributeValuesResult.error;
   if (variantsResult.error) throw variantsResult.error;
   if (imagesResult.error) throw imagesResult.error;
+  if (productAttributeValuesResult.error) throw productAttributeValuesResult.error;
+  if (variantAttributeValuesResult.error) throw variantAttributeValuesResult.error;
 
   return {
     categories: categoriesResult.data.map(toCategory),
@@ -189,6 +214,8 @@ export async function readCatalog(client: AppClient, storeId: string) {
     attributeValues: attributeValuesResult.data.map(toAttributeValue),
     variants: variantsResult.data.map(toVariant),
     images: imagesResult.data.map(toImage),
+    productAttributeValues: productAttributeValuesResult.data.map(toProductAttributeValue),
+    variantAttributeValues: variantAttributeValuesResult.data.map(toVariantAttributeValue),
   };
 }
 
@@ -229,6 +256,7 @@ export async function saveCatalogAttributeValue(
   id: string | null,
   values: CatalogAttributeValueValues,
 ): Promise<CatalogAttributeValue> {
+  await requireStoreRecord(client, "catalog_attributes", attributeId, storeId);
   const payload = {
     store_id: storeId,
     attribute_id: attributeId,
@@ -252,12 +280,43 @@ export async function deleteCatalogAttributeValue(client: AppClient, storeId: st
     .eq("store_id", storeId);
   if (error) throw error;
 }
+async function requireStoreRecord(
+  client: AppClient,
+  table: "products" | "product_variants" | "catalog_attributes" | "catalog_attribute_values",
+  id: string,
+  storeId: string,
+) {
+  const { data, error } = await client
+    .from(table)
+    .select("id")
+    .eq("id", id)
+    .eq("store_id", storeId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("O registro não pertence à loja autorizada.");
+}
+
+async function requireAttributeValuesInStore(client: AppClient, storeId: string, ids: string[]) {
+  if (!ids.length) return;
+  const uniqueIds = [...new Set(ids)];
+  const { data, error } = await client
+    .from("catalog_attribute_values")
+    .select("id")
+    .eq("store_id", storeId)
+    .in("id", uniqueIds);
+  if (error) throw error;
+  if (data.length !== uniqueIds.length)
+    throw new Error("Há valores de atributo fora da loja autorizada.");
+}
+
 export async function replaceProductAttributeValues(
   client: AppClient,
   storeId: string,
   productId: string,
   attributeValueIds: string[],
 ) {
+  await requireStoreRecord(client, "products", productId, storeId);
+  await requireAttributeValuesInStore(client, storeId, attributeValueIds);
   const { error: deleteError } = await client
     .from("product_attribute_values")
     .delete()
@@ -266,7 +325,7 @@ export async function replaceProductAttributeValues(
   if (deleteError) throw deleteError;
   if (!attributeValueIds.length) return;
   const { error } = await client.from("product_attribute_values").insert(
-    attributeValueIds.map((attribute_value_id) => ({
+    [...new Set(attributeValueIds)].map((attribute_value_id) => ({
       store_id: storeId,
       product_id: productId,
       attribute_value_id,
@@ -281,6 +340,7 @@ export async function saveProductVariant(
   id: string | null,
   values: ProductVariantValues,
 ): Promise<ProductVariant> {
+  await requireStoreRecord(client, "products", productId, storeId);
   const payload = {
     store_id: storeId,
     product_id: productId,
@@ -311,6 +371,12 @@ export async function replaceVariantAttributeValues(
   variantId: string,
   values: { attributeId: string; attributeValueId: string }[],
 ) {
+  await requireStoreRecord(client, "product_variants", variantId, storeId);
+  await requireAttributeValuesInStore(
+    client,
+    storeId,
+    values.map((value) => value.attributeValueId),
+  );
   const { error: deleteError } = await client
     .from("variant_attribute_values")
     .delete()
@@ -318,6 +384,9 @@ export async function replaceVariantAttributeValues(
     .eq("store_id", storeId);
   if (deleteError) throw deleteError;
   if (!values.length) return;
+  const uniqueAttributeIds = new Set(values.map((value) => value.attributeId));
+  if (uniqueAttributeIds.size !== values.length)
+    throw new Error("Uma variante não pode ter dois valores do mesmo atributo.");
   const { error } = await client.from("variant_attribute_values").insert(
     values.map(({ attributeId: attribute_id, attributeValueId: attribute_value_id }) => ({
       store_id: storeId,
@@ -335,6 +404,7 @@ export async function saveProductImage(
   id: string | null,
   values: ProductImageValues,
 ): Promise<ProductImage> {
+  await requireStoreRecord(client, "products", productId, storeId);
   const payload = {
     store_id: storeId,
     product_id: productId,
@@ -403,4 +473,37 @@ export async function saveProduct(
 
   if (error) throw error;
   return toProduct(data);
+}
+
+/** Saves a variant and its combination atomically, preserving the deferred duplicate-combination rule. */
+export async function saveProductVariantWithAttributeValues(
+  client: AppClient,
+  storeId: string,
+  productId: string,
+  id: string | null,
+  values: ProductVariantValues,
+  attributeValues: { attributeId: string; attributeValueId: string }[],
+): Promise<ProductVariant> {
+  await requireStoreRecord(client, "products", productId, storeId);
+  await requireAttributeValuesInStore(
+    client,
+    storeId,
+    attributeValues.map((item) => item.attributeValueId),
+  );
+  if (new Set(attributeValues.map((item) => item.attributeId)).size !== attributeValues.length) {
+    throw new Error("Uma variante não pode ter dois valores do mesmo atributo.");
+  }
+  const { data, error } = await client.rpc("save_product_variant_with_attribute_values", {
+    p_store_id: storeId,
+    p_product_id: productId,
+    p_variant_id: id,
+    p_sku: values.sku,
+    p_price: values.price,
+    p_compare_at_price: values.compareAtPrice,
+    p_is_active: values.isActive,
+    p_position: values.position,
+    p_values: attributeValues,
+  });
+  if (error) throw error;
+  return toVariant(data);
 }
