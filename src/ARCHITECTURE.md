@@ -40,7 +40,9 @@ Novos módulos devem ser criados somente quando uma funcionalidade real exigir. 
 - `categories` e `products` pertencem obrigatoriamente a uma loja e usam slug único apenas dentro dela.
 - A relação composta entre produto, categoria e loja impede no banco que um produto use categoria de outro tenant.
 - Leitura e escrita administrativas passam por funções autenticadas, domínio e repositório; as políticas RLS reutilizam `private.has_store_access(store_id)`.
-- Esta fundação não inclui vitrine pública, estoque, variantes nem etapas de venda.
+- O catálogo é multi-nicho: atributos configuráveis e seus valores pertencem à loja, sem campos de produto específicos de segmento. Valores gerais podem ser associados a produtos; atributos marcados como eixo de variante compõem variantes, que permanecem opcionais.
+- Variantes, imagens e todas as relações do catálogo carregam `store_id`, usam chaves compostas quando necessário para impedir referências entre tenants e reutilizam as políticas RLS existentes. Imagens guardam somente referências, sem upload nesta etapa.
+- O catálogo administrativo permanece separado da vitrine. Esta base prepara módulos futuros de comércio e outros verticais sem introduzir regras de estoque, venda ou nicho.
 
 ## Storefront e tema
 
