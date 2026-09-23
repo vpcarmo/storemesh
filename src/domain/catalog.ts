@@ -49,6 +49,19 @@ export interface CatalogAttributeValue {
   updatedAt: string;
 }
 
+export interface ProductAttributeValue {
+  productId: string;
+  attributeValueId: string;
+  storeId: string;
+}
+
+export interface VariantAttributeValue {
+  variantId: string;
+  attributeId: string;
+  attributeValueId: string;
+  storeId: string;
+}
+
 export interface ProductVariant {
   id: string;
   storeId: string;

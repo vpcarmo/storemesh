@@ -16,6 +16,7 @@ import {
   saveProduct,
   saveProductImage,
   saveProductVariant,
+  saveProductVariantWithAttributeValues,
 } from "@/data/catalog.repository";
 import { normalizeOptionalText } from "@/domain/catalog";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -77,6 +78,9 @@ const variantSchema = storeSelectionSchema.extend({
 });
 const variantAttributeValuesSchema = storeSelectionSchema.extend({
   variantId: uuidSchema,
+  values: z.array(z.object({ attributeId: uuidSchema, attributeValueId: uuidSchema })).max(20),
+});
+const variantWithValuesSchema = variantSchema.extend({
   values: z.array(z.object({ attributeId: uuidSchema, attributeValueId: uuidSchema })).max(20),
 });
 const imageSchema = storeSelectionSchema.extend({
@@ -231,6 +235,25 @@ export const saveCurrentStoreProductVariant = createServerFn({ method: "POST" })
       data.slug,
     );
     return saveProductVariant(context.supabase, store.id, data.productId, data.id, data);
+  });
+export const saveCurrentStoreProductVariantWithAttributeValues = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => variantWithValuesSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const store = await authorizedStore(
+      context.supabase,
+      context.userId,
+      context.claims,
+      data.slug,
+    );
+    return saveProductVariantWithAttributeValues(
+      context.supabase,
+      store.id,
+      data.productId,
+      data.id,
+      data,
+      data.values,
+    );
   });
 export const deleteCurrentStoreProductVariant = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
