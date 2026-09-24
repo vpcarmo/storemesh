@@ -1,12 +1,23 @@
+export type AdminPath =
+  | "/admin"
+  | "/admin/catalog"
+  | "/admin/catalog/products"
+  | "/admin/catalog/categories"
+  | "/admin/catalog/attributes"
+  | "/admin/website"
+  | "/admin/content"
+  | "/admin/commerce"
+  | "/admin/settings";
+
 export interface AdminNavigationItem {
   label: string;
-  to?: string;
+  to?: AdminPath;
   comingSoon?: boolean;
 }
 
 export interface AdminNavigationGroup {
   label: string;
-  to?: string;
+  to?: AdminPath;
   items?: AdminNavigationItem[];
   comingSoon?: boolean;
 }
@@ -35,27 +46,33 @@ export const ADMIN_NAVIGATION: AdminNavigationGroup[] = [
     to: "/admin/content",
     items: [{ label: "Mídia", comingSoon: true }],
   },
-  { label: "Comércio", to: "/admin/commerce", comingSoon: true },
+  { label: "Comércio", to: "/admin/commerce" },
   { label: "Configurações", to: "/admin/settings" },
 ];
 
-const LABELS: Record<string, string> = {
-  admin: "Dashboard",
-  catalog: "Catálogo",
-  products: "Produtos",
-  categories: "Categorias",
-  attributes: "Atributos",
-  website: "Website",
-  content: "Conteúdo",
-  commerce: "Comércio",
-  settings: "Configurações",
+const LABELS: Record<AdminPath, string> = {
+  "/admin": "Dashboard",
+  "/admin/catalog": "Catálogo",
+  "/admin/catalog/products": "Produtos",
+  "/admin/catalog/categories": "Categorias",
+  "/admin/catalog/attributes": "Atributos",
+  "/admin/website": "Website",
+  "/admin/content": "Conteúdo",
+  "/admin/commerce": "Comércio",
+  "/admin/settings": "Configurações",
 };
 
-export function adminBreadcrumbs(pathname: string): { label: string; to: string }[] {
-  const segments = pathname.split("/").filter(Boolean);
+function isAdminPath(value: string): value is AdminPath {
+  return value in LABELS;
+}
 
-  return segments.map((segment, index) => ({
-    label: LABELS[segment] ?? segment,
-    to: `/${segments.slice(0, index + 1).join("/")}`,
-  }));
+export function adminBreadcrumbs(pathname: string): { label: string; to: AdminPath | null }[] {
+  const segments = pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+
+  return segments.map((segment, index) => {
+    const path = `/${segments.slice(0, index + 1).join("/")}`;
+    return isAdminPath(path)
+      ? { label: LABELS[path], to: path }
+      : { label: segment, to: null };
+  });
 }
