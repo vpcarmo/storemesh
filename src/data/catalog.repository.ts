@@ -496,10 +496,11 @@ export async function saveProductVariantWithAttributeValues(
   const { data, error } = await client.rpc("save_product_variant_with_attribute_values", {
     p_store_id: storeId,
     p_product_id: productId,
-    p_variant_id: id,
-    p_sku: values.sku,
+    // A função aceita estes parâmetros nulos; os tipos gerados não refletem os defaults.
+    p_variant_id: id as unknown as string,
+    p_sku: values.sku as unknown as string,
     p_price: values.price,
-    p_compare_at_price: values.compareAtPrice,
+    p_compare_at_price: values.compareAtPrice as unknown as number,
     p_is_active: values.isActive,
     p_position: values.position,
     p_values: attributeValues,
