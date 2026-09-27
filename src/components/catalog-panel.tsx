@@ -33,6 +33,7 @@ import type {
 
 const queryKey = ["store", "current", "catalog"] as const;
 const none = "none";
+type CatalogSection = "products" | "categories" | "attributes";
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : "Não foi possível salvar o catálogo.";
 const number = (form: FormData, name: string) => Number(form.get(name));
@@ -40,9 +41,15 @@ const number = (form: FormData, name: string) => Number(form.get(name));
 export function CatalogPanel({
   requiresStoreSelection = false,
   storeSlug: selectedStoreSlug,
+  section = "products",
+  storeSelectionManagedExternally = false,
 }: {
   requiresStoreSelection?: boolean;
   storeSlug?: string | null;
+  /** Abre uma seção existente do catálogo, mantendo Produtos como padrão. */
+  section?: CatalogSection;
+  /** Evita uma segunda seleção de loja quando o shell externo já a gerencia. */
+  storeSelectionManagedExternally?: boolean;
 }) {
   const client = useQueryClient();
   const load = useServerFn(getCurrentStoreCatalog);
@@ -90,22 +97,28 @@ export function CatalogPanel({
     return (
       <section className="mt-6 border-t pt-6">
         <p className="text-sm font-semibold">Catálogo</p>
-        <form
-          className="mt-3 flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSlug(slugInput);
-          }}
-        >
-          <Input
-            value={slugInput}
-            onChange={(e) => setSlugInput(e.target.value)}
-            placeholder="Slug da loja"
-            pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-            required
-          />
-          <Button>Abrir</Button>
-        </form>
+        {storeSelectionManagedExternally ? (
+          <p className="mt-3 text-sm text-muted-foreground">
+            Selecione uma loja autorizada para administrar o catálogo.
+          </p>
+        ) : (
+          <form
+            className="mt-3 flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setSlug(slugInput);
+            }}
+          >
+            <Input
+              value={slugInput}
+              onChange={(e) => setSlugInput(e.target.value)}
+              placeholder="Slug da loja"
+              pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+              required
+            />
+            <Button>Abrir</Button>
+          </form>
+        )}
       </section>
     );
   if (data.isPending)
@@ -121,7 +134,7 @@ export function CatalogPanel({
     <section className="mt-6 w-full border-t pt-6" aria-label="Administração do catálogo">
       <p className="text-sm font-semibold">Catálogo</p>
       <p className="text-sm text-muted-foreground">{catalog.store.name}</p>
-      <Tabs defaultValue="products" className="mt-4">
+      <Tabs defaultValue={section} className="mt-4">
         <TabsList className="flex h-auto flex-wrap">
           <TabsTrigger value="products">Produtos</TabsTrigger>
           <TabsTrigger value="attributes">Atributos</TabsTrigger>

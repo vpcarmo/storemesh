@@ -25,6 +25,7 @@ function CategoriesRoute() {
       section="categories"
       storeSlug={storeSlug}
       requiresStoreSelection={requiresStoreSelection}
+      storeSelectionManagedExternally
     />
   );
 }

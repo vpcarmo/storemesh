@@ -16,7 +16,9 @@ export function AdminPlaceholder({
           {items.map((item) => (
             <li key={item} className="flex items-center gap-2 text-muted-foreground">
               {item}
-              <span className="rounded-full border border-border px-2 py-0.5 text-xs">Em breve</span>
+              <span className="rounded-full border border-border px-2 py-0.5 text-xs">
+                Em breve
+              </span>
             </li>
           ))}
         </ul>

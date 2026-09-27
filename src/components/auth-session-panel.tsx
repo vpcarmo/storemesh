@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { LogIn, LogOut, ShieldCheck, UserPlus } from "lucide-react";
 import { useState, type FormEvent } from "react";
@@ -141,6 +142,11 @@ export function AuthSessionPanel() {
           </Button>
         </div>
         {feedback ? <p className="mt-4 text-sm text-muted-foreground">{feedback}</p> : null}
+        {!accessQuery.isPending && !accessQuery.isError && assignments.length > 0 ? (
+          <Button asChild className="mt-5" type="button">
+            <Link to="/admin">Abrir administração</Link>
+          </Button>
+        ) : null}
         {isSuperAdmin ? (
           <div className="mt-6 grid max-w-sm gap-2">
             <Label htmlFor="authorized-store">Loja autorizada</Label>

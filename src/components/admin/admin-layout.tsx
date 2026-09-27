@@ -26,7 +26,9 @@ const storesQueryKey = ["auth", "authorized-stores"] as const;
 const storageKey = "storemesh.admin.store-slug";
 
 function messageFrom(error: unknown): string {
-  return error instanceof Error ? error.message : "Não foi possível carregar a área administrativa.";
+  return error instanceof Error
+    ? error.message
+    : "Não foi possível carregar a área administrativa.";
 }
 
 export function AdminLayout({ children }: { children: ReactNode }) {
@@ -52,21 +54,25 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const requiresStoreSelection = accessQuery.data ? isSuperAdmin(accessQuery.data) : false;
   const stores = useMemo(() => storesQuery.data ?? [], [storesQuery.data]);
 
+  const selectStore = useCallback((next: string | null) => {
+    setSlug(next);
+    if (next) window.localStorage.setItem(storageKey, next);
+    else window.localStorage.removeItem(storageKey);
+  }, []);
+
   useEffect(() => {
     const stored = window.localStorage.getItem(storageKey);
     if (stored) setSlug(stored);
   }, []);
 
   useEffect(() => {
-    if (slug && !stores.some((store) => store.slug === slug)) return;
-    if (!slug && !requiresStoreSelection && stores.length === 1) setSlug(stores[0]!.slug);
-  }, [slug, stores, requiresStoreSelection]);
-
-  const selectStore = useCallback((next: string | null) => {
-    setSlug(next);
-    if (next) window.localStorage.setItem(storageKey, next);
-    else window.localStorage.removeItem(storageKey);
-  }, []);
+    if (!storesQuery.isSuccess) return;
+    if (slug && !stores.some((store) => store.slug === slug)) {
+      selectStore(null);
+      return;
+    }
+    if (!slug && !requiresStoreSelection && stores.length === 1) selectStore(stores[0]!.slug);
+  }, [slug, stores, requiresStoreSelection, selectStore, storesQuery.isSuccess]);
 
   const contextValue = useMemo(
     () => ({ storeSlug: slug, requiresStoreSelection, stores, selectStore }),
@@ -105,6 +111,34 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   if (accessQuery.isError) {
     return <p className="p-8 text-sm text-destructive">{messageFrom(accessQuery.error)}</p>;
+  }
+
+  if (accessQuery.isPending) {
+    return <p className="p-8 text-sm text-muted-foreground">Carregando acesso administrativo…</p>;
+  }
+
+  if (accessQuery.data.assignments.length === 0) {
+    return (
+      <p className="p-8 text-sm text-muted-foreground">
+        Sua conta não possui acesso administrativo a nenhuma loja.
+      </p>
+    );
+  }
+
+  if (storesQuery.isPending) {
+    return <p className="p-8 text-sm text-muted-foreground">Carregando lojas autorizadas…</p>;
+  }
+
+  if (storesQuery.isError) {
+    return <p className="p-8 text-sm text-destructive">{messageFrom(storesQuery.error)}</p>;
+  }
+
+  if (stores.length === 0) {
+    return (
+      <p className="p-8 text-sm text-muted-foreground">
+        Nenhuma loja ativa está disponível para sua conta.
+      </p>
+    );
   }
 
   const breadcrumbs = adminBreadcrumbs(pathname);
@@ -182,17 +216,17 @@ export function AdminLayout({ children }: { children: ReactNode }) {
               <Breadcrumb>
                 <BreadcrumbList>
                   {breadcrumbs.map((crumb, index) => (
-                    <BreadcrumbItem key={crumb.to}>
-                      {index === breadcrumbs.length - 1 ? (
+                    <BreadcrumbItem key={`${crumb.label}-${index}`}>
+                      {index === breadcrumbs.length - 1 || !crumb.to ? (
                         <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
                       ) : (
                         <>
                           <BreadcrumbLink asChild>
                             <Link to={crumb.to}>{crumb.label}</Link>
                           </BreadcrumbLink>
-                          <BreadcrumbSeparator />
                         </>
                       )}
+                      {index < breadcrumbs.length - 1 ? <BreadcrumbSeparator /> : null}
                     </BreadcrumbItem>
                   ))}
                 </BreadcrumbList>
@@ -208,7 +242,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                   className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
                   value={slug ?? ""}
                   onChange={(event) => selectStore(event.target.value || null)}
-                  disabled={storesQuery.isPending || stores.length <= 1}
+                  disabled={!requiresStoreSelection || stores.length <= 1}
                 >
                   <option value="">
                     {requiresStoreSelection ? "Selecione uma loja" : "Loja atribuída"}
