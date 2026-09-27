@@ -22,6 +22,9 @@ import { Route as AdminCatalogIndexRouteImport } from './routes/admin.catalog.in
 import { Route as AdminCatalogAttributesRouteImport } from './routes/admin.catalog.attributes'
 import { Route as AdminCatalogCategoriesRouteImport } from './routes/admin.catalog.categories'
 import { Route as AdminCatalogProductsRouteImport } from './routes/admin.catalog.products'
+import { Route as AdminWebsiteNavigationRouteImport } from './routes/admin.website.navigation'
+import { Route as AdminWebsitePagesRouteImport } from './routes/admin.website.pages'
+import { Route as StoreStoreSlugPageSlugRouteImport } from './routes/store.$storeSlug.$pageSlug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -88,6 +91,21 @@ const AdminCatalogProductsRoute = AdminCatalogProductsRouteImport.update({
   path: '/products',
   getParentRoute: () => AdminCatalogRoute,
 } as any)
+const AdminWebsiteNavigationRoute = AdminWebsiteNavigationRouteImport.update({
+  id: '/navigation',
+  path: '/navigation',
+  getParentRoute: () => AdminWebsiteRoute,
+} as any)
+const AdminWebsitePagesRoute = AdminWebsitePagesRouteImport.update({
+  id: '/pages',
+  path: '/pages',
+  getParentRoute: () => AdminWebsiteRoute,
+} as any)
+const StoreStoreSlugPageSlugRoute = StoreStoreSlugPageSlugRouteImport.update({
+  id: '/store/$storeSlug/$pageSlug',
+  path: '/store/$storeSlug/$pageSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -97,11 +115,14 @@ export interface FileRoutesByFullPath {
   '/admin/content': typeof AdminContentRoute
   '/admin/preview': typeof AdminPreviewRoute
   '/admin/settings': typeof AdminSettingsRoute
-  '/admin/website': typeof AdminWebsiteRoute
+  '/admin/website': typeof AdminWebsiteRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/admin/catalog/attributes': typeof AdminCatalogAttributesRoute
   '/admin/catalog/categories': typeof AdminCatalogCategoriesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
+  '/admin/website/navigation': typeof AdminWebsiteNavigationRoute
+  '/admin/website/pages': typeof AdminWebsitePagesRoute
+  '/store/$storeSlug/$pageSlug': typeof StoreStoreSlugPageSlugRoute
   '/admin/catalog/': typeof AdminCatalogIndexRoute
 }
 export interface FileRoutesByTo {
@@ -110,11 +131,14 @@ export interface FileRoutesByTo {
   '/admin/content': typeof AdminContentRoute
   '/admin/preview': typeof AdminPreviewRoute
   '/admin/settings': typeof AdminSettingsRoute
-  '/admin/website': typeof AdminWebsiteRoute
+  '/admin/website': typeof AdminWebsiteRouteWithChildren
   '/admin': typeof AdminIndexRoute
   '/admin/catalog/attributes': typeof AdminCatalogAttributesRoute
   '/admin/catalog/categories': typeof AdminCatalogCategoriesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
+  '/admin/website/navigation': typeof AdminWebsiteNavigationRoute
+  '/admin/website/pages': typeof AdminWebsitePagesRoute
+  '/store/$storeSlug/$pageSlug': typeof StoreStoreSlugPageSlugRoute
   '/admin/catalog': typeof AdminCatalogIndexRoute
 }
 export interface FileRoutesById {
@@ -126,11 +150,14 @@ export interface FileRoutesById {
   '/admin/content': typeof AdminContentRoute
   '/admin/preview': typeof AdminPreviewRoute
   '/admin/settings': typeof AdminSettingsRoute
-  '/admin/website': typeof AdminWebsiteRoute
+  '/admin/website': typeof AdminWebsiteRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/admin/catalog/attributes': typeof AdminCatalogAttributesRoute
   '/admin/catalog/categories': typeof AdminCatalogCategoriesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
+  '/admin/website/navigation': typeof AdminWebsiteNavigationRoute
+  '/admin/website/pages': typeof AdminWebsitePagesRoute
+  '/store/$storeSlug/$pageSlug': typeof StoreStoreSlugPageSlugRoute
   '/admin/catalog/': typeof AdminCatalogIndexRoute
 }
 export interface FileRouteTypes {
@@ -148,6 +175,9 @@ export interface FileRouteTypes {
     | '/admin/catalog/attributes'
     | '/admin/catalog/categories'
     | '/admin/catalog/products'
+    | '/admin/website/navigation'
+    | '/admin/website/pages'
+    | '/store/$storeSlug/$pageSlug'
     | '/admin/catalog/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -161,6 +191,9 @@ export interface FileRouteTypes {
     | '/admin/catalog/attributes'
     | '/admin/catalog/categories'
     | '/admin/catalog/products'
+    | '/admin/website/navigation'
+    | '/admin/website/pages'
+    | '/store/$storeSlug/$pageSlug'
     | '/admin/catalog'
   id:
     | '__root__'
@@ -176,12 +209,16 @@ export interface FileRouteTypes {
     | '/admin/catalog/attributes'
     | '/admin/catalog/categories'
     | '/admin/catalog/products'
+    | '/admin/website/navigation'
+    | '/admin/website/pages'
+    | '/store/$storeSlug/$pageSlug'
     | '/admin/catalog/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
+  StoreStoreSlugPageSlugRoute: typeof StoreStoreSlugPageSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -277,6 +314,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCatalogProductsRouteImport
       parentRoute: typeof AdminCatalogRoute
     }
+    '/admin/website/navigation': {
+      id: '/admin/website/navigation'
+      path: '/navigation'
+      fullPath: '/admin/website/navigation'
+      preLoaderRoute: typeof AdminWebsiteNavigationRouteImport
+      parentRoute: typeof AdminWebsiteRoute
+    }
+    '/admin/website/pages': {
+      id: '/admin/website/pages'
+      path: '/pages'
+      fullPath: '/admin/website/pages'
+      preLoaderRoute: typeof AdminWebsitePagesRouteImport
+      parentRoute: typeof AdminWebsiteRoute
+    }
+    '/store/$storeSlug/$pageSlug': {
+      id: '/store/$storeSlug/$pageSlug'
+      path: '/store/$storeSlug/$pageSlug'
+      fullPath: '/store/$storeSlug/$pageSlug'
+      preLoaderRoute: typeof StoreStoreSlugPageSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -298,13 +356,27 @@ const AdminCatalogRouteWithChildren = AdminCatalogRoute._addFileChildren(
   AdminCatalogRouteChildren,
 )
 
+interface AdminWebsiteRouteChildren {
+  AdminWebsiteNavigationRoute: typeof AdminWebsiteNavigationRoute
+  AdminWebsitePagesRoute: typeof AdminWebsitePagesRoute
+}
+
+const AdminWebsiteRouteChildren: AdminWebsiteRouteChildren = {
+  AdminWebsiteNavigationRoute: AdminWebsiteNavigationRoute,
+  AdminWebsitePagesRoute: AdminWebsitePagesRoute,
+}
+
+const AdminWebsiteRouteWithChildren = AdminWebsiteRoute._addFileChildren(
+  AdminWebsiteRouteChildren,
+)
+
 interface AdminRouteChildren {
   AdminCatalogRoute: typeof AdminCatalogRouteWithChildren
   AdminCommerceRoute: typeof AdminCommerceRoute
   AdminContentRoute: typeof AdminContentRoute
   AdminPreviewRoute: typeof AdminPreviewRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
-  AdminWebsiteRoute: typeof AdminWebsiteRoute
+  AdminWebsiteRoute: typeof AdminWebsiteRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -314,7 +386,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminContentRoute: AdminContentRoute,
   AdminPreviewRoute: AdminPreviewRoute,
   AdminSettingsRoute: AdminSettingsRoute,
-  AdminWebsiteRoute: AdminWebsiteRoute,
+  AdminWebsiteRoute: AdminWebsiteRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
 }
 
@@ -323,6 +395,7 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
+  StoreStoreSlugPageSlugRoute: StoreStoreSlugPageSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
