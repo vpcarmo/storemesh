@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, Navigate, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { LogOut, Menu } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -91,22 +91,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   if (!userQuery.data) {
-    return (
-      <div className="flex min-h-screen items-center justify-center px-6">
-        <div className="max-w-sm text-center">
-          <h1 className="text-lg font-semibold">Acesso administrativo</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Entre com sua conta para acessar a administração da loja.
-          </p>
-          <Link
-            to="/"
-            className="mt-5 inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
-          >
-            Ir para o acesso
-          </Link>
-        </div>
-      </div>
-    );
+    return <Navigate to="/" replace />;
   }
 
   if (accessQuery.isError) {

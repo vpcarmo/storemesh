@@ -7,7 +7,8 @@ export type AdminPath =
   | "/admin/website"
   | "/admin/content"
   | "/admin/commerce"
-  | "/admin/settings";
+  | "/admin/settings"
+  | "/admin/preview";
 
 export interface AdminNavigationItem {
   label: string;
@@ -48,6 +49,7 @@ export const ADMIN_NAVIGATION: AdminNavigationGroup[] = [
   },
   { label: "Comércio", to: "/admin/commerce" },
   { label: "Configurações", to: "/admin/settings" },
+  { label: "Preview", to: "/admin/preview" },
 ];
 
 const LABELS: Record<AdminPath, string> = {
@@ -60,6 +62,7 @@ const LABELS: Record<AdminPath, string> = {
   "/admin/content": "Conteúdo",
   "/admin/commerce": "Comércio",
   "/admin/settings": "Configurações",
+  "/admin/preview": "Preview",
 };
 
 function isAdminPath(value: string): value is AdminPath {

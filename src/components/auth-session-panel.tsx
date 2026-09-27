@@ -1,21 +1,14 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
-import { LogIn, LogOut, ShieldCheck, UserPlus } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { LogIn, UserPlus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
-import { getAccessContext, getAuthorizedStores } from "@/auth/access.functions";
-import { getCurrentUser, signIn, signOut, signUp } from "@/auth/session";
-import { CatalogPanel } from "@/components/catalog-panel";
+import { signIn, signUp } from "@/auth/session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { StoreSettingsPanel } from "@/components/store-settings-panel";
-import { StorefrontPreviewPanel } from "@/components/storefront-preview-panel";
 
 const sessionQueryKey = ["auth", "user"] as const;
-const accessQueryKey = ["auth", "access-context"] as const;
-const authorizedStoresQueryKey = ["auth", "authorized-stores"] as const;
 
 type AuthMode = "sign-in" | "sign-up";
 
@@ -26,28 +19,10 @@ function messageFrom(error: unknown): string {
 
 export function AuthSessionPanel() {
   const queryClient = useQueryClient();
-  const loadAccessContext = useServerFn(getAccessContext);
-  const loadAuthorizedStores = useServerFn(getAuthorizedStores);
+  const navigate = useNavigate();
   const [mode, setMode] = useState<AuthMode>("sign-in");
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [selectedStoreSlug, setSelectedStoreSlug] = useState<string | null>(null);
-
-  const userQuery = useQuery({ queryKey: sessionQueryKey, queryFn: getCurrentUser });
-  const accessQuery = useQuery({
-    queryKey: accessQueryKey,
-    queryFn: () => loadAccessContext(),
-    enabled: Boolean(userQuery.data),
-  });
-  const authorizedStoresQuery = useQuery({
-    queryKey: authorizedStoresQueryKey,
-    queryFn: () => loadAuthorizedStores(),
-    enabled:
-      Boolean(userQuery.data) &&
-      Boolean(
-        accessQuery.data?.assignments.some((assignment) => assignment.role === "super_admin"),
-      ),
-  });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -61,126 +36,21 @@ export function AuthSessionPanel() {
     try {
       if (mode === "sign-up") {
         const hasSession = await signUp(email, password);
-        setFeedback(
-          hasSession
-            ? "Conta criada e sessão iniciada."
-            : "Conta criada. Confirme seu e-mail antes de entrar.",
-        );
+        if (!hasSession) {
+          setFeedback("Conta criada. Confirme seu e-mail antes de entrar.");
+          return;
+        }
       } else {
         await signIn(email, password);
       }
 
       await queryClient.invalidateQueries({ queryKey: sessionQueryKey });
-      await queryClient.invalidateQueries({ queryKey: accessQueryKey });
-      await queryClient.invalidateQueries({ queryKey: authorizedStoresQueryKey });
+      await navigate({ to: "/admin" });
     } catch (error) {
       setFeedback(messageFrom(error));
     } finally {
       setPending(false);
     }
-  }
-
-  async function handleSignOut() {
-    setPending(true);
-    setFeedback(null);
-
-    try {
-      await queryClient.cancelQueries();
-      queryClient.clear();
-      await signOut();
-      queryClient.setQueryData(sessionQueryKey, null);
-    } catch (error) {
-      setFeedback(messageFrom(error));
-    } finally {
-      setPending(false);
-    }
-  }
-
-  if (userQuery.isPending) {
-    return <p className="text-sm text-muted-foreground">Verificando sessão…</p>;
-  }
-
-  if (userQuery.data) {
-    const assignments = accessQuery.data?.assignments ?? [];
-    const isSuperAdmin = assignments.some((assignment) => assignment.role === "super_admin");
-
-    return (
-      <section className="w-full max-w-xl border-t border-border pt-6" aria-label="Sessão atual">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <ShieldCheck className="size-4 text-status" aria-hidden="true" />
-              Sessão autenticada
-            </div>
-            <p className="mt-2 break-all text-sm text-muted-foreground">{userQuery.data.email}</p>
-            {accessQuery.isPending ? (
-              <p className="mt-4 text-sm text-muted-foreground">Carregando permissões…</p>
-            ) : accessQuery.isError ? (
-              <p className="mt-4 text-sm text-destructive">{messageFrom(accessQuery.error)}</p>
-            ) : assignments.length === 0 ? (
-              <p className="mt-4 text-sm text-muted-foreground">Nenhum papel foi atribuído.</p>
-            ) : (
-              <ul className="mt-4 space-y-2 text-sm">
-                {assignments.map((assignment) => (
-                  <li key={`${assignment.role}-${assignment.storeId ?? "global"}`}>
-                    <span className="font-medium">
-                      {assignment.role === "super_admin"
-                        ? "Administrador da plataforma"
-                        : "Administrador da loja"}
-                    </span>
-                    {assignment.store ? (
-                      <span className="text-muted-foreground"> · {assignment.store.name}</span>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <Button type="button" variant="outline" onClick={handleSignOut} disabled={pending}>
-            <LogOut aria-hidden="true" />
-            Sair
-          </Button>
-        </div>
-        {feedback ? <p className="mt-4 text-sm text-muted-foreground">{feedback}</p> : null}
-        {!accessQuery.isPending && !accessQuery.isError && assignments.length > 0 ? (
-          <Button asChild className="mt-5" type="button">
-            <Link to="/admin">Abrir administração</Link>
-          </Button>
-        ) : null}
-        {isSuperAdmin ? (
-          <div className="mt-6 grid max-w-sm gap-2">
-            <Label htmlFor="authorized-store">Loja autorizada</Label>
-            <select
-              id="authorized-store"
-              className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
-              value={selectedStoreSlug ?? ""}
-              onChange={(event) => setSelectedStoreSlug(event.target.value || null)}
-              disabled={authorizedStoresQuery.isPending || authorizedStoresQuery.isError}
-            >
-              <option value="">Selecione uma loja</option>
-              {authorizedStoresQuery.data?.map((store) => (
-                <option key={store.id} value={store.slug}>
-                  {store.name}
-                </option>
-              ))}
-            </select>
-            {authorizedStoresQuery.isError ? (
-              <p className="text-sm text-destructive">{messageFrom(authorizedStoresQuery.error)}</p>
-            ) : null}
-          </div>
-        ) : null}
-        {!accessQuery.isPending && !accessQuery.isError && assignments.length > 0 ? (
-          <>
-            <StoreSettingsPanel storeSlug={selectedStoreSlug} />
-            <StorefrontPreviewPanel
-              requiresStoreSelection={isSuperAdmin}
-              storeSlug={selectedStoreSlug}
-            />
-            <CatalogPanel requiresStoreSelection={isSuperAdmin} storeSlug={selectedStoreSlug} />
-          </>
-        ) : null}
-      </section>
-    );
   }
 
   return (

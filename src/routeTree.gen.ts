@@ -15,6 +15,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminCatalogRouteImport } from './routes/admin.catalog'
 import { Route as AdminCommerceRouteImport } from './routes/admin.commerce'
 import { Route as AdminContentRouteImport } from './routes/admin.content'
+import { Route as AdminPreviewRouteImport } from './routes/admin.preview'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminWebsiteRouteImport } from './routes/admin.website'
 import { Route as AdminCatalogIndexRouteImport } from './routes/admin.catalog.index'
@@ -50,6 +51,11 @@ const AdminCommerceRoute = AdminCommerceRouteImport.update({
 const AdminContentRoute = AdminContentRouteImport.update({
   id: '/content',
   path: '/content',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPreviewRoute = AdminPreviewRouteImport.update({
+  id: '/preview',
+  path: '/preview',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/commerce': typeof AdminCommerceRoute
   '/admin/content': typeof AdminContentRoute
+  '/admin/preview': typeof AdminPreviewRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/website': typeof AdminWebsiteRoute
   '/admin/': typeof AdminIndexRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin/commerce': typeof AdminCommerceRoute
   '/admin/content': typeof AdminContentRoute
+  '/admin/preview': typeof AdminPreviewRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/website': typeof AdminWebsiteRoute
   '/admin': typeof AdminIndexRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/commerce': typeof AdminCommerceRoute
   '/admin/content': typeof AdminContentRoute
+  '/admin/preview': typeof AdminPreviewRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/website': typeof AdminWebsiteRoute
   '/admin/': typeof AdminIndexRoute
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
     | '/admin/catalog'
     | '/admin/commerce'
     | '/admin/content'
+    | '/admin/preview'
     | '/admin/settings'
     | '/admin/website'
     | '/admin/'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin/commerce'
     | '/admin/content'
+    | '/admin/preview'
     | '/admin/settings'
     | '/admin/website'
     | '/admin'
@@ -158,6 +169,7 @@ export interface FileRouteTypes {
     | '/admin/catalog'
     | '/admin/commerce'
     | '/admin/content'
+    | '/admin/preview'
     | '/admin/settings'
     | '/admin/website'
     | '/admin/'
@@ -214,6 +226,13 @@ declare module '@tanstack/react-router' {
       path: '/content'
       fullPath: '/admin/content'
       preLoaderRoute: typeof AdminContentRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/preview': {
+      id: '/admin/preview'
+      path: '/preview'
+      fullPath: '/admin/preview'
+      preLoaderRoute: typeof AdminPreviewRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/settings': {
@@ -283,6 +302,7 @@ interface AdminRouteChildren {
   AdminCatalogRoute: typeof AdminCatalogRouteWithChildren
   AdminCommerceRoute: typeof AdminCommerceRoute
   AdminContentRoute: typeof AdminContentRoute
+  AdminPreviewRoute: typeof AdminPreviewRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminWebsiteRoute: typeof AdminWebsiteRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -292,6 +312,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminCatalogRoute: AdminCatalogRouteWithChildren,
   AdminCommerceRoute: AdminCommerceRoute,
   AdminContentRoute: AdminContentRoute,
+  AdminPreviewRoute: AdminPreviewRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminWebsiteRoute: AdminWebsiteRoute,
   AdminIndexRoute: AdminIndexRoute,
