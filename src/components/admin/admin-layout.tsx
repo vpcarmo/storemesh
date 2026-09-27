@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, Navigate, useRouterState } from "@tanstack/react-router";
+import { Link, Navigate, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { LogOut, Menu } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -35,9 +35,12 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const loadAccess = useServerFn(getAccessContext);
   const loadStores = useServerFn(getAuthorizedStores);
+  const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [slug, setSlug] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
   const userQuery = useQuery({ queryKey: sessionQueryKey, queryFn: getCurrentUser });
   const accessQuery = useQuery({
@@ -71,7 +74,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       selectStore(null);
       return;
     }
-    if (!slug && !requiresStoreSelection && stores.length === 1) selectStore(stores[0]!.slug);
+    if (!slug && stores.length === 1) selectStore(stores[0]!.slug);
   }, [slug, stores, requiresStoreSelection, selectStore, storesQuery.isSuccess]);
 
   const contextValue = useMemo(
@@ -80,10 +83,25 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   );
 
   async function handleSignOut() {
-    await queryClient.cancelQueries();
-    queryClient.clear();
-    await signOut();
-    queryClient.setQueryData(sessionQueryKey, null);
+    if (signingOut) return;
+
+    setSigningOut(true);
+    setSignOutError(null);
+
+    try {
+      await signOut();
+      selectStore(null);
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      queryClient.setQueryData(sessionQueryKey, null);
+      await navigate({ to: "/", replace: true });
+    } catch (error) {
+      setSignOutError(
+        error instanceof Error ? error.message : "Não foi possível encerrar a sessão.",
+      );
+    } finally {
+      setSigningOut(false);
+    }
   }
 
   if (userQuery.isPending) {
@@ -242,12 +260,23 @@ export function AdminLayout({ children }: { children: ReactNode }) {
               <span className="hidden max-w-[16rem] truncate text-sm text-muted-foreground sm:inline">
                 {userQuery.data.email}
               </span>
-              <Button type="button" variant="outline" size="sm" onClick={handleSignOut}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleSignOut}
+                disabled={signingOut}
+              >
                 <LogOut aria-hidden="true" />
-                Sair
+                {signingOut ? "Saindo…" : "Sair"}
               </Button>
             </div>
           </header>
+          {signOutError ? (
+            <p className="px-4 pt-3 text-sm text-destructive sm:px-6" role="alert">
+              {signOutError}
+            </p>
+          ) : null}
 
           <main className="min-w-0 flex-1 px-4 py-6 sm:px-6">{children}</main>
         </div>
