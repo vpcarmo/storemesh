@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Plus, Save, Trash2 } from "lucide-react";
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 
 import {
   deleteCurrentStoreCatalogAttribute,
@@ -40,17 +40,17 @@ const number = (form: FormData, name: string) => Number(form.get(name));
 
 export function CatalogPanel({
   requiresStoreSelection = false,
-  storeSlug: selectedStoreSlug,
+  storeSlug,
   section = "products",
-  storeSelectionManagedExternally = false,
 }: {
   requiresStoreSelection?: boolean;
   storeSlug?: string | null;
   /** Abre uma seção existente do catálogo, mantendo Produtos como padrão. */
   section?: CatalogSection;
-  /** Evita uma segunda seleção de loja quando o shell externo já a gerencia. */
-  storeSelectionManagedExternally?: boolean;
 }) {
+  // The admin shell is the only owner of the selected store. Keep this alias
+  // solely for the existing server-function payloads below.
+  const slug = storeSlug;
   const client = useQueryClient();
   const load = useServerFn(getCurrentStoreCatalog);
   const saveCategory = useServerFn(saveCurrentStoreCategory);
@@ -64,9 +64,6 @@ export function CatalogPanel({
   const removeVariant = useServerFn(deleteCurrentStoreProductVariant);
   const saveImage = useServerFn(saveCurrentStoreProductImage);
   const removeImage = useServerFn(deleteCurrentStoreProductImage);
-  const [slugInput, setSlugInput] = useState("");
-  const [slug, setSlug] = useState<string | null>(selectedStoreSlug ?? null);
-  useEffect(() => setSlug(selectedStoreSlug ?? null), [selectedStoreSlug]);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [category, setCategory] = useState<Category | null>(null);
@@ -76,9 +73,9 @@ export function CatalogPanel({
   const [variant, setVariant] = useState<ProductVariant | null>(null);
   const [categoryId, setCategoryId] = useState(none);
   const data = useQuery({
-    queryKey: [...queryKey, slug],
-    queryFn: () => load({ data: { slug } }),
-    enabled: !requiresStoreSelection || slug !== null,
+    queryKey: [...queryKey, storeSlug],
+    queryFn: () => load({ data: { slug: storeSlug } }),
+    enabled: !requiresStoreSelection || storeSlug !== null,
   });
   async function run(action: () => Promise<void>, message: string) {
     setPending(true);
@@ -93,32 +90,13 @@ export function CatalogPanel({
       setPending(false);
     }
   }
-  if (requiresStoreSelection && slug === null)
+  if (requiresStoreSelection && storeSlug === null)
     return (
       <section className="mt-6 border-t pt-6">
         <p className="text-sm font-semibold">Catálogo</p>
-        {storeSelectionManagedExternally ? (
-          <p className="mt-3 text-sm text-muted-foreground">
-            Selecione uma loja autorizada para administrar o catálogo.
-          </p>
-        ) : (
-          <form
-            className="mt-3 flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setSlug(slugInput);
-            }}
-          >
-            <Input
-              value={slugInput}
-              onChange={(e) => setSlugInput(e.target.value)}
-              placeholder="Slug da loja"
-              pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-              required
-            />
-            <Button>Abrir</Button>
-          </form>
-        )}
+        <p className="mt-3 text-sm text-muted-foreground">
+          Selecione uma loja autorizada para administrar o catálogo.
+        </p>
       </section>
     );
   if (data.isPending)
