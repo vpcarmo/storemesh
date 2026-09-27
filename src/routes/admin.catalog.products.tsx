@@ -25,6 +25,7 @@ function ProductsRoute() {
       section="products"
       storeSlug={storeSlug}
       requiresStoreSelection={requiresStoreSelection}
+      storeSelectionManagedExternally
     />
   );
 }

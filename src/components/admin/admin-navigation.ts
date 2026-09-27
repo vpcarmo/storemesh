@@ -71,8 +71,6 @@ export function adminBreadcrumbs(pathname: string): { label: string; to: AdminPa
 
   return segments.map((segment, index) => {
     const path = `/${segments.slice(0, index + 1).join("/")}`;
-    return isAdminPath(path)
-      ? { label: LABELS[path], to: path }
-      : { label: segment, to: null };
+    return isAdminPath(path) ? { label: LABELS[path], to: path } : { label: segment, to: null };
   });
 }
