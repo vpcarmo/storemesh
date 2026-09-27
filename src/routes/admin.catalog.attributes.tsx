@@ -25,7 +25,6 @@ function AttributesRoute() {
       section="attributes"
       storeSlug={storeSlug}
       requiresStoreSelection={requiresStoreSelection}
-      storeSelectionManagedExternally
     />
   );
 }
