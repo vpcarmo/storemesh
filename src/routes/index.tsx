@@ -1,5 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { Navigate, createFileRoute } from "@tanstack/react-router";
 
+import { getCurrentUser } from "@/auth/session";
 import { AuthSessionPanel } from "@/components/auth-session-panel";
 
 export const Route = createFileRoute("/")({
@@ -23,6 +25,12 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const userQuery = useQuery({ queryKey: ["auth", "user"], queryFn: getCurrentUser });
+
+  if (userQuery.data) {
+    return <Navigate to="/admin" replace />;
+  }
+
   return (
     <main className="min-h-screen bg-background px-6 py-8 text-foreground sm:px-10 sm:py-10">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl flex-col sm:min-h-[calc(100vh-5rem)]">

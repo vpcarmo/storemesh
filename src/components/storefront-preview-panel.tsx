@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Search, ShoppingBag, UserRound } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
 
 import { getCurrentStorefrontFoundation } from "@/auth/storefront.functions";
 import {
@@ -11,9 +10,6 @@ import {
 } from "@/components/storefront/storefront-layout";
 import { StorefrontPage } from "@/components/storefront/storefront-page";
 import { StorefrontThemeProvider } from "@/components/storefront/storefront-theme-provider";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { StorefrontPageDefinition } from "@/domain/storefront";
 import { createStorefrontTheme } from "@/domain/storefront-theme";
 
@@ -24,47 +20,32 @@ function messageFrom(error: unknown): string {
 }
 
 export function StorefrontPreviewPanel({
-  requiresStoreSelection = false,
-  storeSlug: selectedStoreSlug,
+  requiresStoreSelection,
+  storeSlug,
 }: {
-  requiresStoreSelection?: boolean;
+  requiresStoreSelection: boolean;
   storeSlug?: string | null;
 }) {
   const loadStorefront = useServerFn(getCurrentStorefrontFoundation);
-  const [storeSlugInput, setStoreSlugInput] = useState("");
-  const [storeSlug, setStoreSlug] = useState<string | null>(selectedStoreSlug ?? null);
-  useEffect(() => setStoreSlug(selectedStoreSlug ?? null), [selectedStoreSlug]);
   const storefrontQuery = useQuery({
     queryKey: [...storefrontQueryKey, storeSlug],
     queryFn: () => loadStorefront({ data: { slug: storeSlug } }),
-    enabled: !requiresStoreSelection || storeSlug !== null,
+    enabled: storeSlug !== null && storeSlug !== undefined,
   });
 
   if (requiresStoreSelection && storeSlug === null) {
     return (
       <section className="mt-6 w-full border-t border-border pt-6" aria-label="Prévia da loja">
         <p className="text-sm font-semibold">Fundação visual da loja</p>
-        <form
-          className="mt-3 flex items-end gap-2"
-          onSubmit={(event: FormEvent<HTMLFormElement>) => {
-            event.preventDefault();
-            setStoreSlug(storeSlugInput);
-          }}
-        >
-          <div className="grid flex-1 gap-2">
-            <Label htmlFor="storefront-store-slug">Slug da loja</Label>
-            <Input
-              id="storefront-store-slug"
-              value={storeSlugInput}
-              onChange={(event) => setStoreSlugInput(event.target.value)}
-              pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-              required
-            />
-          </div>
-          <Button type="submit">Abrir prévia</Button>
-        </form>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Selecione uma loja no cabeçalho administrativo para abrir a prévia.
+        </p>
       </section>
     );
+  }
+
+  if (storeSlug === null || storeSlug === undefined) {
+    return <p className="mt-6 text-sm text-muted-foreground">Carregando loja selecionada…</p>;
   }
 
   if (storefrontQuery.isPending) {
