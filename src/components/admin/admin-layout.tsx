@@ -18,6 +18,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Label } from "@/components/ui/label";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { isSuperAdmin } from "@/domain/access";
 
 const sessionQueryKey = ["auth", "user"] as const;
@@ -278,7 +279,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             </p>
           ) : null}
 
-          <main className="min-w-0 flex-1 px-4 py-6 sm:px-6">{children}</main>
+          <TooltipProvider>
+            <main className="min-w-0 flex-1 px-4 py-6 sm:px-6">{children}</main>
+          </TooltipProvider>
         </div>
       </div>
     </AdminStoreContext.Provider>

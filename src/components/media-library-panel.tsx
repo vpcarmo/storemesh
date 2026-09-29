@@ -15,6 +15,7 @@ import { useAdminStore } from "@/components/admin/admin-store-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FormHelp } from "@/components/admin/form-help";
 import { supabase } from "@/integrations/supabase/client";
 import { MEDIA_BUCKET } from "@/domain/media";
 
@@ -144,7 +145,13 @@ export function MediaLibraryPanel() {
   return (
     <section className="space-y-6" aria-label="Biblioteca de mídia">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
-        <h1 className="text-xl font-semibold">Mídia</h1>
+        <div>
+          <h1 className="text-xl font-semibold">Mídia</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            A Biblioteca de mídia guarda imagens que podem ser reutilizadas pela loja. Enviar uma
+            imagem para a biblioteca não a associa automaticamente a um produto ou página.
+          </p>
+        </div>
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground hover:opacity-90">
           <Upload aria-hidden="true" className="size-4" />
           Enviar mídia
@@ -161,6 +168,11 @@ export function MediaLibraryPanel() {
         </label>
       </header>
 
+      <FormHelp variant="callout">
+        Envie uma imagem para armazená-la na biblioteca desta loja. Depois do upload, a mídia pode
+        ser utilizada em cadastros compatíveis.
+      </FormHelp>
+
       <form className="grid gap-3 border-b pb-5 sm:grid-cols-[1fr_1fr_auto]" onSubmit={addExternal}>
         <Label className="grid gap-2 text-sm">
           URL externa
@@ -171,10 +183,18 @@ export function MediaLibraryPanel() {
             maxLength={2000}
             required
           />
+          <FormHelp tooltip="A imagem continua hospedada no site de origem.">
+            Cadastre o endereço de uma imagem hospedada fora do StoreMesh. Exemplo:
+            https://exemplo.com/imagens/camiseta-azul.jpg
+          </FormHelp>
         </Label>
         <Label className="grid gap-2 text-sm">
-          Texto alternativo
+          Alt
           <Input name="externalAlt" maxLength={500} />
+          <FormHelp tooltip="Descrição textual da imagem para acessibilidade.">
+            Descreva a imagem em uma frase útil para acessibilidade. Exemplo: Camiseta azul de manga
+            curta vista de frente. Não use uma lista de palavras-chave de SEO.
+          </FormHelp>
         </Label>
         <Button className="self-end" disabled={pending}>
           <Link2 aria-hidden="true" />
@@ -186,6 +206,11 @@ export function MediaLibraryPanel() {
         <p className="text-sm text-muted-foreground" role="status">
           {feedback}
         </p>
+      ) : null}
+      {assets.length ? (
+        <FormHelp>
+          Excluir uma mídia remove o item da biblioteca. Verifique antes se ela ainda é utilizada.
+        </FormHelp>
       ) : null}
       {assets.length ? (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
