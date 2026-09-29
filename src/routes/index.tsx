@@ -7,15 +7,15 @@ import { AuthSessionPanel } from "@/components/auth-session-panel";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "VSMS Solutions — Plataforma" },
+      { title: "VSMS Solutions Manager — Plataforma" },
       {
         name: "description",
-        content: "Fundação técnica da plataforma profissional da VSMS Solutions.",
+        content: "Fundação técnica da plataforma profissional da VSMS Solutions Manager.",
       },
-      { property: "og:title", content: "VSMS Solutions — Plataforma" },
+      { property: "og:title", content: "VSMS Solutions Manager — Plataforma" },
       {
         property: "og:description",
-        content: "Fundação técnica da plataforma profissional da VSMS Solutions.",
+        content: "Fundação técnica da plataforma profissional da VSMS Solutions Manager.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

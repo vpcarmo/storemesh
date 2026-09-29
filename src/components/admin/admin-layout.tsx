@@ -7,7 +7,10 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { getAccessContext, getAuthorizedStores } from "@/auth/access.functions";
 import { getCurrentUser, signOut } from "@/auth/session";
 import { ADMIN_NAVIGATION, adminBreadcrumbs } from "@/components/admin/admin-navigation";
-import { AdminStoreContext } from "@/components/admin/admin-store-context";
+import {
+  AdminStoreContext,
+  type AdminStoreContextValue,
+} from "@/components/admin/admin-store-context";
 import { Button } from "@/components/ui/button";
 import {
   Breadcrumb,
@@ -32,12 +35,29 @@ function messageFrom(error: unknown): string {
     : "Não foi possível carregar a área administrativa.";
 }
 
+function AdminStoreContextBoundary({
+  enabled,
+  value,
+  children,
+}: {
+  enabled: boolean;
+  value: AdminStoreContextValue;
+  children: ReactNode;
+}) {
+  return enabled ? (
+    <AdminStoreContext.Provider value={value}>{children}</AdminStoreContext.Provider>
+  ) : (
+    children
+  );
+}
+
 export function AdminLayout({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const loadAccess = useServerFn(getAccessContext);
   const loadStores = useServerFn(getAuthorizedStores);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const isPlatformStoresRoute = pathname === "/admin/stores";
   const [slug, setSlug] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -52,7 +72,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const storesQuery = useQuery({
     queryKey: storesQueryKey,
     queryFn: () => loadStores(),
-    enabled: Boolean(userQuery.data),
+    enabled: Boolean(userQuery.data) && !isPlatformStoresRoute,
   });
 
   const requiresStoreSelection = accessQuery.data ? isSuperAdmin(accessQuery.data) : false;
@@ -121,7 +141,11 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     return <p className="p-8 text-sm text-muted-foreground">Carregando acesso administrativo…</p>;
   }
 
-  if (accessQuery.data.assignments.length === 0) {
+  if (isPlatformStoresRoute && !isSuperAdmin(accessQuery.data)) {
+    return <p className="p-8 text-sm text-destructive">Acesso restrito ao super_admin.</p>;
+  }
+
+  if (!isPlatformStoresRoute && accessQuery.data.assignments.length === 0) {
     return (
       <p className="p-8 text-sm text-muted-foreground">
         Sua conta não possui acesso administrativo a nenhuma loja.
@@ -129,15 +153,15 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  if (storesQuery.isPending) {
+  if (!isPlatformStoresRoute && storesQuery.isPending) {
     return <p className="p-8 text-sm text-muted-foreground">Carregando lojas autorizadas…</p>;
   }
 
-  if (storesQuery.isError) {
+  if (!isPlatformStoresRoute && storesQuery.isError) {
     return <p className="p-8 text-sm text-destructive">{messageFrom(storesQuery.error)}</p>;
   }
 
-  if (stores.length === 0) {
+  if (!isPlatformStoresRoute && stores.length === 0) {
     return (
       <p className="p-8 text-sm text-muted-foreground">
         Nenhuma loja ativa está disponível para sua conta.
@@ -148,15 +172,17 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const breadcrumbs = adminBreadcrumbs(pathname);
 
   return (
-    <AdminStoreContext.Provider value={contextValue}>
+    <AdminStoreContextBoundary enabled={!isPlatformStoresRoute} value={contextValue}>
       <div className="flex min-h-screen flex-col bg-background text-foreground md:flex-row">
         <aside
           className={`${menuOpen ? "block" : "hidden"} border-b border-border bg-sidebar p-4 md:block md:w-64 md:shrink-0 md:border-b-0 md:border-r`}
           aria-label="Navegação administrativa"
         >
-          <p className="px-2 text-sm font-semibold">StoreMesh</p>
+          <p className="px-2 text-sm font-semibold">VSMS Solutions Manager</p>
           <nav className="mt-4 space-y-4 text-sm">
-            {ADMIN_NAVIGATION.map((group) => (
+            {ADMIN_NAVIGATION.filter(
+              (group) => !group.superAdminOnly || isSuperAdmin(accessQuery.data),
+            ).map((group) => (
               <div key={group.label}>
                 {group.comingSoon || !group.to ? (
                   <span className="flex items-center justify-between rounded-md px-2 py-1.5 text-muted-foreground">
@@ -237,27 +263,29 @@ export function AdminLayout({ children }: { children: ReactNode }) {
               </Breadcrumb>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="admin-store" className="text-xs text-muted-foreground">
-                  Loja
-                </Label>
-                <select
-                  id="admin-store"
-                  className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
-                  value={slug ?? ""}
-                  onChange={(event) => selectStore(event.target.value || null)}
-                  disabled={!requiresStoreSelection || stores.length <= 1}
-                >
-                  <option value="">
-                    {requiresStoreSelection ? "Selecione uma loja" : "Loja atribuída"}
-                  </option>
-                  {stores.map((store) => (
-                    <option key={store.id} value={store.slug}>
-                      {store.name}
+              {!isPlatformStoresRoute ? (
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="admin-store" className="text-xs text-muted-foreground">
+                    Loja
+                  </Label>
+                  <select
+                    id="admin-store"
+                    className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                    value={slug ?? ""}
+                    onChange={(event) => selectStore(event.target.value || null)}
+                    disabled={!requiresStoreSelection || stores.length <= 1}
+                  >
+                    <option value="">
+                      {requiresStoreSelection ? "Selecione uma loja" : "Loja atribuída"}
                     </option>
-                  ))}
-                </select>
-              </div>
+                    {stores.map((store) => (
+                      <option key={store.id} value={store.slug}>
+                        {store.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
               <span className="hidden max-w-[16rem] truncate text-sm text-muted-foreground sm:inline">
                 {userQuery.data.email}
               </span>
@@ -284,6 +312,6 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           </TooltipProvider>
         </div>
       </div>
-    </AdminStoreContext.Provider>
+    </AdminStoreContextBoundary>
   );
 }
