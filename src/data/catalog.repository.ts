@@ -63,7 +63,8 @@ export interface ProductVariantValues {
 }
 
 export interface ProductImageValues {
-  url: string;
+  url: string | null;
+  mediaAssetId: string | null;
   altText: string | null;
   position: number;
   isPrimary: boolean;
@@ -158,6 +159,7 @@ function toImage(row: ImageRow): ProductImage {
     id: row.id,
     storeId: row.store_id,
     productId: row.product_id,
+    mediaAssetId: row.media_asset_id,
     url: row.url,
     altText: row.alt_text,
     position: row.position,
@@ -405,10 +407,21 @@ export async function saveProductImage(
   values: ProductImageValues,
 ): Promise<ProductImage> {
   await requireStoreRecord(client, "products", productId, storeId);
+  if (values.mediaAssetId) {
+    const { data, error } = await client
+      .from("media_assets")
+      .select("id")
+      .eq("id", values.mediaAssetId)
+      .eq("store_id", storeId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error("A mídia selecionada não pertence à loja autorizada.");
+  }
   const payload = {
     store_id: storeId,
     product_id: productId,
-    url: values.url,
+    url: values.mediaAssetId ? null : values.url,
+    media_asset_id: values.mediaAssetId,
     alt_text: values.altText,
     position: values.position,
     is_primary: values.isPrimary,

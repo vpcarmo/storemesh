@@ -22,6 +22,7 @@ import { Route as AdminCatalogIndexRouteImport } from './routes/admin.catalog.in
 import { Route as AdminCatalogAttributesRouteImport } from './routes/admin.catalog.attributes'
 import { Route as AdminCatalogCategoriesRouteImport } from './routes/admin.catalog.categories'
 import { Route as AdminCatalogProductsRouteImport } from './routes/admin.catalog.products'
+import { Route as AdminContentMediaRouteImport } from './routes/admin.content.media'
 import { Route as AdminWebsiteNavigationRouteImport } from './routes/admin.website.navigation'
 import { Route as AdminWebsitePagesRouteImport } from './routes/admin.website.pages'
 import { Route as StoreStoreSlugPageSlugRouteImport } from './routes/store.$storeSlug.$pageSlug'
@@ -91,6 +92,11 @@ const AdminCatalogProductsRoute = AdminCatalogProductsRouteImport.update({
   path: '/products',
   getParentRoute: () => AdminCatalogRoute,
 } as any)
+const AdminContentMediaRoute = AdminContentMediaRouteImport.update({
+  id: '/media',
+  path: '/media',
+  getParentRoute: () => AdminContentRoute,
+} as any)
 const AdminWebsiteNavigationRoute = AdminWebsiteNavigationRouteImport.update({
   id: '/navigation',
   path: '/navigation',
@@ -112,7 +118,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/commerce': typeof AdminCommerceRoute
-  '/admin/content': typeof AdminContentRoute
+  '/admin/content': typeof AdminContentRouteWithChildren
   '/admin/preview': typeof AdminPreviewRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/website': typeof AdminWebsiteRouteWithChildren
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/admin/catalog/attributes': typeof AdminCatalogAttributesRoute
   '/admin/catalog/categories': typeof AdminCatalogCategoriesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
+  '/admin/content/media': typeof AdminContentMediaRoute
   '/admin/website/navigation': typeof AdminWebsiteNavigationRoute
   '/admin/website/pages': typeof AdminWebsitePagesRoute
   '/store/$storeSlug/$pageSlug': typeof StoreStoreSlugPageSlugRoute
@@ -128,7 +135,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin/commerce': typeof AdminCommerceRoute
-  '/admin/content': typeof AdminContentRoute
+  '/admin/content': typeof AdminContentRouteWithChildren
   '/admin/preview': typeof AdminPreviewRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/website': typeof AdminWebsiteRouteWithChildren
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/admin/catalog/attributes': typeof AdminCatalogAttributesRoute
   '/admin/catalog/categories': typeof AdminCatalogCategoriesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
+  '/admin/content/media': typeof AdminContentMediaRoute
   '/admin/website/navigation': typeof AdminWebsiteNavigationRoute
   '/admin/website/pages': typeof AdminWebsitePagesRoute
   '/store/$storeSlug/$pageSlug': typeof StoreStoreSlugPageSlugRoute
@@ -147,7 +155,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/commerce': typeof AdminCommerceRoute
-  '/admin/content': typeof AdminContentRoute
+  '/admin/content': typeof AdminContentRouteWithChildren
   '/admin/preview': typeof AdminPreviewRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/website': typeof AdminWebsiteRouteWithChildren
@@ -155,6 +163,7 @@ export interface FileRoutesById {
   '/admin/catalog/attributes': typeof AdminCatalogAttributesRoute
   '/admin/catalog/categories': typeof AdminCatalogCategoriesRoute
   '/admin/catalog/products': typeof AdminCatalogProductsRoute
+  '/admin/content/media': typeof AdminContentMediaRoute
   '/admin/website/navigation': typeof AdminWebsiteNavigationRoute
   '/admin/website/pages': typeof AdminWebsitePagesRoute
   '/store/$storeSlug/$pageSlug': typeof StoreStoreSlugPageSlugRoute
@@ -175,6 +184,7 @@ export interface FileRouteTypes {
     | '/admin/catalog/attributes'
     | '/admin/catalog/categories'
     | '/admin/catalog/products'
+    | '/admin/content/media'
     | '/admin/website/navigation'
     | '/admin/website/pages'
     | '/store/$storeSlug/$pageSlug'
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
     | '/admin/catalog/attributes'
     | '/admin/catalog/categories'
     | '/admin/catalog/products'
+    | '/admin/content/media'
     | '/admin/website/navigation'
     | '/admin/website/pages'
     | '/store/$storeSlug/$pageSlug'
@@ -209,6 +220,7 @@ export interface FileRouteTypes {
     | '/admin/catalog/attributes'
     | '/admin/catalog/categories'
     | '/admin/catalog/products'
+    | '/admin/content/media'
     | '/admin/website/navigation'
     | '/admin/website/pages'
     | '/store/$storeSlug/$pageSlug'
@@ -314,6 +326,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCatalogProductsRouteImport
       parentRoute: typeof AdminCatalogRoute
     }
+    '/admin/content/media': {
+      id: '/admin/content/media'
+      path: '/media'
+      fullPath: '/admin/content/media'
+      preLoaderRoute: typeof AdminContentMediaRouteImport
+      parentRoute: typeof AdminContentRoute
+    }
     '/admin/website/navigation': {
       id: '/admin/website/navigation'
       path: '/navigation'
@@ -356,6 +375,18 @@ const AdminCatalogRouteWithChildren = AdminCatalogRoute._addFileChildren(
   AdminCatalogRouteChildren,
 )
 
+interface AdminContentRouteChildren {
+  AdminContentMediaRoute: typeof AdminContentMediaRoute
+}
+
+const AdminContentRouteChildren: AdminContentRouteChildren = {
+  AdminContentMediaRoute: AdminContentMediaRoute,
+}
+
+const AdminContentRouteWithChildren = AdminContentRoute._addFileChildren(
+  AdminContentRouteChildren,
+)
+
 interface AdminWebsiteRouteChildren {
   AdminWebsiteNavigationRoute: typeof AdminWebsiteNavigationRoute
   AdminWebsitePagesRoute: typeof AdminWebsitePagesRoute
@@ -373,7 +404,7 @@ const AdminWebsiteRouteWithChildren = AdminWebsiteRoute._addFileChildren(
 interface AdminRouteChildren {
   AdminCatalogRoute: typeof AdminCatalogRouteWithChildren
   AdminCommerceRoute: typeof AdminCommerceRoute
-  AdminContentRoute: typeof AdminContentRoute
+  AdminContentRoute: typeof AdminContentRouteWithChildren
   AdminPreviewRoute: typeof AdminPreviewRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminWebsiteRoute: typeof AdminWebsiteRouteWithChildren
@@ -383,7 +414,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCatalogRoute: AdminCatalogRouteWithChildren,
   AdminCommerceRoute: AdminCommerceRoute,
-  AdminContentRoute: AdminContentRoute,
+  AdminContentRoute: AdminContentRouteWithChildren,
   AdminPreviewRoute: AdminPreviewRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminWebsiteRoute: AdminWebsiteRouteWithChildren,

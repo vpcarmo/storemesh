@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, Outlet, createFileRoute } from "@tanstack/react-router";
 
-import { AdminPlaceholder } from "@/components/admin/admin-placeholder";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/admin/content")({
   head: () => ({
@@ -13,11 +13,19 @@ export const Route = createFileRoute("/admin/content")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: () => (
-    <AdminPlaceholder
-      title="Conteúdo"
-      description="Espaço reservado para a administração de mídia da loja."
-      items={["Mídia"]}
-    />
-  ),
+  component: ContentRoute,
 });
+
+function ContentRoute() {
+  return (
+    <>
+      <div className="mb-6 flex items-center justify-between border-b pb-4">
+        <h1 className="text-xl font-semibold">Conteúdo</h1>
+        <Button asChild variant="outline">
+          <Link to="/admin/content/media">Mídia</Link>
+        </Button>
+      </div>
+      <Outlet />
+    </>
+  );
+}
