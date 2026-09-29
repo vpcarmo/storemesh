@@ -153,6 +153,104 @@ export type Database = {
           },
         ]
       }
+      navigation_items: {
+        Row: {
+          created_at: string
+          external_url: string | null
+          id: string
+          is_active: boolean
+          label: string
+          page_id: string | null
+          position: number
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          external_url?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          page_id?: string | null
+          position?: number
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          external_url?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          page_id?: string | null
+          position?: number
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "navigation_items_page_same_store"
+            columns: ["page_id", "store_id"]
+            isOneToOne: false
+            referencedRelation: "pages"
+            referencedColumns: ["id", "store_id"]
+          },
+          {
+            foreignKeyName: "navigation_items_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pages: {
+        Row: {
+          created_at: string
+          id: string
+          sections: Json
+          seo_description: string | null
+          seo_title: string | null
+          slug: string
+          status: Database["public"]["Enums"]["page_status"]
+          store_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          sections?: Json
+          seo_description?: string | null
+          seo_title?: string | null
+          slug: string
+          status?: Database["public"]["Enums"]["page_status"]
+          store_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          sections?: Json
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string
+          status?: Database["public"]["Enums"]["page_status"]
+          store_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pages_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_attribute_values: {
         Row: {
           attribute_value_id: string
@@ -607,6 +705,7 @@ export type Database = {
     Enums: {
       app_role: "super_admin" | "store_admin"
       catalog_attribute_display_type: "text" | "swatch"
+      page_status: "draft" | "published" | "archived"
       store_status: "active" | "inactive"
     }
     CompositeTypes: {
@@ -737,6 +836,7 @@ export const Constants = {
     Enums: {
       app_role: ["super_admin", "store_admin"],
       catalog_attribute_display_type: ["text", "swatch"],
+      page_status: ["draft", "published", "archived"],
       store_status: ["active", "inactive"],
     },
   },
