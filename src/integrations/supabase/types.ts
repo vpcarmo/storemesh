@@ -62,7 +62,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stores"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       catalog_attributes: {
@@ -109,7 +109,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stores"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       categories: {
@@ -150,7 +150,63 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stores"
             referencedColumns: ["id"]
-          }
+          },
+        ]
+      }
+      media_assets: {
+        Row: {
+          alt: string | null
+          created_at: string
+          external_url: string | null
+          filename: string
+          height: number | null
+          id: string
+          mime_type: string | null
+          size: number | null
+          source_type: string
+          storage_path: string | null
+          store_id: string
+          updated_at: string
+          width: number | null
+        }
+        Insert: {
+          alt?: string | null
+          created_at?: string
+          external_url?: string | null
+          filename: string
+          height?: number | null
+          id?: string
+          mime_type?: string | null
+          size?: number | null
+          source_type: string
+          storage_path?: string | null
+          store_id: string
+          updated_at?: string
+          width?: number | null
+        }
+        Update: {
+          alt?: string | null
+          created_at?: string
+          external_url?: string | null
+          filename?: string
+          height?: number | null
+          id?: string
+          mime_type?: string | null
+          size?: number | null
+          source_type?: string
+          storage_path?: string | null
+          store_id?: string
+          updated_at?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_assets_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
         ]
       }
       navigation_items: {
@@ -201,63 +257,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stores"
             referencedColumns: ["id"]
-          }
-        ]
-      }
-      media_assets: {
-        Row: {
-          alt: string | null
-          created_at: string
-          external_url: string | null
-          filename: string
-          height: number | null
-          id: string
-          mime_type: string | null
-          size: number | null
-          source_type: "upload" | "external"
-          storage_path: string | null
-          store_id: string
-          updated_at: string
-          width: number | null
-        }
-        Insert: {
-          alt?: string | null
-          created_at?: string
-          external_url?: string | null
-          filename: string
-          height?: number | null
-          id?: string
-          mime_type?: string | null
-          size?: number | null
-          source_type: "upload" | "external"
-          storage_path?: string | null
-          store_id: string
-          updated_at?: string
-          width?: number | null
-        }
-        Update: {
-          alt?: string | null
-          created_at?: string
-          external_url?: string | null
-          filename?: string
-          height?: number | null
-          id?: string
-          mime_type?: string | null
-          size?: number | null
-          source_type?: "upload" | "external"
-          storage_path?: string | null
-          store_id?: string
-          updated_at?: string
-          width?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "media_assets_store_id_fkey"
-            columns: ["store_id"]
-            isOneToOne: false
-            referencedRelation: "stores"
-            referencedColumns: ["id"]
-          }
+          },
         ]
       }
       pages: {
@@ -304,7 +304,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stores"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       product_attribute_values: {
@@ -344,7 +344,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "catalog_attribute_values"
             referencedColumns: ["id", "store_id"]
-          }
+          },
         ]
       }
       product_images: {
@@ -386,17 +386,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "product_images_product_same_store"
-            columns: ["product_id", "store_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id", "store_id"]
-          },
-          {
             foreignKeyName: "product_images_media_asset_same_store"
             columns: ["media_asset_id", "store_id"]
             isOneToOne: false
             referencedRelation: "media_assets"
+            referencedColumns: ["id", "store_id"]
+          },
+          {
+            foreignKeyName: "product_images_product_same_store"
+            columns: ["product_id", "store_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id", "store_id"]
           },
           {
@@ -405,7 +405,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stores"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       product_variants: {
@@ -459,7 +459,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stores"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       products: {
@@ -513,7 +513,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stores"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       profiles: {
@@ -617,7 +617,7 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "stores"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       stores: {
@@ -676,7 +676,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stores"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       variant_attribute_values: {
@@ -726,7 +726,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_variants"
             referencedColumns: ["id", "store_id"]
-          }
+          },
         ]
       }
     }
@@ -807,7 +807,7 @@ export type Tables<
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -829,12 +829,13 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -853,12 +854,13 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -877,12 +879,13 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -899,7 +902,7 @@ export type CompositeTypes<
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -914,7 +917,7 @@ export const Constants = {
       app_role: ["super_admin", "store_admin"],
       catalog_attribute_display_type: ["text", "swatch"],
       page_status: ["draft", "published", "archived"],
-      store_status: ["active", "inactive"]
-    }
-  }
+      store_status: ["active", "inactive"],
+    },
+  },
 } as const
