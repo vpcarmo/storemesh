@@ -736,6 +736,20 @@ export type Database = {
     Functions: {
       has_store_access: { Args: { _store_id: string }; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
+      list_platform_store_users: {
+        Args: never
+        Returns: { full_name: string | null; user_id: string }[]
+      }
+      save_platform_store: {
+        Args: {
+          p_name: string
+          p_slug: string
+          p_status: Database["public"]["Enums"]["store_status"]
+          p_store_admin_user_ids: string[]
+          p_store_id: string | null
+        }
+        Returns: string
+      }
       save_product_variant_with_attribute_values: {
         Args: {
           p_compare_at_price: number
