@@ -8,6 +8,7 @@ import {
   saveCurrentStoreNavigationItem,
   saveCurrentStorePage,
 } from "@/auth/website.functions";
+import { FormHelp } from "@/components/admin/form-help";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -166,6 +167,10 @@ export function WebsitePanel({
           {page && (
             <form onSubmit={submitPage} className="grid gap-3 rounded-lg border p-4">
               <h2 className="font-medium">{page.id ? "Editar página" : "Nova página"}</h2>
+              <FormHelp variant="callout">
+                Esta tela define o endereço, o status e os metadados da página. O conteúdo visual
+                das seções ainda não é editado aqui.
+              </FormHelp>
               <Label>
                 Título
                 <Input
@@ -173,6 +178,9 @@ export function WebsitePanel({
                   onChange={(e) => setPage({ ...page, title: e.target.value })}
                   required
                 />
+                <FormHelp tooltip="Página é um conteúdo acessível por um endereço próprio.">
+                  Nome principal da página.
+                </FormHelp>
               </Label>
               <Label>
                 Slug
@@ -182,6 +190,9 @@ export function WebsitePanel({
                   required
                   pattern="[a-z0-9]+(-[a-z0-9]+)*"
                 />
+                <FormHelp tooltip="Slug é o nome técnico usado como identificador amigável no endereço.">
+                  Parte amigável do endereço da página. Exemplo: sobre-nos
+                </FormHelp>
               </Label>
               <Label>
                 Status
@@ -196,6 +207,11 @@ export function WebsitePanel({
                   <option value="published">Publicada</option>
                   <option value="archived">Arquivada</option>
                 </select>
+                <FormHelp>
+                  Rascunho: página em preparação. Publicada: página disponível publicamente.
+                  Arquivada: página retirada do fluxo público. Apenas páginas publicadas ficam
+                  disponíveis no endereço público.
+                </FormHelp>
               </Label>
               <Label>
                 SEO title
@@ -203,6 +219,10 @@ export function WebsitePanel({
                   value={page.seoTitle ?? ""}
                   onChange={(e) => setPage({ ...page, seoTitle: e.target.value })}
                 />
+                <FormHelp>
+                  Texto usado como título nos metadados da página. Se não for preenchido, o título
+                  da página será usado como alternativa.
+                </FormHelp>
               </Label>
               <Label>
                 SEO description
@@ -210,7 +230,14 @@ export function WebsitePanel({
                   value={page.seoDescription ?? ""}
                   onChange={(e) => setPage({ ...page, seoDescription: e.target.value })}
                 />
+                <FormHelp>
+                  Descrição usada nos metadados da página. Não é um editor do conteúdo visual.
+                </FormHelp>
               </Label>
+              <FormHelp>
+                Alterar os campos de SEO posteriormente não significa que um Hero já existente será
+                atualizado automaticamente.
+              </FormHelp>
               <div className="flex gap-2">
                 <Button type="submit">Salvar</Button>
                 <Button type="button" variant="outline" onClick={() => setPage(null)}>
@@ -258,6 +285,9 @@ export function WebsitePanel({
           {nav && (
             <form onSubmit={submitNav} className="grid gap-3 rounded-lg border p-4">
               <h2 className="font-medium">{nav.id ? "Editar item" : "Novo item"}</h2>
+              <FormHelp variant="callout">
+                Os itens de navegação definem os links que podem aparecer no menu público da loja.
+              </FormHelp>
               <Label>
                 Rótulo
                 <Input
@@ -265,6 +295,7 @@ export function WebsitePanel({
                   onChange={(e) => setNav({ ...nav, label: e.target.value })}
                   required
                 />
+                <FormHelp>Texto que o visitante verá no menu. Exemplo: Sobre nós</FormHelp>
               </Label>
               <Label>
                 Página interna
@@ -280,6 +311,7 @@ export function WebsitePanel({
                     </option>
                   ))}
                 </select>
+                <FormHelp>Escolha uma página publicada da própria loja.</FormHelp>
               </Label>
               <Label>
                 URL externa
@@ -288,6 +320,10 @@ export function WebsitePanel({
                   value={nav.externalUrl ?? ""}
                   onChange={(e) => setNav({ ...nav, externalUrl: e.target.value, pageId: "" })}
                 />
+                <FormHelp>
+                  Use quando o destino estiver fora do StoreMesh. Exemplo:
+                  https://instagram.com/exemplo
+                </FormHelp>
               </Label>
               <Label>
                 Posição
@@ -297,15 +333,22 @@ export function WebsitePanel({
                   value={nav.position}
                   onChange={(e) => setNav({ ...nav, position: Number(e.target.value) })}
                 />
+                <FormHelp>Números menores aparecem primeiro no menu.</FormHelp>
               </Label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={nav.isActive}
-                  onChange={(e) => setNav({ ...nav, isActive: e.target.checked })}
-                />{" "}
-                Ativo
-              </label>
+              <div className="grid gap-1">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={nav.isActive}
+                    onChange={(e) => setNav({ ...nav, isActive: e.target.checked })}
+                  />{" "}
+                  Ativo
+                </label>
+                <FormHelp>Itens inativos não aparecem no menu público.</FormHelp>
+              </div>
+              <FormHelp variant="callout">
+                Cada item deve ter apenas um destino: uma página interna OU uma URL externa.
+              </FormHelp>
               <div className="flex gap-2">
                 <Button type="submit">Salvar</Button>
                 <Button type="button" variant="outline" onClick={() => setNav(null)}>

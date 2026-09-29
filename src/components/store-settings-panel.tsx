@@ -7,6 +7,7 @@ import {
   getCurrentStoreSettings,
   updateCurrentStoreDisplayName,
 } from "@/auth/store-settings.functions";
+import { FormHelp } from "@/components/admin/form-help";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -84,6 +85,9 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
             maxLength={120}
             placeholder={settingsQuery.data.store.name}
           />
+          <FormHelp tooltip="Nome público da loja; não muda seu cadastro administrativo.">
+            Nome mostrado aos visitantes. Se ficar vazio, usaremos o nome cadastrado da loja.
+          </FormHelp>
         </div>
         <Button className="w-fit" type="submit" disabled={pending}>
           <Save aria-hidden="true" />

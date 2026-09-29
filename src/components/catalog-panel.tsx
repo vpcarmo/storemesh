@@ -18,6 +18,7 @@ import {
   setCurrentStoreProductAttributeValues,
 } from "@/auth/catalog.functions";
 import { getCurrentStoreMedia } from "@/auth/media.functions";
+import { FormHelp } from "@/components/admin/form-help";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -143,22 +144,46 @@ export function CatalogPanel({
               }, "Categoria salva.");
             }}
           >
+            <FormHelp variant="callout">
+              Cadastre uma categoria para identificar e organizar os produtos relacionados.
+            </FormHelp>
             <Fields
               fields={[
-                ["Nome", "name", category?.name ?? ""],
-                ["Slug", "slug", category?.slug ?? ""],
+                [
+                  "Nome",
+                  "name",
+                  category?.name ?? "",
+                  undefined,
+                  "Nome usado para identificar e organizar os produtos desta categoria.",
+                ],
+                [
+                  "Slug",
+                  "slug",
+                  category?.slug ?? "",
+                  undefined,
+                  "Endereço/identificador amigável da categoria. Use letras minúsculas, números e hífens. Exemplo: camisetas",
+                  "Nome técnico usado como identificador amigável no endereço.",
+                ],
               ]}
             />
-            <Textarea
-              name="description"
-              defaultValue={category?.description ?? ""}
-              placeholder="Descrição"
-              maxLength={2000}
-            />
+            <label className="grid gap-2 text-sm">
+              Descrição
+              <Textarea
+                name="description"
+                defaultValue={category?.description ?? ""}
+                placeholder="Descrição"
+                maxLength={2000}
+              />
+              <FormHelp>
+                Resumo da categoria. Pode ser usado quando essa categoria for apresentada em uma
+                área pública que suporte descrição.
+              </FormHelp>
+            </label>
             <Check
               name="active"
               label="Categoria ativa"
               defaultChecked={category?.isActive ?? true}
+              help="Indica se esta categoria está ativa no catálogo. Ativar não cria automaticamente um item no menu."
             />
             <Button className="w-fit" disabled={pending}>
               <Save />
@@ -213,11 +238,35 @@ export function CatalogPanel({
               }, "Atributo salvo.");
             }}
           >
+            <FormHelp variant="callout">
+              Um atributo define uma característica reutilizável, como Cor ou Tamanho. Depois de
+              criar o atributo, cadastre seus valores. Se ele for marcado como eixo de variante,
+              esses valores poderão ser usados para montar versões diferentes do produto.
+            </FormHelp>
             <Fields
               fields={[
-                ["Nome", "name", attribute?.name ?? ""],
-                ["Código", "code", attribute?.code ?? ""],
-                ["Posição", "position", String(attribute?.position ?? 0), "number"],
+                [
+                  "Nome",
+                  "name",
+                  attribute?.name ?? "",
+                  undefined,
+                  "Nome da característica. Exemplo: Cor",
+                  "Característica do produto, como Cor ou Tamanho.",
+                ],
+                [
+                  "Código",
+                  "code",
+                  attribute?.code ?? "",
+                  undefined,
+                  "Identificador interno da característica. Exemplo: cor",
+                ],
+                [
+                  "Posição",
+                  "position",
+                  String(attribute?.position ?? 0),
+                  "number",
+                  "Define a ordem em que o atributo é apresentado nas listas.",
+                ],
               ]}
             />
             <label className="grid gap-2 text-sm">
@@ -230,16 +279,22 @@ export function CatalogPanel({
                 <option value="text">Texto</option>
                 <option value="swatch">Amostra</option>
               </select>
+              <FormHelp>
+                Texto: mostra o valor como texto. Amostra: permite registrar uma amostra associada
+                ao valor.
+              </FormHelp>
             </label>
             <Check
               name="filterable"
               label="Usar em filtros"
               defaultChecked={attribute?.isFilterable ?? false}
+              help="Indica que este atributo foi preparado para filtros. O filtro público ainda depende de uma interface própria."
             />
             <Check
               name="axis"
               label="Eixo de variante"
               defaultChecked={attribute?.isVariantAxis ?? false}
+              help="Use quando os valores deste atributo diferenciarem versões do mesmo produto, como tamanho ou cor."
             />
             <Button className="w-fit" disabled={pending}>
               <Save />
@@ -332,11 +387,34 @@ export function CatalogPanel({
               }, "Produto salvo.");
             }}
           >
+            <FormHelp variant="callout">
+              Cadastre aqui os dados básicos do produto. Para aparecer em uma página pública, ele
+              também precisa fazer parte da composição dessa página.
+            </FormHelp>
             <Fields
               fields={[
-                ["Nome", "name", selectedProduct?.name ?? ""],
-                ["Slug", "slug", selectedProduct?.slug ?? ""],
-                ["Preço", "price", String(selectedProduct?.price ?? 0), "number"],
+                [
+                  "Nome",
+                  "name",
+                  selectedProduct?.name ?? "",
+                  undefined,
+                  "Nome do produto apresentado no catálogo.",
+                ],
+                [
+                  "Slug",
+                  "slug",
+                  selectedProduct?.slug ?? "",
+                  undefined,
+                  "Identificador amigável usado pelo sistema para representar o produto. Exemplo: camiseta-basica",
+                  "Nome técnico usado como identificador amigável no endereço.",
+                ],
+                [
+                  "Preço",
+                  "price",
+                  String(selectedProduct?.price ?? 0),
+                  "number",
+                  "Preço base do produto. O preenchimento não significa que o produto já esteja disponível para venda ou checkout.",
+                ],
               ]}
             />
             <label className="grid gap-2 text-sm">
@@ -353,18 +431,24 @@ export function CatalogPanel({
                   </option>
                 ))}
               </select>
+              <FormHelp>Categoria usada para organizar este produto.</FormHelp>
             </label>
-            <Textarea
-              name="description"
-              defaultValue={selectedProduct?.description ?? ""}
-              placeholder="Descrição"
-              maxLength={20000}
-              required
-            />
+            <label className="grid gap-2 text-sm">
+              Descrição
+              <Textarea
+                name="description"
+                defaultValue={selectedProduct?.description ?? ""}
+                placeholder="Descrição"
+                maxLength={20000}
+                required
+              />
+              <FormHelp>Informações descritivas do produto.</FormHelp>
+            </label>
             <Check
               name="active"
               label="Produto ativo"
               defaultChecked={selectedProduct?.isActive ?? true}
+              help="Indica se o produto está ativo no catálogo. Isso não publica automaticamente uma página de produto."
             />
             <Button className="w-fit" disabled={pending}>
               <Save />
@@ -473,10 +557,21 @@ export function CatalogPanel({
     </section>
   );
 }
-function Fields({ fields }: { fields: [string, string, string, string?][] }) {
+function Fields({
+  fields,
+}: {
+  fields: [
+    string,
+    string,
+    string,
+    (string | undefined)?,
+    (string | undefined)?,
+    (string | undefined)?,
+  ][];
+}) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {fields.map(([label, name, value, type]) => (
+      {fields.map(([label, name, value, type, help, tooltip]) => (
         <label key={name} className="grid gap-2 text-sm">
           {label}
           <Input
@@ -489,6 +584,7 @@ function Fields({ fields }: { fields: [string, string, string, string?][] }) {
             pattern={name === "slug" ? "[a-z0-9]+(?:-[a-z0-9]+)*" : undefined}
             required
           />
+          {help ? <FormHelp tooltip={tooltip}>{help}</FormHelp> : null}
         </label>
       ))}
     </div>
@@ -499,17 +595,22 @@ function Check({
   label,
   defaultChecked,
   value,
+  help,
 }: {
   name: string;
   label: string;
   defaultChecked: boolean;
   value?: string;
+  help?: string;
 }) {
   return (
-    <label className="flex items-center gap-2 text-sm">
-      <input name={name} type="checkbox" value={value} defaultChecked={defaultChecked} />
-      {label}
-    </label>
+    <div className="grid gap-1">
+      <label className="flex items-center gap-2 text-sm">
+        <input name={name} type="checkbox" value={value} defaultChecked={defaultChecked} />
+        {label}
+      </label>
+      {help ? <FormHelp>{help}</FormHelp> : null}
+    </div>
   );
 }
 function Empty({ text }: { text: string }) {
@@ -600,6 +701,10 @@ function AttributeValues({
   return (
     <div className="mt-3 border-t pt-3">
       <p className="text-sm font-medium">Valores</p>
+      <FormHelp tooltip="Atributo = Cor. Valor = azul. Rótulo = Azul.">
+        No atributo &quot;Cor&quot;, por exemplo, cada valor representa uma opção como Azul, Preto
+        ou Branco.
+      </FormHelp>
       <form
         key={editing?.id ?? "new"}
         className="mt-2 grid gap-2 sm:grid-cols-4"
@@ -608,35 +713,55 @@ function AttributeValues({
           onSave(new FormData(e.currentTarget));
         }}
       >
-        <Input
-          name="value"
-          defaultValue={editing?.value ?? ""}
-          placeholder="Valor"
-          maxLength={160}
-          required
-        />
-        <Input
-          name="label"
-          defaultValue={editing?.label ?? ""}
-          placeholder="Rótulo"
-          maxLength={160}
-          required
-        />
-        {attribute.displayType === "swatch" ? (
+        <label className="grid gap-1 text-sm">
+          Valor
           <Input
-            name="swatch"
-            defaultValue={editing?.swatchValue ?? ""}
-            placeholder="Amostra"
+            name="value"
+            defaultValue={editing?.value ?? ""}
+            placeholder="Valor"
             maxLength={160}
+            required
           />
+          <FormHelp tooltip="Uma opção de um atributo, como Azul para o atributo Cor.">
+            Identificador da opção. Exemplo: azul
+          </FormHelp>
+        </label>
+        <label className="grid gap-1 text-sm">
+          Rótulo
+          <Input
+            name="label"
+            defaultValue={editing?.label ?? ""}
+            placeholder="Rótulo"
+            maxLength={160}
+            required
+          />
+          <FormHelp>Nome legível apresentado para o usuário. Exemplo: Azul</FormHelp>
+        </label>
+        {attribute.displayType === "swatch" ? (
+          <label className="grid gap-1 text-sm">
+            Amostra
+            <Input
+              name="swatch"
+              defaultValue={editing?.swatchValue ?? ""}
+              placeholder="Amostra"
+              maxLength={160}
+            />
+            <FormHelp>
+              Informação adicional usada quando o atributo utiliza o tipo &quot;Amostra&quot;.
+            </FormHelp>
+          </label>
         ) : null}
-        <Input
-          name="position"
-          type="number"
-          min="0"
-          defaultValue={editing?.position ?? 0}
-          required
-        />
+        <label className="grid gap-1 text-sm">
+          Posição
+          <Input
+            name="position"
+            type="number"
+            min="0"
+            defaultValue={editing?.position ?? 0}
+            required
+          />
+          <FormHelp>Define a ordem dessa opção.</FormHelp>
+        </label>
         <Button disabled={pending} className="w-fit">
           <Plus />
           Salvar valor
@@ -713,6 +838,10 @@ function ProductDetails({
             onSetValues(f.getAll("value").map(String));
           }}
         >
+          <FormHelp variant="callout">
+            Selecione os valores de atributos que realmente estão disponíveis neste produto.
+            Exemplo: para Tamanho, marque P, M e G.
+          </FormHelp>
           {catalog.attributes.length ? (
             catalog.attributes.map((attribute) => (
               <fieldset key={attribute.id} className="rounded border p-2">
@@ -733,6 +862,7 @@ function ProductDetails({
           ) : (
             <Empty text="Crie atributos e valores para associá-los ao produto." />
           )}
+          <FormHelp>Associar valores ao produto não cria variantes automaticamente.</FormHelp>
           <Button className="w-fit" disabled={pending || !catalog.attributes.length}>
             <Save />
             Salvar atributos
@@ -743,6 +873,14 @@ function ProductDetails({
         <h3 className="font-medium">Variantes</h3>
         <p className="text-xs text-muted-foreground">
           Variantes são opcionais. Use somente valores de eixos de variante.
+        </p>
+        <FormHelp variant="callout">
+          Como funciona: uma variante representa uma versão específica do produto. Use variantes
+          quando o mesmo produto tiver combinações diferentes de atributos, como Camiseta + Azul +
+          M.
+        </FormHelp>
+        <p className="text-xs text-muted-foreground">
+          Exemplo: Produto: Camiseta básica · Variante: Azul / M · SKU: CAM-AZ-M · Preço: 59,90
         </p>
         <form
           key={variant?.id ?? "new"}
@@ -761,10 +899,35 @@ function ProductDetails({
         >
           <Fields
             fields={[
-              ["SKU", "sku", variant?.sku ?? ""],
-              ["Preço", "variantPrice", String(variant?.price ?? product.price), "number"],
-              ["Preço comparativo", "compare", variant?.compareAtPrice?.toString() ?? "", "number"],
-              ["Posição", "variantPosition", String(variant?.position ?? 0), "number"],
+              [
+                "SKU",
+                "sku",
+                variant?.sku ?? "",
+                undefined,
+                "Identificador da variante, normalmente usado para controle interno. Exemplo: CAM-AZ-M",
+                "Identificador usado para controlar uma variante do produto.",
+              ],
+              [
+                "Preço",
+                "variantPrice",
+                String(variant?.price ?? product.price),
+                "number",
+                "Preço específico desta variante.",
+              ],
+              [
+                "Preço comparativo",
+                "compare",
+                variant?.compareAtPrice?.toString() ?? "",
+                "number",
+                "Outro valor de referência registrado para a variante. Não representa automaticamente uma promoção ou desconto.",
+              ],
+              [
+                "Posição",
+                "variantPosition",
+                String(variant?.position ?? 0),
+                "number",
+                "Define a ordem da variante.",
+              ],
             ]}
           />
           {axes.map((axis) => (
@@ -784,12 +947,16 @@ function ProductDetails({
                     </option>
                   ))}
               </select>
+              <FormHelp>
+                Escolha valores já associados ao produto para definir esta variante.
+              </FormHelp>
             </label>
           ))}
           <Check
             name="variantActive"
             label="Variante ativa"
             defaultChecked={variant?.isActive ?? true}
+            help="Indica se esta variante está ativa."
           />
           <Button className="w-fit" disabled={pending}>
             <Save />
@@ -813,6 +980,14 @@ function ProductDetails({
       </div>
       <div>
         <h3 className="font-medium">Imagens do produto</h3>
+        <FormHelp variant="callout">
+          A imagem do produto pode vir da Biblioteca de mídia ou de uma URL externa. Escolha apenas
+          uma fonte.
+        </FormHelp>
+        <FormHelp>
+          Selecionar uma mídia da biblioteca não cria um novo upload; apenas associa a mídia ao
+          produto.
+        </FormHelp>
         <form
           key={editingImage?.id ?? "new-image"}
           className="mt-2 grid gap-2 sm:grid-cols-2"
@@ -842,37 +1017,57 @@ function ProductDetails({
                 </option>
               ))}
             </select>
+            <FormHelp>
+              Mídia é uma imagem armazenada ou referenciada na Biblioteca de mídia. Selecione uma
+              mídia já cadastrada na Biblioteca.
+            </FormHelp>
           </label>
-          <Input
-            name="url"
-            type="url"
-            placeholder="URL externa https://..."
-            maxLength={2000}
-            defaultValue={editingImage?.url ?? ""}
-            onChange={(event) => {
-              if (event.currentTarget.value) {
-                const media = event.currentTarget.form?.elements.namedItem("mediaAssetId");
-                if (media instanceof HTMLSelectElement) media.value = "";
-              }
-            }}
-          />
-          <Input
-            name="alt"
-            placeholder="Texto alternativo"
-            maxLength={500}
-            defaultValue={editingImage?.altText ?? ""}
-          />
-          <Input
-            name="imagePosition"
-            type="number"
-            min="0"
-            defaultValue={String(editingImage?.position ?? 0)}
-            required
-          />
+          <label className="grid gap-1 text-sm">
+            URL externa
+            <Input
+              name="url"
+              type="url"
+              placeholder="URL externa https://..."
+              maxLength={2000}
+              defaultValue={editingImage?.url ?? ""}
+              onChange={(event) => {
+                if (event.currentTarget.value) {
+                  const media = event.currentTarget.form?.elements.namedItem("mediaAssetId");
+                  if (media instanceof HTMLSelectElement) media.value = "";
+                }
+              }}
+            />
+            <FormHelp>Use o endereço HTTP(S) direto de uma imagem hospedada externamente.</FormHelp>
+          </label>
+          <label className="grid gap-1 text-sm">
+            Alt
+            <Input
+              name="alt"
+              placeholder="Texto alternativo"
+              maxLength={500}
+              defaultValue={editingImage?.altText ?? ""}
+            />
+            <FormHelp tooltip="Descrição textual da imagem para acessibilidade.">
+              Descreva a imagem de forma útil para quem não consegue vê-la. Exemplo: Camiseta azul
+              de manga curta vista de frente
+            </FormHelp>
+          </label>
+          <label className="grid gap-1 text-sm">
+            Posição
+            <Input
+              name="imagePosition"
+              type="number"
+              min="0"
+              defaultValue={String(editingImage?.position ?? 0)}
+              required
+            />
+            <FormHelp>Define a ordem das imagens do produto.</FormHelp>
+          </label>
           <Check
             name="primary"
             label="Imagem principal"
             defaultChecked={editingImage?.isPrimary ?? images.length === 0}
+            help="Marque a imagem que melhor representa o produto."
           />
           <Button className="w-fit" disabled={pending}>
             <Plus />

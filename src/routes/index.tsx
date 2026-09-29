@@ -42,7 +42,7 @@ function Index() {
             >
               V
             </div>
-            <p className="text-sm font-semibold">VSMS Solutions</p>
+            <p className="text-sm font-semibold">VSMS Solutions Manager</p>
           </div>
           <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <span className="size-2 rounded-full bg-status" aria-hidden="true" />
@@ -60,7 +60,7 @@ function Index() {
                 Uma base sólida para o que vem a seguir.
               </h1>
               <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-                O ambiente inicial da VSMS Solutions está preparado para evoluir com segurança,
+                O ambiente de gerenciamento da VSMS Solutions está preparado para evoluir com segurança,
                 clareza e consistência.
               </p>
             </div>
@@ -69,7 +69,7 @@ function Index() {
         </section>
 
         <footer className="border-t border-border pt-6 text-xs text-muted-foreground">
-          VSMS Solutions
+          VSMS Solutions Manager © 2026. Todos os direitos reservados.
         </footer>
       </div>
     </main>
