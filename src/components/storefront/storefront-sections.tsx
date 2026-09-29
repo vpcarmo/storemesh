@@ -14,13 +14,20 @@ export function StorefrontHeroSection({
   title,
   description,
   action,
+  imageUrl,
+  imageAlt,
 }: {
   title: string;
   description?: string | null;
   action?: { label: string; href: string };
+  imageUrl?: string | null;
+  imageAlt?: string | null;
 }) {
   return (
     <section className="storefront-hero">
+      {imageUrl ? (
+        <img className="storefront-section-image" src={imageUrl} alt={imageAlt ?? ""} />
+      ) : null}
       <div className="storefront-section-inner">
         <h1>{title}</h1>
         {description ? <p>{description}</p> : null}
@@ -33,12 +40,19 @@ export function StorefrontHeroSection({
 export function StorefrontBannerSection({
   message,
   action,
+  imageUrl,
+  imageAlt,
 }: {
   message: string;
   action?: { label: string; href: string };
+  imageUrl?: string | null;
+  imageAlt?: string | null;
 }) {
   return (
     <section className="storefront-banner">
+      {imageUrl ? (
+        <img className="storefront-section-image" src={imageUrl} alt={imageAlt ?? ""} />
+      ) : null}
       <p>{message}</p>
       <SectionAction action={action} />
     </section>
@@ -50,7 +64,7 @@ export function StorefrontCategoriesSection({
   categories,
 }: {
   title?: string;
-  categories: Category[];
+  categories: Pick<Category, "id" | "name" | "description">[];
 }) {
   return (
     <section className="storefront-section">
@@ -76,7 +90,7 @@ export function StorefrontProductGridSection({
   products,
 }: {
   title?: string;
-  products: Product[];
+  products: Pick<Product, "id" | "name" | "description" | "price">[];
 }) {
   return (
     <section className="storefront-section">

@@ -83,14 +83,19 @@ const variantAttributeValuesSchema = storeSelectionSchema.extend({
 const variantWithValuesSchema = variantSchema.extend({
   values: z.array(z.object({ attributeId: uuidSchema, attributeValueId: uuidSchema })).max(20),
 });
-const imageSchema = storeSelectionSchema.extend({
-  id: uuidSchema.nullable(),
-  productId: uuidSchema,
-  url: z.string().url().max(2000),
-  altText: z.string().trim().max(500).nullable(),
-  position: z.number().int().min(0),
-  isPrimary: z.boolean(),
-});
+const imageSchema = storeSelectionSchema
+  .extend({
+    id: uuidSchema.nullable(),
+    productId: uuidSchema,
+    url: z.string().url().max(2000).nullable(),
+    mediaAssetId: uuidSchema.nullable(),
+    altText: z.string().trim().max(500).nullable(),
+    position: z.number().int().min(0),
+    isPrimary: z.boolean(),
+  })
+  .refine((value) => (value.mediaAssetId === null) !== (value.url === null), {
+    message: "Escolha uma mídia da biblioteca ou informe uma URL externa.",
+  });
 const deleteSchema = storeSelectionSchema.extend({ id: uuidSchema });
 
 function emailFromClaims(claims: Record<string, unknown>): string | null {

@@ -79,7 +79,8 @@ export interface ProductImage {
   id: string;
   storeId: string;
   productId: string;
-  url: string;
+  mediaAssetId: string | null;
+  url: string | null;
   altText: string | null;
   position: number;
   isPrimary: boolean;

@@ -28,24 +28,30 @@ export interface HeroSectionDefinition extends SectionBase {
   title: string;
   description?: string | null;
   action?: { label: string; href: string };
+  imageMediaAssetId?: string | null;
+  imageUrl?: string | null;
+  imageAlt?: string | null;
 }
 
 export interface BannerSectionDefinition extends SectionBase {
   type: "banner";
   message: string;
   action?: { label: string; href: string };
+  imageMediaAssetId?: string | null;
+  imageUrl?: string | null;
+  imageAlt?: string | null;
 }
 
 export interface CategoriesSectionDefinition extends SectionBase {
   type: "categories";
   title?: string;
-  categories: Category[];
+  categories: Pick<Category, "id" | "name" | "description">[];
 }
 
 export interface ProductGridSectionDefinition extends SectionBase {
   type: "product-grid";
   title?: string;
-  products: Product[];
+  products: Pick<Product, "id" | "name" | "description" | "price">[];
 }
 
 export interface TextContentSectionDefinition extends SectionBase {
@@ -64,6 +70,14 @@ export interface CallToActionSectionDefinition extends SectionBase {
 export type StorefrontSectionDefinition =
   | HeroSectionDefinition
   | BannerSectionDefinition
+  | CategoriesSectionDefinition
+  | ProductGridSectionDefinition
+  | TextContentSectionDefinition
+  | CallToActionSectionDefinition;
+
+export type PublicStorefrontSectionDefinition =
+  | Omit<HeroSectionDefinition, "imageMediaAssetId">
+  | Omit<BannerSectionDefinition, "imageMediaAssetId">
   | CategoriesSectionDefinition
   | ProductGridSectionDefinition
   | TextContentSectionDefinition

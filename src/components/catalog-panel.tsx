@@ -17,19 +17,21 @@ import {
   saveCurrentStoreProductVariantWithAttributeValues,
   setCurrentStoreProductAttributeValues,
 } from "@/auth/catalog.functions";
+import { getCurrentStoreMedia } from "@/auth/media.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type {
   CatalogAttribute,
   CatalogAttributeValue,
   Category,
   Product,
+  ProductImage,
   ProductVariant,
 } from "@/domain/catalog";
+import type { MediaAsset } from "@/domain/media";
 
 const queryKey = ["store", "current", "catalog"] as const;
 const none = "none";
@@ -53,6 +55,7 @@ export function CatalogPanel({
   const slug = storeSlug;
   const client = useQueryClient();
   const load = useServerFn(getCurrentStoreCatalog);
+  const loadMedia = useServerFn(getCurrentStoreMedia);
   const saveCategory = useServerFn(saveCurrentStoreCategory);
   const saveProduct = useServerFn(saveCurrentStoreProduct);
   const saveAttribute = useServerFn(saveCurrentStoreCatalogAttribute);
@@ -76,6 +79,11 @@ export function CatalogPanel({
     queryKey: [...queryKey, storeSlug],
     queryFn: () => load({ data: { slug: storeSlug } }),
     enabled: !requiresStoreSelection || storeSlug !== null,
+  });
+  const mediaData = useQuery({
+    queryKey: ["store", "current", "media", storeSlug],
+    queryFn: () => loadMedia({ data: { slug: storeSlug } }),
+    enabled: section === "products" && (!requiresStoreSelection || storeSlug !== null),
   });
   async function run(action: () => Promise<void>, message: string) {
     setPending(true);
@@ -112,13 +120,8 @@ export function CatalogPanel({
     <section className="mt-6 w-full border-t pt-6" aria-label="Administração do catálogo">
       <p className="text-sm font-semibold">Catálogo</p>
       <p className="text-sm text-muted-foreground">{catalog.store.name}</p>
-      <Tabs defaultValue={section} className="mt-4">
-        <TabsList className="flex h-auto flex-wrap">
-          <TabsTrigger value="products">Produtos</TabsTrigger>
-          <TabsTrigger value="attributes">Atributos</TabsTrigger>
-          <TabsTrigger value="categories">Categorias</TabsTrigger>
-        </TabsList>
-        <TabsContent value="categories">
+      <div className="mt-4">
+        <div hidden={section !== "categories"}>
           <form
             key={category?.id ?? "new"}
             className="grid gap-3 pt-4"
@@ -185,8 +188,8 @@ export function CatalogPanel({
               )
             }
           />
-        </TabsContent>
-        <TabsContent value="attributes">
+        </div>
+        <div hidden={section !== "attributes"}>
           <form
             key={attribute?.id ?? "new"}
             className="grid gap-3 pt-4"
@@ -304,8 +307,8 @@ export function CatalogPanel({
               ))
             )}
           </div>
-        </TabsContent>
-        <TabsContent value="products">
+        </div>
+        <div hidden={section !== "products"}>
           <form
             key={selectedProduct?.id ?? "new"}
             className="grid gap-3 pt-4"
@@ -401,6 +404,7 @@ export function CatalogPanel({
             <ProductDetails
               product={selectedProduct}
               catalog={catalog}
+              mediaAssets={mediaData.data ?? []}
               variant={variant}
               pending={pending}
               onSetValues={(ids) =>
@@ -445,7 +449,8 @@ export function CatalogPanel({
                         slug,
                         id,
                         productId: selectedProduct.id,
-                        url: String(f.get("url")),
+                        url: optional(f.get("url")),
+                        mediaAssetId: optional(f.get("mediaAssetId")),
                         altText: optional(f.get("alt")),
                         position: number(f, "imagePosition"),
                         isPrimary: Boolean(f.get("primary")),
@@ -462,8 +467,8 @@ export function CatalogPanel({
               }
             />
           ) : null}
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
       {feedback ? <p className="mt-3 text-sm text-muted-foreground">{feedback}</p> : null}
     </section>
   );
@@ -657,6 +662,7 @@ function AttributeValues({
 function ProductDetails({
   product,
   catalog,
+  mediaAssets,
   variant,
   pending,
   onSetValues,
@@ -668,6 +674,7 @@ function ProductDetails({
 }: {
   product: Product;
   catalog: Awaited<ReturnType<typeof getCurrentStoreCatalog>>;
+  mediaAssets: MediaAsset[];
   variant: ProductVariant | null;
   pending: boolean;
   onSetValues: (ids: string[]) => void;
@@ -680,6 +687,7 @@ function ProductDetails({
   onSaveImage: (form: FormData, id: string | null) => void;
   onDeleteImage: (id: string) => void;
 }) {
+  const [editingImage, setEditingImage] = useState<ProductImage | null>(null);
   const productValueIds = new Set(
     catalog.productAttributeValues
       .filter((x) => x.productId === product.id)
@@ -804,46 +812,108 @@ function ProductDetails({
         )}
       </div>
       <div>
-        <h3 className="font-medium">Imagens por URL</h3>
+        <h3 className="font-medium">Imagens do produto</h3>
         <form
+          key={editingImage?.id ?? "new-image"}
           className="mt-2 grid gap-2 sm:grid-cols-2"
           onSubmit={(e) => {
             e.preventDefault();
-            onSaveImage(new FormData(e.currentTarget), null);
-            e.currentTarget.reset();
+            onSaveImage(new FormData(e.currentTarget), editingImage?.id ?? null);
+            setEditingImage(null);
           }}
         >
-          <Input name="url" type="url" placeholder="https://..." maxLength={2000} required />
-          <Input name="alt" placeholder="Texto alternativo" maxLength={500} />
-          <Input name="imagePosition" type="number" min="0" defaultValue="0" required />
-          <Check name="primary" label="Imagem principal" defaultChecked={images.length === 0} />
+          <label className="grid gap-2 text-sm">
+            Mídia da biblioteca
+            <select
+              name="mediaAssetId"
+              defaultValue={editingImage?.mediaAssetId ?? ""}
+              className="h-9 rounded-md border bg-background px-3"
+              onChange={(event) => {
+                if (event.currentTarget.value) {
+                  const url = event.currentTarget.form?.elements.namedItem("url");
+                  if (url instanceof HTMLInputElement) url.value = "";
+                }
+              }}
+            >
+              <option value="">Nenhuma</option>
+              {mediaAssets.map((asset) => (
+                <option key={asset.id} value={asset.id}>
+                  {asset.filename}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Input
+            name="url"
+            type="url"
+            placeholder="URL externa https://..."
+            maxLength={2000}
+            defaultValue={editingImage?.url ?? ""}
+            onChange={(event) => {
+              if (event.currentTarget.value) {
+                const media = event.currentTarget.form?.elements.namedItem("mediaAssetId");
+                if (media instanceof HTMLSelectElement) media.value = "";
+              }
+            }}
+          />
+          <Input
+            name="alt"
+            placeholder="Texto alternativo"
+            maxLength={500}
+            defaultValue={editingImage?.altText ?? ""}
+          />
+          <Input
+            name="imagePosition"
+            type="number"
+            min="0"
+            defaultValue={String(editingImage?.position ?? 0)}
+            required
+          />
+          <Check
+            name="primary"
+            label="Imagem principal"
+            defaultChecked={editingImage?.isPrimary ?? images.length === 0}
+          />
           <Button className="w-fit" disabled={pending}>
             <Plus />
-            Adicionar imagem
+            {editingImage ? "Salvar imagem" : "Adicionar imagem"}
           </Button>
+          {editingImage ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-fit"
+              onClick={() => setEditingImage(null)}
+            >
+              Cancelar
+            </Button>
+          ) : null}
         </form>
         {images.length ? (
           <ul className="mt-3 divide-y">
             {images.map((image) => (
               <li key={image.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                <a className="truncate underline" href={image.url} target="_blank" rel="noreferrer">
-                  {image.isPrimary ? "Principal · " : ""}
-                  {image.url}
-                </a>
+                <div className="flex min-w-0 items-center gap-3">
+                  {(() => {
+                    const asset = mediaAssets.find((item) => item.id === image.mediaAssetId);
+                    const src = image.url ?? asset?.imageUrl;
+                    return src ? (
+                      <img
+                        className="size-12 shrink-0 object-cover"
+                        src={src}
+                        alt={image.altText ?? asset?.filename ?? ""}
+                      />
+                    ) : null;
+                  })()}
+                  <span className="truncate">
+                    {image.isPrimary ? "Principal · " : ""}
+                    {image.url ??
+                      mediaAssets.find((item) => item.id === image.mediaAssetId)?.filename ??
+                      "Mídia associada"}
+                  </span>
+                </div>
                 <Actions
-                  onEdit={() => {
-                    const url = window.prompt("URL da imagem", image.url);
-                    if (url)
-                      onSaveImage(
-                        formData({
-                          url,
-                          alt: image.altText ?? "",
-                          imagePosition: String(image.position),
-                          primary: image.isPrimary ? "on" : "",
-                        }),
-                        image.id,
-                      );
-                  }}
+                  onEdit={() => setEditingImage(image)}
                   onDelete={() => onDeleteImage(image.id)}
                 />
               </li>

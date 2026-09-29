@@ -237,6 +237,14 @@
     margin-inline: auto;
   }
 
+  .storefront-section-image {
+    display: block;
+    width: min(100%, 72rem);
+    max-height: 32rem;
+    margin: 0 auto 1.5rem;
+    object-fit: cover;
+  }
+
   .storefront-hero h1,
   .storefront-section h2,
   .storefront-cta h2 {
