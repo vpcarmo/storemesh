@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { LogOut, Menu } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { getAccessContext, getAuthorizedStores } from "@/auth/access.functions";
 import { getCurrentUser, signOut } from "@/auth/session";
@@ -33,22 +33,6 @@ function messageFrom(error: unknown): string {
   return error instanceof Error
     ? error.message
     : "Não foi possível carregar a área administrativa.";
-}
-
-function AdminStoreContextBoundary({
-  enabled,
-  value,
-  children,
-}: {
-  enabled: boolean;
-  value: AdminStoreContextValue;
-  children: ReactNode;
-}) {
-  return enabled ? (
-    <AdminStoreContext.Provider value={value}>{children}</AdminStoreContext.Provider>
-  ) : (
-    children
-  );
 }
 
 export function AdminLayout({ children }: { children: ReactNode }) {
@@ -172,7 +156,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const breadcrumbs = adminBreadcrumbs(pathname);
 
   return (
-    <AdminStoreContextBoundary enabled={!isPlatformStoresRoute} value={contextValue}>
+    <AdminStoreContext.Provider value={contextValue}>
       <div className="flex min-h-screen flex-col bg-background text-foreground md:flex-row">
         <aside
           className={`${menuOpen ? "block" : "hidden"} border-b border-border bg-sidebar p-4 md:block md:w-64 md:shrink-0 md:border-b-0 md:border-r`}
@@ -246,18 +230,20 @@ export function AdminLayout({ children }: { children: ReactNode }) {
               <Breadcrumb>
                 <BreadcrumbList>
                   {breadcrumbs.map((crumb, index) => (
-                    <BreadcrumbItem key={`${crumb.label}-${index}`}>
-                      {index === breadcrumbs.length - 1 || !crumb.to ? (
-                        <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
-                      ) : (
-                        <>
-                          <BreadcrumbLink asChild>
-                            <Link to={crumb.to}>{crumb.label}</Link>
-                          </BreadcrumbLink>
-                        </>
-                      )}
+                    <Fragment key={`${crumb.label}-${index}`}>
+                      <BreadcrumbItem>
+                        {index === breadcrumbs.length - 1 || !crumb.to ? (
+                          <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                        ) : (
+                          <>
+                            <BreadcrumbLink asChild>
+                              <Link to={crumb.to}>{crumb.label}</Link>
+                            </BreadcrumbLink>
+                          </>
+                        )}
+                      </BreadcrumbItem>
                       {index < breadcrumbs.length - 1 ? <BreadcrumbSeparator /> : null}
-                    </BreadcrumbItem>
+                    </Fragment>
                   ))}
                 </BreadcrumbList>
               </Breadcrumb>
@@ -312,6 +298,6 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           </TooltipProvider>
         </div>
       </div>
-    </AdminStoreContextBoundary>
+    </AdminStoreContext.Provider>
   );
 }
