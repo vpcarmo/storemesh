@@ -20,10 +20,11 @@ export const Route = createFileRoute("/store/$storeSlug/$pageSlug")({
     return page;
   },
   head: ({ loaderData }) => ({
-    links:
+    links: [
       loaderData?.settings?.faviconUrl && isValidHttpUrl(loaderData.settings.faviconUrl)
-        ? [{ rel: "icon", href: loaderData.settings.faviconUrl }]
-        : [],
+        ? { rel: "icon", href: loaderData.settings.faviconUrl }
+        : { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+    ],
     meta: [
       {
         title: `${loaderData?.page.seoTitle ?? loaderData?.page.title ?? "Página"} — ${loaderData?.store.name ?? "StoreMesh"}`,

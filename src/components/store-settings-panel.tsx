@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { StoreSettings } from "@/domain/store-settings";
+import { hideBrokenImage } from "@/lib/image";
 import {
   DEFAULT_STOREFRONT_COLORS,
   isValidHttpUrl,
@@ -349,9 +350,11 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               {form.logoUrl.trim() && isValidHttpUrl(form.logoUrl.trim()) ? (
                 <div className="flex min-h-16 items-center rounded-md border border-border p-3">
                   <img
+                    key={form.logoUrl.trim()}
                     src={form.logoUrl.trim()}
                     alt="Prévia do logo da loja"
                     className="max-h-16 max-w-48 object-contain"
+                    onError={hideBrokenImage}
                   />
                 </div>
               ) : null}

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import type { StoreSettings } from "@/domain/store-settings";
 import type { StorefrontNavigationItem } from "@/domain/storefront";
+import { hideBrokenImage } from "@/lib/image";
 
 function NavigationItem({ item }: { item: StorefrontNavigationItem }) {
   return item.href ? (
@@ -44,7 +45,15 @@ export function StorefrontHeader({
     <header className="storefront-header">
       <div className="storefront-header-row">
         <div className="storefront-brand">
-          {logoUrl ? <img src={logoUrl} alt="" className="storefront-logo" /> : null}
+          {logoUrl ? (
+            <img
+              key={logoUrl}
+              src={logoUrl}
+              alt=""
+              className="storefront-logo"
+              onError={hideBrokenImage}
+            />
+          ) : null}
           <span>{storeName}</span>
         </div>
         <div className="storefront-header-actions">
