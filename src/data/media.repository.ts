@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { MediaAsset } from "@/domain/media";
+import type { MediaAsset, MediaSourceType } from "@/domain/media";
 import { MEDIA_BUCKET } from "@/domain/media";
 import type { Database, Tables } from "@/integrations/supabase/types";
 
@@ -11,11 +11,16 @@ type MediaRow = Tables<"media_assets">;
 const signedUrlLifetimeSeconds = 3600;
 const maxUploadSize = 50 * 1024 * 1024;
 
+function toMediaSourceType(value: string): MediaSourceType {
+  if (value === "upload" || value === "external") return value;
+  throw new Error(`Unsupported media source type: ${value}`);
+}
+
 function toAsset(row: MediaRow, imageUrl: string): MediaAsset {
   return {
     id: row.id,
     storeId: row.store_id,
-    sourceType: row.source_type,
+    sourceType: toMediaSourceType(row.source_type),
     filename: row.filename,
     mimeType: row.mime_type,
     size: row.size,

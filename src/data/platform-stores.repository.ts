@@ -7,6 +7,10 @@ type AppClient = SupabaseClient<Database>;
 type StoreRow = Pick<Tables<"stores">, "id" | "name" | "slug" | "status" | "created_at">;
 type ProfileRow = Pick<Tables<"profiles">, "id" | "full_name">;
 type RoleRow = Pick<Tables<"user_roles">, "user_id" | "role" | "store_id">;
+type SavePlatformStoreArgs = Omit<
+  Database["public"]["Functions"]["save_platform_store"]["Args"],
+  "p_store_id"
+> & { p_store_id: string | null };
 
 export interface PlatformStoreAdmin {
   userId: string;
@@ -84,13 +88,17 @@ export async function savePlatformStoreRecord(
     storeAdminUserIds: string[];
   },
 ): Promise<string> {
-  const { data, error } = await client.rpc("save_platform_store", {
+  const args: SavePlatformStoreArgs = {
     p_store_id: input.id,
     p_name: input.name,
     p_slug: input.slug,
     p_status: input.status,
     p_store_admin_user_ids: input.storeAdminUserIds,
-  });
+  };
+  const { data, error } = await client.rpc(
+    "save_platform_store",
+    args as Database["public"]["Functions"]["save_platform_store"]["Args"],
+  );
 
   if (error) {
     if (error.code === "23505" && error.message.includes("stores_slug_unique")) {
