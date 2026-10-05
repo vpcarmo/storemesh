@@ -31,7 +31,7 @@ export interface StorefrontTheme {
   };
 }
 
-const DEFAULT_COLORS = {
+export const DEFAULT_STOREFRONT_COLORS = {
   primary: "#24303F",
   secondary: "#E8EDF2",
   accent: "#147D6F",
@@ -39,10 +39,14 @@ const DEFAULT_COLORS = {
   background: "#FFFFFF",
 } as const;
 
-const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;
+const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
+
+export function isValidStorefrontHexColor(value: string): boolean {
+  return HEX_COLOR_PATTERN.test(value);
+}
 
 function safeColor(value: string | null, fallback: string): string {
-  return value && HEX_COLOR.test(value) ? value : fallback;
+  return value && isValidStorefrontHexColor(value) ? value : fallback;
 }
 
 function readableForeground(background: string): string {
@@ -54,16 +58,19 @@ function readableForeground(background: string): string {
 }
 
 export function createStorefrontTheme(settings: StoreSettings | null): StorefrontTheme {
-  const primary = safeColor(settings?.primaryColor ?? null, DEFAULT_COLORS.primary);
+  const primary = safeColor(settings?.primaryColor ?? null, DEFAULT_STOREFRONT_COLORS.primary);
 
   return {
     colors: {
       primary,
       primaryForeground: readableForeground(primary),
-      secondary: safeColor(settings?.secondaryColor ?? null, DEFAULT_COLORS.secondary),
-      accent: safeColor(settings?.accentColor ?? null, DEFAULT_COLORS.accent),
-      text: safeColor(settings?.textColor ?? null, DEFAULT_COLORS.text),
-      background: safeColor(settings?.backgroundColor ?? null, DEFAULT_COLORS.background),
+      secondary: safeColor(settings?.secondaryColor ?? null, DEFAULT_STOREFRONT_COLORS.secondary),
+      accent: safeColor(settings?.accentColor ?? null, DEFAULT_STOREFRONT_COLORS.accent),
+      text: safeColor(settings?.textColor ?? null, DEFAULT_STOREFRONT_COLORS.text),
+      background: safeColor(
+        settings?.backgroundColor ?? null,
+        DEFAULT_STOREFRONT_COLORS.background,
+      ),
     },
     typography: {
       body: "var(--font-interface)",
@@ -77,4 +84,13 @@ export function createStorefrontTheme(settings: StoreSettings | null): Storefron
       faviconUrl: settings?.faviconUrl ?? null,
     },
   };
+}
+
+export function isValidHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }

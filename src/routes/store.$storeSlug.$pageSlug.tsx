@@ -10,7 +10,7 @@ import {
 } from "@/components/storefront/storefront-layout";
 import { StorefrontPage } from "@/components/storefront/storefront-page";
 import { StorefrontThemeProvider } from "@/components/storefront/storefront-theme-provider";
-import { createStorefrontTheme } from "@/domain/storefront-theme";
+import { createStorefrontTheme, isValidHttpUrl } from "@/domain/storefront-theme";
 
 export const Route = createFileRoute("/store/$storeSlug/$pageSlug")({
   loader: async ({ context, params }) => {
@@ -20,6 +20,10 @@ export const Route = createFileRoute("/store/$storeSlug/$pageSlug")({
     return page;
   },
   head: ({ loaderData }) => ({
+    links:
+      loaderData?.settings?.faviconUrl && isValidHttpUrl(loaderData.settings.faviconUrl)
+        ? [{ rel: "icon", href: loaderData.settings.faviconUrl }]
+        : [],
     meta: [
       {
         title: `${loaderData?.page.seoTitle ?? loaderData?.page.title ?? "Página"} — ${loaderData?.store.name ?? "StoreMesh"}`,

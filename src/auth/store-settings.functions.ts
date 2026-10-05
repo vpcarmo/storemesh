@@ -2,8 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { resolveAuthorizedStore } from "@/auth/authorized-store";
-import { readStoreSettings, saveStoreDisplayName } from "@/data/store-settings.repository";
+import { readStoreSettings, saveStoreSettings } from "@/data/store-settings.repository";
 import { normalizeDisplayName } from "@/domain/store-settings";
+import { isValidHttpUrl, isValidStorefrontHexColor } from "@/domain/storefront-theme";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const storeSelectionInput = z.object({
@@ -14,8 +15,35 @@ const storeSelectionInput = z.object({
     .optional(),
 });
 
-const updateDisplayNameInput = storeSelectionInput.extend({
+const optionalText = (maxLength: number) =>
+  z
+    .string()
+    .max(maxLength)
+    .transform((value) => value.trim() || null);
+
+const optionalHttpUrl = z
+  .string()
+  .max(2048)
+  .transform((value) => value.trim() || null)
+  .refine((value) => value === null || isValidHttpUrl(value), "Informe uma URL HTTP(S) válida.");
+
+const optionalHexColor = z
+  .string()
+  .transform((value) => value.trim() || null)
+  .refine(
+    (value) => value === null || isValidStorefrontHexColor(value),
+    "Use uma cor hexadecimal no formato #RRGGBB.",
+  );
+
+const updateStoreSettingsInput = storeSelectionInput.extend({
   displayName: z.string().max(120),
+  shortDescription: optionalText(280),
+  logoUrl: optionalHttpUrl,
+  faviconUrl: optionalHttpUrl,
+  primaryColor: optionalHexColor,
+  secondaryColor: optionalHexColor,
+  textColor: optionalHexColor,
+  backgroundColor: optionalHexColor,
 });
 
 function emailFromClaims(claims: Record<string, unknown>): string | null {
@@ -41,9 +69,9 @@ export const getCurrentStoreSettings = createServerFn({ method: "POST" })
     };
   });
 
-export const updateCurrentStoreDisplayName = createServerFn({ method: "POST" })
+export const updateCurrentStoreSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input) => updateDisplayNameInput.parse(input))
+  .validator((input) => updateStoreSettingsInput.parse(input))
   .handler(async ({ data, context }) => {
     const store = await resolveAuthorizedStore(
       context.supabase,
@@ -54,5 +82,14 @@ export const updateCurrentStoreDisplayName = createServerFn({ method: "POST" })
 
     if (!store) throw new Error("Nenhuma loja autorizada foi selecionada.");
 
-    return saveStoreDisplayName(context.supabase, store.id, normalizeDisplayName(data.displayName));
+    return saveStoreSettings(context.supabase, store.id, {
+      displayName: normalizeDisplayName(data.displayName),
+      shortDescription: data.shortDescription,
+      logoUrl: data.logoUrl,
+      faviconUrl: data.faviconUrl,
+      primaryColor: data.primaryColor,
+      secondaryColor: data.secondaryColor,
+      textColor: data.textColor,
+      backgroundColor: data.backgroundColor,
+    });
   });

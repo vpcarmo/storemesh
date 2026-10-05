@@ -47,14 +47,38 @@ export async function readStoreSettings(
   return data ? toDomain(data) : null;
 }
 
-export async function saveStoreDisplayName(
+export interface StoreSettingsUpdate {
+  displayName: string | null;
+  shortDescription: string | null;
+  logoUrl: string | null;
+  faviconUrl: string | null;
+  primaryColor: string | null;
+  secondaryColor: string | null;
+  textColor: string | null;
+  backgroundColor: string | null;
+}
+
+export async function saveStoreSettings(
   client: AppClient,
   storeId: string,
-  displayName: string | null,
+  settings: StoreSettingsUpdate,
 ): Promise<StoreSettings> {
   const { data, error } = await client
     .from("store_settings")
-    .upsert({ store_id: storeId, display_name: displayName }, { onConflict: "store_id" })
+    .upsert(
+      {
+        store_id: storeId,
+        display_name: settings.displayName,
+        short_description: settings.shortDescription,
+        logo_url: settings.logoUrl,
+        favicon_url: settings.faviconUrl,
+        primary_color: settings.primaryColor,
+        secondary_color: settings.secondaryColor,
+        text_color: settings.textColor,
+        background_color: settings.backgroundColor,
+      },
+      { onConflict: "store_id" },
+    )
     .select("*")
     .single();
 
