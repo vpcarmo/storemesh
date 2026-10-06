@@ -216,6 +216,7 @@
 
   .storefront-header-row,
   .storefront-header-actions,
+  .storefront-header-controls,
   .storefront-brand,
   .storefront-banner,
   .storefront-cta {
@@ -250,6 +251,15 @@
 
   .storefront-header-actions {
     gap: 1rem;
+  }
+
+  .storefront-header-controls {
+    flex: 0 0 auto;
+    gap: 1rem;
+  }
+
+  .storefront-mobile-menu-trigger {
+    display: none;
   }
 
   .storefront-navigation {
@@ -418,12 +428,118 @@
     font-weight: 700;
   }
 
-  @media (max-width: 40rem) {
-    .storefront-header-row,
+  .storefront-mobile-sheet {
+    display: flex;
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    flex-direction: column;
+    gap: 0;
+    overflow: hidden;
+    border-color: color-mix(in oklab, var(--storefront-text) 18%, transparent);
+    padding: 1.5rem;
+  }
+
+  .storefront-mobile-sheet-header {
+    flex: 0 0 auto;
+    padding-top: 2.5rem;
+    text-align: left;
+  }
+
+  .storefront-mobile-sheet > button:focus-visible {
+    outline: 2px solid var(--storefront-primary);
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+
+  .storefront-mobile-sheet > button:hover {
+    background: color-mix(in oklab, var(--storefront-text) 8%, transparent);
+  }
+
+  .storefront-mobile-navigation {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-block: 1rem;
+  }
+
+  .storefront-mobile-sheet .storefront-navigation {
+    margin-top: 0;
+  }
+
+  .storefront-mobile-sheet .storefront-navigation ul {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .storefront-mobile-sheet .storefront-nav-link,
+  .storefront-mobile-sheet .storefront-nav-label {
+    display: flex;
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  @media (max-width: 39.999rem) {
     .storefront-banner,
     .storefront-cta {
       align-items: flex-start;
       flex-direction: column;
+    }
+
+    .storefront-header-row {
+      align-items: center;
+    }
+
+    .storefront-brand {
+      flex: 1 1 auto;
+      overflow: hidden;
+    }
+
+    .storefront-brand-name {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .storefront-logo {
+      max-width: min(8rem, 32vw);
+    }
+
+    .storefront-header-controls {
+      gap: 0.5rem;
+    }
+
+    .storefront-header-actions {
+      gap: 0.5rem;
+    }
+
+    .storefront-header-inner > .storefront-navigation {
+      display: none;
+    }
+
+    .storefront-mobile-menu-trigger {
+      display: grid;
+      width: 2.75rem;
+      height: 2.75rem;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 0;
+      border-radius: var(--storefront-button-radius);
+      background: transparent;
+      color: var(--storefront-text);
+      cursor: pointer;
+    }
+
+    .storefront-mobile-menu-trigger:focus-visible {
+      outline: 2px solid var(--storefront-primary);
+      outline-offset: 2px;
     }
   }
 }

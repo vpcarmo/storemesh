@@ -1,8 +1,10 @@
-import type { CSSProperties, ReactNode } from "react";
+import { type ReactNode } from "react";
 
 import type { StorefrontTheme } from "@/domain/storefront-theme";
-
-type ThemeStyle = CSSProperties & Record<`--storefront-${string}`, string | number>;
+import {
+  StorefrontThemeStyleContext,
+  type StorefrontThemeStyle,
+} from "@/components/storefront/storefront-theme-context";
 
 export function StorefrontThemeProvider({
   theme,
@@ -11,12 +13,13 @@ export function StorefrontThemeProvider({
   theme: StorefrontTheme;
   children: ReactNode;
 }) {
-  const style: ThemeStyle = {
+  const style: StorefrontThemeStyle = {
     "--storefront-primary": theme.colors.primary,
     "--storefront-primary-foreground": theme.colors.primaryForeground,
     "--storefront-secondary": theme.colors.secondary,
     "--storefront-accent": theme.colors.accent,
     "--storefront-text": theme.colors.text,
+    "--storefront-surface": theme.colors.background,
     "--storefront-background": theme.background.value,
     "--storefront-font-body": theme.typography.body,
     "--storefront-font-heading": theme.typography.heading,
@@ -36,14 +39,16 @@ export function StorefrontThemeProvider({
   };
 
   return (
-    <div className="storefront-theme" style={style}>
-      {theme.background.imageUrl ? (
-        <div className="storefront-global-background" aria-hidden="true">
-          <img src={theme.background.imageUrl} alt="" />
-          <span />
-        </div>
-      ) : null}
-      {children}
-    </div>
+    <StorefrontThemeStyleContext.Provider value={style}>
+      <div className="storefront-theme" style={style}>
+        {theme.background.imageUrl ? (
+          <div className="storefront-global-background" aria-hidden="true">
+            <img src={theme.background.imageUrl} alt="" />
+            <span />
+          </div>
+        ) : null}
+        {children}
+      </div>
+    </StorefrontThemeStyleContext.Provider>
   );
 }

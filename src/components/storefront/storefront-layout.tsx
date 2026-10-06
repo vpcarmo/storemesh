@@ -1,15 +1,27 @@
-import type { ReactNode } from "react";
+import { useContext, useEffect, useState, type ReactNode } from "react";
+import { Menu } from "lucide-react";
 
 import type { StoreSettings } from "@/domain/store-settings";
 import type { StorefrontNavigationItem } from "@/domain/storefront";
 import { hideBrokenImage } from "@/lib/image";
+import { StorefrontThemeStyleContext } from "@/components/storefront/storefront-theme-context";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 function NavigationItem({
   item,
   isCurrent,
+  onNavigate,
 }: {
   item: StorefrontNavigationItem;
   isCurrent: boolean;
+  onNavigate?: () => void;
 }) {
   return item.href ? (
     <li>
@@ -17,6 +29,7 @@ function NavigationItem({
         aria-current={isCurrent ? "page" : undefined}
         className={`storefront-nav-link${isCurrent ? " is-current" : ""}`}
         href={item.href}
+        onClick={onNavigate}
       >
         {item.label}
       </a>
@@ -31,9 +44,11 @@ function NavigationItem({
 export function StorefrontNavigation({
   items,
   currentPageId,
+  onNavigate,
 }: {
   items: StorefrontNavigationItem[];
   currentPageId?: string;
+  onNavigate?: () => void;
 }) {
   if (items.length === 0) return null;
 
@@ -45,10 +60,89 @@ export function StorefrontNavigation({
             key={item.id}
             item={item}
             isCurrent={Boolean(currentPageId && item.pageId === currentPageId)}
+            {...(onNavigate === undefined ? {} : { onNavigate })}
           />
         ))}
       </ul>
     </nav>
+  );
+}
+
+function StorefrontMobileNavigation({
+  items,
+  currentPageId,
+}: {
+  items: StorefrontNavigationItem[];
+  currentPageId?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const themeStyle = useContext(StorefrontThemeStyleContext);
+  if (!themeStyle) {
+    throw new Error("Storefront theme tokens are required for mobile navigation.");
+  }
+
+  useEffect(() => {
+    const desktopBreakpoint = window.matchMedia("(min-width: 40rem)");
+    const closeOnDesktop = () => {
+      if (desktopBreakpoint.matches) setOpen(false);
+    };
+
+    closeOnDesktop();
+    desktopBreakpoint.addEventListener("change", closeOnDesktop);
+    return () => desktopBreakpoint.removeEventListener("change", closeOnDesktop);
+  }, []);
+
+  if (items.length === 0) return null;
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <button
+          aria-expanded={open}
+          aria-label="Abrir menu"
+          className="storefront-mobile-menu-trigger"
+          type="button"
+        >
+          <Menu aria-hidden="true" size={22} />
+        </button>
+      </SheetTrigger>
+      <SheetContent
+        closeLabel="Fechar menu"
+        className="storefront-mobile-sheet"
+        side="right"
+        style={{
+          ...themeStyle,
+          width: "min(88vw, 24rem)",
+          backgroundColor: "var(--storefront-surface)",
+          color: "var(--storefront-text)",
+          fontFamily: "var(--storefront-font-body)",
+          boxShadow: "var(--storefront-shadow)",
+        }}
+      >
+        <SheetHeader className="storefront-mobile-sheet-header">
+          <SheetTitle
+            style={{
+              color: "var(--storefront-text)",
+              fontFamily: "var(--storefront-font-heading)",
+            }}
+          >
+            Menu
+          </SheetTitle>
+          <SheetDescription
+            style={{ color: "color-mix(in oklab, var(--storefront-text) 72%, transparent)" }}
+          >
+            Navegação da loja
+          </SheetDescription>
+        </SheetHeader>
+        <div className="storefront-mobile-navigation">
+          <StorefrontNavigation
+            items={items}
+            {...(currentPageId === undefined ? {} : { currentPageId })}
+            onNavigate={() => setOpen(false)}
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -85,15 +179,21 @@ export function StorefrontHeader({
                 onError={hideBrokenImage}
               />
             ) : null}
-            <span>{storeName}</span>
+            <span className="storefront-brand-name">{storeName}</span>
           </div>
-          {hasActions ? (
-            <div className="storefront-header-actions">
-              {searchSlot}
-              {accountSlot}
-              {cartSlot}
-            </div>
-          ) : null}
+          <div className="storefront-header-controls">
+            {hasActions ? (
+              <div className="storefront-header-actions">
+                {searchSlot}
+                {accountSlot}
+                {cartSlot}
+              </div>
+            ) : null}
+            <StorefrontMobileNavigation
+              items={navigation}
+              {...(currentPageId === undefined ? {} : { currentPageId })}
+            />
+          </div>
         </div>
         <StorefrontNavigation
           items={navigation}
