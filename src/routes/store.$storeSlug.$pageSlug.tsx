@@ -36,10 +36,12 @@ export const Route = createFileRoute("/store/$storeSlug/$pageSlug")({
 });
 function PublicPage() {
   const { storeSlug, pageSlug } = Route.useParams();
+  const loaderData = Route.useLoaderData();
   const load = useServerFn(getPublishedStorePage);
   const query = useQuery({
     queryKey: ["public-page", storeSlug, pageSlug],
     queryFn: () => load({ data: { storeSlug, pageSlug } }),
+    initialData: loaderData,
   });
   const data = query.data;
   if (!data) return null;
