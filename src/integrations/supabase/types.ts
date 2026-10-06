@@ -545,6 +545,7 @@ export type Database = {
           business_hours: Json
           contact_email: string | null
           created_at: string
+          design_settings: Json | null
           display_name: string | null
           favicon_url: string | null
           institutional_text: string | null
@@ -569,6 +570,7 @@ export type Database = {
           business_hours?: Json
           contact_email?: string | null
           created_at?: string
+          design_settings?: Json | null
           display_name?: string | null
           favicon_url?: string | null
           institutional_text?: string | null
@@ -593,6 +595,7 @@ export type Database = {
           business_hours?: Json
           contact_email?: string | null
           created_at?: string
+          design_settings?: Json | null
           display_name?: string | null
           favicon_url?: string | null
           institutional_text?: string | null
