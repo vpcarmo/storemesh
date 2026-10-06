@@ -231,22 +231,29 @@ export function StorefrontFooter({
 }) {
   const address = settings ? textFromObject(settings.address) : null;
   const socials = settings ? socialItems(settings.socialLinks) : [];
+  const hasContact = Boolean(
+    settings?.contactEmail?.trim() || settings?.phone?.trim() || settings?.whatsapp?.trim(),
+  );
 
   return (
     <footer className="storefront-footer">
-      <div>
-        <p className="storefront-footer-title">{settings?.displayName ?? storeName}</p>
-        {settings?.shortDescription ? <p>{settings.shortDescription}</p> : null}
-        {address ? <p>{address}</p> : null}
+      <div className="storefront-footer-inner">
+        <div>
+          <p className="storefront-footer-title">{settings?.displayName ?? storeName}</p>
+          {settings?.shortDescription ? <p>{settings.shortDescription}</p> : null}
+          {address ? <p>{address}</p> : null}
+        </div>
+        {hasContact ? (
+          <div>
+            {settings?.contactEmail ? <p>{settings.contactEmail}</p> : null}
+            {settings?.phone ? <p>{settings.phone}</p> : null}
+            {settings?.whatsapp ? <p>{settings.whatsapp}</p> : null}
+          </div>
+        ) : null}
+        <StorefrontNavigation items={socials} />
+        <StorefrontNavigation items={institutionalLinks} />
+        <StorefrontNavigation items={policyLinks} />
       </div>
-      <div>
-        {settings?.contactEmail ? <p>{settings.contactEmail}</p> : null}
-        {settings?.phone ? <p>{settings.phone}</p> : null}
-        {settings?.whatsapp ? <p>{settings.whatsapp}</p> : null}
-      </div>
-      <StorefrontNavigation items={socials} />
-      <StorefrontNavigation items={institutionalLinks} />
-      <StorefrontNavigation items={policyLinks} />
     </footer>
   );
 }

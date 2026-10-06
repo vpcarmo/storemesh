@@ -209,7 +209,7 @@
 
   .storefront-header {
     border-bottom: 1px solid color-mix(in oklab, var(--storefront-text) 18%, transparent);
-    padding-block: var(--storefront-grid-space);
+    padding: var(--storefront-grid-space) var(--storefront-content-space);
     background: var(--storefront-background);
     box-shadow: var(--storefront-shadow);
   }
@@ -227,7 +227,6 @@
   .storefront-header-inner {
     width: min(100%, var(--storefront-container-width));
     margin-inline: auto;
-    padding-inline: var(--storefront-content-space);
   }
 
   .storefront-header-row {
@@ -240,6 +239,11 @@
     gap: 0.75rem;
     font-family: var(--storefront-font-heading);
     font-weight: 700;
+  }
+
+  .storefront-brand-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .storefront-logo {
@@ -277,12 +281,19 @@
     list-style: none;
   }
 
+  .storefront-navigation li {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .storefront-nav-link,
   .storefront-nav-label {
     display: inline-flex;
+    max-width: 100%;
     min-height: 2.5rem;
     align-items: center;
     color: var(--storefront-text);
+    overflow-wrap: anywhere;
   }
 
   .storefront-nav-link {
@@ -411,17 +422,32 @@
   }
 
   .storefront-footer {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
-    gap: 2rem;
     border-top: 1px solid color-mix(in oklab, var(--storefront-text) 18%, transparent);
-    padding: 2rem var(--storefront-content-space);
+    padding: var(--storefront-content-space);
     font-size: 0.875rem;
+  }
+
+  .storefront-footer-inner {
+    display: grid;
+    width: min(100%, var(--storefront-container-width));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+    gap: var(--storefront-grid-space);
+    margin-inline: auto;
+  }
+
+  .storefront-footer-inner > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .storefront-footer .storefront-navigation {
     align-content: start;
     margin-top: 0;
+  }
+
+  .storefront-footer .storefront-nav-link,
+  .storefront-footer .storefront-nav-label {
+    min-width: 0;
   }
 
   .storefront-footer-title {
