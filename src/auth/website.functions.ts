@@ -2,15 +2,19 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { resolveAuthorizedStore } from "@/auth/authorized-store";
+import { resolveMediaReferences } from "@/data/media.repository";
+import { readStoreSettings } from "@/data/store-settings.repository";
 import {
   deleteNavigationItem,
   readNavigation,
   readPages,
+  readStorePageForPreview,
   saveNavigationItem,
   savePage,
   updatePageSections,
   updatePageStatus,
 } from "@/data/website.repository";
+import type { PublicStorefrontSectionDefinition } from "@/domain/storefront";
 import { PAGE_STATUSES } from "@/domain/website";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
@@ -19,6 +23,7 @@ const slug = z
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
   .max(160);
 const storeInput = z.object({ slug: slug.nullable().optional() });
+const pagePreviewInput = storeInput.extend({ pageSlug: slug });
 const pageInput = storeInput.extend({
   id: z.string().uuid().nullable(),
   title: z.string().trim().min(1).max(160),
@@ -74,6 +79,67 @@ export const getCurrentStoreWebsite = createServerFn({ method: "POST" })
       readNavigation(context.supabase, store.id),
     ]);
     return { store, pages, navigation };
+  });
+export const getAdminStorePagePreview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => pagePreviewInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const store = await authorizedStore(
+      context.supabase,
+      context.userId,
+      context.claims,
+      data.slug,
+    );
+    const page = await readStorePageForPreview(context.supabase, store.id, data.pageSlug);
+    if (!page) return null;
+
+    const [settings, navigation, pages] = await Promise.all([
+      readStoreSettings(context.supabase, store.id),
+      readNavigation(context.supabase, store.id),
+      readPages(context.supabase, store.id),
+    ]).catch(() => {
+      throw new Error("Não foi possível carregar os dados da prévia.");
+    });
+    const imageMediaIds = page.sections.flatMap((section) =>
+      (section.type === "hero" || section.type === "banner") && section.imageMediaAssetId
+        ? [section.imageMediaAssetId]
+        : [],
+    );
+    const mediaReferences = await resolveMediaReferences(
+      context.supabase,
+      store.id,
+      imageMediaIds,
+    ).catch(() => {
+      throw new Error("Não foi possível carregar as mídias da prévia.");
+    });
+    if (mediaReferences.size !== new Set(imageMediaIds).size)
+      throw new Error("Não foi possível carregar as mídias da prévia.");
+    const sections = page.sections.map((section): PublicStorefrontSectionDefinition => {
+      if (section.type === "hero" || section.type === "banner") {
+        const media = section.imageMediaAssetId
+          ? mediaReferences.get(section.imageMediaAssetId)
+          : null;
+        return { ...section, imageUrl: media?.url ?? null, imageAlt: media?.alt ?? null };
+      }
+      return section;
+    });
+    const slugByPage = new Map(
+      pages.filter((item) => item.status === "published").map((item) => [item.id, item.slug]),
+    );
+
+    return {
+      store: { id: store.id, name: store.name, slug: store.slug },
+      settings,
+      page: { ...page, sections },
+      navigation: navigation
+        .filter((item) => item.isActive)
+        .flatMap((item) => {
+          const targetSlug = item.pageId ? slugByPage.get(item.pageId) : undefined;
+          const href =
+            item.externalUrl ?? (targetSlug ? `/store/${store.slug}/${targetSlug}` : null);
+          return href ? [{ id: item.id, label: item.label, href }] : [];
+        }),
+    };
   });
 export const saveCurrentStorePage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

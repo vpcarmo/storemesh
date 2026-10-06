@@ -51,6 +51,84 @@ export async function readPages(client: AppClient, storeId: string): Promise<Web
   if (error) throw error;
   return data.map(pageFromRow);
 }
+export async function readStorePageForPreview(
+  client: AppClient,
+  storeId: string,
+  pageSlug: string,
+): Promise<WebsitePage | null> {
+  const { data, error } = await client
+    .from("pages")
+    .select("*")
+    .eq("store_id", storeId)
+    .eq("slug", pageSlug)
+    .maybeSingle();
+  if (error) throw new Error("Não foi possível carregar a página de prévia.");
+  if (!data) return null;
+
+  const parsedSections = storefrontSectionsSchema.safeParse(data.sections);
+  if (!parsedSections.success) throw new Error("As seções salvas desta página são inválidas.");
+
+  const sections = parsedSections.data.map((section) => {
+    switch (section.type) {
+      case "hero":
+        return {
+          id: section.id,
+          type: section.type,
+          title: section.title,
+          ...(section.description === undefined ? {} : { description: section.description }),
+          ...(section.action === undefined ? {} : { action: section.action }),
+          ...(section.imageMediaAssetId === undefined
+            ? {}
+            : { imageMediaAssetId: section.imageMediaAssetId }),
+          ...(section.imageUrl === undefined ? {} : { imageUrl: section.imageUrl }),
+          ...(section.imageAlt === undefined ? {} : { imageAlt: section.imageAlt }),
+        };
+      case "banner":
+        return {
+          id: section.id,
+          type: section.type,
+          message: section.message,
+          ...(section.action === undefined ? {} : { action: section.action }),
+          ...(section.imageMediaAssetId === undefined
+            ? {}
+            : { imageMediaAssetId: section.imageMediaAssetId }),
+          ...(section.imageUrl === undefined ? {} : { imageUrl: section.imageUrl }),
+          ...(section.imageAlt === undefined ? {} : { imageAlt: section.imageAlt }),
+        };
+      case "categories":
+        return {
+          id: section.id,
+          type: section.type,
+          ...(section.title === undefined ? {} : { title: section.title }),
+          categories: section.categories,
+        };
+      case "product-grid":
+        return {
+          id: section.id,
+          type: section.type,
+          ...(section.title === undefined ? {} : { title: section.title }),
+          products: section.products,
+        };
+      case "text-content":
+        return {
+          id: section.id,
+          type: section.type,
+          ...(section.title === undefined ? {} : { title: section.title }),
+          content: section.content,
+        };
+      case "call-to-action":
+        return {
+          id: section.id,
+          type: section.type,
+          title: section.title,
+          ...(section.description === undefined ? {} : { description: section.description }),
+          action: section.action,
+        };
+    }
+  });
+
+  return { ...pageFromRow(data), sections };
+}
 export async function savePage(
   client: AppClient,
   storeId: string,

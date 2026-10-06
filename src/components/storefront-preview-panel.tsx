@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Search, ShoppingBag, UserRound } from "lucide-react";
 
-import { getCurrentStorefrontFoundation } from "@/auth/storefront.functions";
+import { getAdminStorePagePreview } from "@/auth/website.functions";
 import {
   StorefrontFooter,
   StorefrontHeader,
@@ -13,24 +13,38 @@ import { StorefrontThemeProvider } from "@/components/storefront/storefront-them
 import type { StorefrontPageDefinition } from "@/domain/storefront";
 import { createStorefrontTheme } from "@/domain/storefront-theme";
 
-const storefrontQueryKey = ["store", "current", "storefront-foundation"] as const;
+const safeErrorMessages = new Set([
+  "Nenhuma loja autorizada foi selecionada.",
+  "Não foi possível carregar a página de prévia.",
+  "As seções salvas desta página são inválidas.",
+  "Não foi possível carregar os dados da prévia.",
+  "Não foi possível carregar as mídias da prévia.",
+]);
 
 function messageFrom(error: unknown): string {
-  return error instanceof Error ? error.message : "Não foi possível carregar a prévia.";
+  return error instanceof Error && safeErrorMessages.has(error.message)
+    ? error.message
+    : "Não foi possível carregar a prévia. Verifique seu acesso e tente novamente.";
 }
 
 export function StorefrontPreviewPanel({
   requiresStoreSelection,
   storeSlug,
+  pageSlug,
 }: {
   requiresStoreSelection: boolean;
   storeSlug?: string | null;
+  pageSlug?: string;
 }) {
-  const loadStorefront = useServerFn(getCurrentStorefrontFoundation);
-  const storefrontQuery = useQuery({
-    queryKey: [...storefrontQueryKey, storeSlug],
-    queryFn: () => loadStorefront({ data: { slug: storeSlug } }),
-    enabled: storeSlug !== null && storeSlug !== undefined,
+  const loadPagePreview = useServerFn(getAdminStorePagePreview);
+  const pagePreviewQuery = useQuery({
+    queryKey: ["admin-page-preview", storeSlug, pageSlug],
+    queryFn: () => {
+      if (!pageSlug) throw new Error("Selecione uma página para visualizar.");
+      return loadPagePreview({ data: { slug: storeSlug, pageSlug } });
+    },
+    enabled: storeSlug !== null && storeSlug !== undefined && !!pageSlug,
+    refetchOnMount: "always",
   });
 
   if (requiresStoreSelection && storeSlug === null) {
@@ -48,60 +62,39 @@ export function StorefrontPreviewPanel({
     return <p className="mt-6 text-sm text-muted-foreground">Carregando loja selecionada…</p>;
   }
 
-  if (storefrontQuery.isPending) {
-    return <p className="mt-6 text-sm text-muted-foreground">Carregando fundação visual…</p>;
-  }
-  if (storefrontQuery.isError) {
-    return <p className="mt-6 text-sm text-destructive">{messageFrom(storefrontQuery.error)}</p>;
-  }
-  if (!storefrontQuery.data.store) {
+  if (!pageSlug) {
     return (
-      <p className="mt-6 text-sm text-muted-foreground">
-        Selecione uma loja autorizada para visualizar sua fundação visual.
-      </p>
+      <p className="mt-6 text-sm text-muted-foreground">Selecione uma página para visualizar.</p>
     );
   }
 
-  const { store, settings, categories, products } = storefrontQuery.data;
-  const activeCategories = categories.filter((category) => category.isActive);
-  const activeProducts = products.filter((product) => product.isActive);
+  if (pagePreviewQuery.isPending) {
+    return <p className="mt-6 text-sm text-muted-foreground">Carregando página…</p>;
+  }
+  if (pagePreviewQuery.isError) {
+    return <p className="mt-6 text-sm text-destructive">{messageFrom(pagePreviewQuery.error)}</p>;
+  }
+  if (!pagePreviewQuery.data) {
+    return <p className="mt-6 text-sm text-muted-foreground">Página não encontrada.</p>;
+  }
+
+  const { store, settings, page: storedPage, navigation } = pagePreviewQuery.data;
   const theme = createStorefrontTheme(settings);
-  const navigation = activeCategories.map((category) => ({
-    id: category.id,
-    label: category.name,
-  }));
   const page: StorefrontPageDefinition = {
-    id: `${store.id}-home-preview`,
-    kind: "home",
-    title: settings?.displayName ?? store.name,
-    sections: [
-      {
-        id: "store-introduction",
-        type: "hero",
-        title: settings?.displayName ?? store.name,
-        description: settings?.shortDescription ?? null,
-      },
-      {
-        id: "store-categories",
-        type: "categories",
-        title: "Categorias",
-        categories: activeCategories,
-      },
-      {
-        id: "store-products",
-        type: "product-grid",
-        title: "Produtos",
-        products: activeProducts,
-      },
-    ],
+    id: storedPage.id,
+    kind: "static",
+    title: storedPage.title,
+    sections: storedPage.sections,
   };
+  const statusLabel = {
+    draft: "Rascunho",
+    published: "Publicada",
+    archived: "Arquivada",
+  }[storedPage.status];
 
   return (
     <section className="mt-6 w-full border-t border-border pt-6" aria-label="Prévia da loja">
-      <p className="text-sm font-semibold">Fundação visual da loja</p>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Prévia estrutural com configurações e catálogo reais.
-      </p>
+      <p className="text-sm text-muted-foreground">{statusLabel}</p>
       <div className="mt-4 overflow-hidden rounded-md border border-border">
         <StorefrontThemeProvider theme={theme}>
           <StorefrontLayout
@@ -117,6 +110,11 @@ export function StorefrontPreviewPanel({
             }
             footer={<StorefrontFooter storeName={store.name} settings={settings} />}
           >
+            {page.sections.length === 0 ? (
+              <p className="p-6 text-sm text-muted-foreground">
+                Esta página ainda não possui seções.
+              </p>
+            ) : null}
             <StorefrontPage page={page} />
           </StorefrontLayout>
         </StorefrontThemeProvider>
