@@ -32,6 +32,9 @@ const storefrontQueryKey = ["store", "current", "storefront-foundation"] as cons
 type SettingsForm = {
   displayName: string;
   shortDescription: string;
+  contactEmail: string;
+  phone: string;
+  whatsapp: string;
   logoUrl: string;
   faviconUrl: string;
   primaryColor: string;
@@ -81,6 +84,9 @@ function formFromSettings(settings: StoreSettings | null): SettingsForm {
   return {
     displayName: settings?.displayName ?? "",
     shortDescription: settings?.shortDescription ?? "",
+    contactEmail: settings?.contactEmail ?? "",
+    phone: settings?.phone ?? "",
+    whatsapp: settings?.whatsapp ?? "",
     logoUrl: settings?.logoUrl ?? "",
     faviconUrl: settings?.faviconUrl ?? "",
     primaryColor: settings?.primaryColor ?? "",
@@ -97,6 +103,14 @@ function validateForm(form: SettingsForm): FormErrors {
   if (form.shortDescription.length > 280) {
     errors.shortDescription = "Use no máximo 280 caracteres.";
   }
+  const contactEmail = form.contactEmail.trim();
+  if (contactEmail.length > 254) {
+    errors.contactEmail = "Use no máximo 254 caracteres.";
+  } else if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+    errors.contactEmail = "Informe um e-mail válido.";
+  }
+  if (form.phone.trim().length > 40) errors.phone = "Use no máximo 40 caracteres.";
+  if (form.whatsapp.trim().length > 40) errors.whatsapp = "Use no máximo 40 caracteres.";
 
   for (const [name, value] of [
     ["logoUrl", form.logoUrl],
@@ -261,6 +275,9 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
           slug: storeSlug,
           displayName: form.displayName,
           shortDescription: form.shortDescription,
+          contactEmail: form.contactEmail,
+          phone: form.phone,
+          whatsapp: form.whatsapp,
           logoUrl: form.logoUrl,
           faviconUrl: form.faviconUrl,
           primaryColor: form.primaryColor,
@@ -429,6 +446,63 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               ) : null}
               {errors.faviconUrl ? (
                 <p className="text-sm text-destructive">{errors.faviconUrl}</p>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Contato</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-5">
+            <div className="grid gap-2">
+              <Label htmlFor="store-contact-email">E-mail</Label>
+              <Input
+                id="store-contact-email"
+                type="email"
+                value={form.contactEmail}
+                onChange={(event) => updateField("contactEmail", event.target.value)}
+                aria-invalid={Boolean(errors.contactEmail)}
+                aria-describedby={errors.contactEmail ? "store-contact-email-error" : undefined}
+              />
+              <FormHelp>E-mail de contato exibido no rodapé da loja.</FormHelp>
+              {errors.contactEmail ? (
+                <p id="store-contact-email-error" className="text-sm text-destructive">
+                  {errors.contactEmail}
+                </p>
+              ) : null}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="store-contact-phone">Telefone</Label>
+              <Input
+                id="store-contact-phone"
+                value={form.phone}
+                onChange={(event) => updateField("phone", event.target.value)}
+                aria-invalid={Boolean(errors.phone)}
+                aria-describedby={errors.phone ? "store-contact-phone-error" : undefined}
+              />
+              <FormHelp>Telefone de contato exibido no rodapé da loja.</FormHelp>
+              {errors.phone ? (
+                <p id="store-contact-phone-error" className="text-sm text-destructive">
+                  {errors.phone}
+                </p>
+              ) : null}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="store-contact-whatsapp">WhatsApp</Label>
+              <Input
+                id="store-contact-whatsapp"
+                value={form.whatsapp}
+                onChange={(event) => updateField("whatsapp", event.target.value)}
+                aria-invalid={Boolean(errors.whatsapp)}
+                aria-describedby={errors.whatsapp ? "store-contact-whatsapp-error" : undefined}
+              />
+              <FormHelp>Número de WhatsApp exibido no rodapé da loja.</FormHelp>
+              {errors.whatsapp ? (
+                <p id="store-contact-whatsapp-error" className="text-sm text-destructive">
+                  {errors.whatsapp}
+                </p>
               ) : null}
             </div>
           </CardContent>

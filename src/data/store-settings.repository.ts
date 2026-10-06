@@ -94,6 +94,9 @@ export async function readStoreSettings(
 export interface StoreSettingsUpdate {
   displayName: string | null;
   shortDescription: string | null;
+  contactEmail: string | null;
+  phone: string | null;
+  whatsapp: string | null;
   logoUrl: string | null;
   faviconUrl: string | null;
   primaryColor: string | null;
@@ -114,6 +117,9 @@ export async function saveStoreSettings(
     store_id: storeId,
     display_name: settings.displayName,
     short_description: settings.shortDescription,
+    contact_email: settings.contactEmail,
+    phone: settings.phone,
+    whatsapp: settings.whatsapp,
     logo_url: settings.logoUrl,
     favicon_url: settings.faviconUrl,
     primary_color: settings.primaryColor,

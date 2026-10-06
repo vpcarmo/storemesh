@@ -23,6 +23,23 @@ const optionalText = (maxLength: number) =>
     .max(maxLength)
     .transform((value) => value.trim() || null);
 
+const optionalContactText = (maxLength: number) =>
+  z
+    .string()
+    .transform((value) => value.trim() || null)
+    .refine(
+      (value) => value === null || value.length <= maxLength,
+      `Use no máximo ${maxLength} caracteres.`,
+    );
+
+const optionalContactEmail = z
+  .string()
+  .transform((value) => value.trim() || null)
+  .refine(
+    (value) => value === null || (value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)),
+    "Informe um e-mail válido com até 254 caracteres.",
+  );
+
 const optionalHttpUrl = z
   .string()
   .max(2048)
@@ -40,6 +57,9 @@ const optionalHexColor = z
 const updateStoreSettingsInput = storeSelectionInput.extend({
   displayName: z.string().max(120),
   shortDescription: optionalText(280),
+  contactEmail: optionalContactEmail,
+  phone: optionalContactText(40),
+  whatsapp: optionalContactText(40),
   logoUrl: optionalHttpUrl,
   faviconUrl: optionalHttpUrl,
   primaryColor: optionalHexColor,
@@ -100,6 +120,9 @@ export const updateCurrentStoreSettings = createServerFn({ method: "POST" })
     return saveStoreSettings(context.supabase, store.id, {
       displayName: normalizeDisplayName(data.displayName),
       shortDescription: data.shortDescription,
+      contactEmail: data.contactEmail,
+      phone: data.phone,
+      whatsapp: data.whatsapp,
       logoUrl: data.logoUrl,
       faviconUrl: data.faviconUrl,
       primaryColor: data.primaryColor,
