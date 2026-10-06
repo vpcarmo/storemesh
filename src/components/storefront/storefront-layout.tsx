@@ -45,15 +45,21 @@ export function StorefrontNavigation({
   items,
   currentPageId,
   onNavigate,
+  alignment,
 }: {
   items: StorefrontNavigationItem[];
   currentPageId?: string;
   onNavigate?: () => void;
+  alignment?: "left" | "center" | "right";
 }) {
   if (items.length === 0) return null;
 
   return (
-    <nav aria-label="Navegação da loja" className="storefront-navigation">
+    <nav
+      aria-label="Navegação da loja"
+      className="storefront-navigation"
+      {...(alignment === undefined ? {} : { "data-alignment": alignment })}
+    >
       <ul>
         {items.map((item) => (
           <NavigationItem
@@ -164,19 +170,36 @@ export function StorefrontHeader({
   currentPageId?: string;
 }) {
   const hasActions = Boolean(searchSlot || accountSlot || cartSlot);
+  const themeStyle = useContext(StorefrontThemeStyleContext);
+  const headerLayout = String(themeStyle?.["--storefront-header-layout"] ?? "stacked");
+  const navigationAlignment = String(
+    themeStyle?.["--storefront-header-navigation-alignment"] ?? "left",
+  ) as "left" | "center" | "right";
+  const showStoreName = themeStyle?.["--storefront-header-show-store-name"] !== "false";
 
   return (
     <header className="storefront-header">
-      <div className="storefront-header-inner">
+      <div
+        className="storefront-header-inner"
+        data-layout={headerLayout}
+        data-navigation-alignment={navigationAlignment}
+      >
         <div className="storefront-header-row">
-          <div className="storefront-brand">
+          <div
+            className="storefront-brand"
+            data-has-logo={Boolean(logoUrl)}
+            data-show-name={showStoreName}
+          >
             {logoUrl ? (
               <img
                 key={logoUrl}
                 src={logoUrl}
-                alt=""
+                alt={showStoreName ? "" : storeName}
                 className="storefront-logo"
-                onError={hideBrokenImage}
+                onError={(event) => {
+                  hideBrokenImage(event);
+                  event.currentTarget.parentElement?.classList.add("has-broken-logo");
+                }}
               />
             ) : null}
             <span className="storefront-brand-name">{storeName}</span>
@@ -198,6 +221,7 @@ export function StorefrontHeader({
         <StorefrontNavigation
           items={navigation}
           {...(currentPageId === undefined ? {} : { currentPageId })}
+          alignment={navigationAlignment}
         />
       </div>
     </header>
@@ -229,18 +253,46 @@ export function StorefrontFooter({
   institutionalLinks?: StorefrontNavigationItem[];
   policyLinks?: StorefrontNavigationItem[];
 }) {
+  const themeStyle = useContext(StorefrontThemeStyleContext);
   const address = settings ? textFromObject(settings.address) : null;
   const socials = settings ? socialItems(settings.socialLinks) : [];
   const hasContact = Boolean(
     settings?.contactEmail?.trim() || settings?.phone?.trim() || settings?.whatsapp?.trim(),
   );
+  const showLogo = themeStyle?.["--storefront-footer-show-logo"] === "true";
+  const showDescription = themeStyle?.["--storefront-footer-show-description"] !== "false";
+  const columns = String(themeStyle?.["--storefront-footer-columns"] ?? "auto");
+  const contentBlockCount =
+    1 +
+    Number(hasContact) +
+    Number(socials.length > 0) +
+    Number(institutionalLinks.length > 0) +
+    Number(policyLinks.length > 0);
+  const visibleColumns =
+    columns === "auto" ? "auto" : String(Math.min(Number(columns), contentBlockCount));
+  const footerAlignment = String(themeStyle?.["--storefront-footer-alignment"] ?? "left");
+  const footerSpacing = String(themeStyle?.["--storefront-footer-spacing"] ?? "comfortable");
 
   return (
-    <footer className="storefront-footer">
-      <div className="storefront-footer-inner">
-        <div>
+    <footer
+      className="storefront-footer"
+      data-alignment={footerAlignment}
+      data-spacing={footerSpacing}
+    >
+      <div className="storefront-footer-inner" data-columns={visibleColumns}>
+        <div className="storefront-footer-brand">
+          {showLogo && settings?.logoUrl ? (
+            <img
+              src={settings.logoUrl}
+              alt=""
+              className="storefront-footer-logo"
+              onError={hideBrokenImage}
+            />
+          ) : null}
           <p className="storefront-footer-title">{settings?.displayName ?? storeName}</p>
-          {settings?.shortDescription ? <p>{settings.shortDescription}</p> : null}
+          {showDescription && settings?.shortDescription ? (
+            <p className="storefront-footer-description">{settings.shortDescription}</p>
+          ) : null}
           {address ? <p>{address}</p> : null}
         </div>
         {hasContact ? (

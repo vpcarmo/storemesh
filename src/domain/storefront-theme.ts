@@ -1,3 +1,4 @@
+import type { StorefrontDesignSettings } from "@/domain/storefront-design.schema";
 import type { StoreSettings } from "@/domain/store-settings";
 import {
   DEFAULT_STOREFRONT_DESIGN_SETTINGS,
@@ -48,6 +49,8 @@ export interface StorefrontTheme {
     logoUrl: string | null;
     faviconUrl: string | null;
   };
+  header: StorefrontDesignSettings["header"];
+  footer: StorefrontDesignSettings["footer"];
 }
 
 export const DEFAULT_STOREFRONT_COLORS = {
@@ -172,6 +175,8 @@ export function createStorefrontTheme(
       logoUrl: settings?.logoUrl ?? null,
       faviconUrl: settings?.faviconUrl ?? null,
     },
+    header: design.header,
+    footer: design.footer,
   };
 }
 

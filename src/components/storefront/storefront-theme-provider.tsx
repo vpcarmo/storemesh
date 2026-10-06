@@ -36,11 +36,27 @@ export function StorefrontThemeProvider({
     "--storefront-background-position": theme.background.position,
     "--storefront-background-size": theme.background.size,
     "--storefront-background-overlay-opacity": theme.background.overlayOpacity,
+    "--storefront-header-layout": theme.header.layout,
+    "--storefront-header-navigation-alignment": theme.header.navigationAlignment,
+    "--storefront-header-show-store-name": String(theme.header.showStoreName),
+    "--storefront-header-logo-size": theme.header.logoSize,
+    "--storefront-header-navigation-gap": theme.header.navigationGap,
+    "--storefront-footer-columns": theme.footer.columns,
+    "--storefront-footer-alignment": theme.footer.alignment,
+    "--storefront-footer-show-logo": String(theme.footer.showLogo),
+    "--storefront-footer-show-description": String(theme.footer.showDescription),
+    "--storefront-footer-spacing": theme.footer.spacing,
   };
 
   return (
     <StorefrontThemeStyleContext.Provider value={style}>
-      <div className="storefront-theme" style={style}>
+      <div
+        className="storefront-theme"
+        data-storefront-header-show-store-name={theme.header.showStoreName}
+        data-storefront-header-logo-size={theme.header.logoSize}
+        data-storefront-header-navigation-gap={theme.header.navigationGap}
+        style={style}
+      >
         {theme.background.imageUrl ? (
           <div className="storefront-global-background" aria-hidden="true">
             <img src={theme.background.imageUrl} alt="" />

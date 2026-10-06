@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { StoreSettings } from "@/domain/store-settings";
 import {
@@ -48,6 +49,8 @@ type SettingsField = keyof SettingsForm;
 type FormErrors = Partial<Record<SettingsField, string>>;
 type GradientBackground = Extract<StorefrontDesignSettings["background"], { type: "gradient" }>;
 type ImageBackground = Extract<StorefrontDesignSettings["background"], { type: "image" }>;
+type HeaderSettings = StorefrontDesignSettings["header"];
+type FooterSettings = StorefrontDesignSettings["footer"];
 
 const colorFields = [
   {
@@ -245,6 +248,20 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
   function updateDesignSettings(value: StorefrontDesignSettings) {
     setForm((current) => ({ ...current, designSettings: value }));
     setFeedback(null);
+  }
+
+  function updateHeaderSettings(value: Partial<HeaderSettings>) {
+    updateDesignSettings({
+      ...form.designSettings,
+      header: { ...form.designSettings.header, ...value },
+    });
+  }
+
+  function updateFooterSettings(value: Partial<FooterSettings>) {
+    updateDesignSettings({
+      ...form.designSettings,
+      footer: { ...form.designSettings.footer, ...value },
+    });
   }
 
   function updateGradientBackground(
@@ -858,6 +875,191 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                 </div>
               </>
             ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Header e Footer</CardTitle>
+            <CardDescription>
+              Configure a estrutura e o espaçamento do cabeçalho e rodapé da loja.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-8">
+            <section className="grid gap-5" aria-labelledby="store-header-settings-title">
+              <h2 id="store-header-settings-title" className="text-base font-semibold">
+                Header
+              </h2>
+              <div className="grid gap-2">
+                <Label htmlFor="store-header-layout">Layout</Label>
+                <select
+                  id="store-header-layout"
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={form.designSettings.header.layout}
+                  onChange={(event) =>
+                    updateHeaderSettings({ layout: event.target.value as HeaderSettings["layout"] })
+                  }
+                >
+                  <option value="stacked">Empilhado</option>
+                  <option value="inline">Em linha</option>
+                </select>
+                <FormHelp>Escolha se a navegação fica abaixo da marca ou na mesma linha.</FormHelp>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="store-header-navigation-alignment">Alinhamento da navegação</Label>
+                <select
+                  id="store-header-navigation-alignment"
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={form.designSettings.header.navigationAlignment}
+                  onChange={(event) =>
+                    updateHeaderSettings({
+                      navigationAlignment: event.target
+                        .value as HeaderSettings["navigationAlignment"],
+                    })
+                  }
+                >
+                  <option value="left">Esquerda</option>
+                  <option value="center">Centro</option>
+                  <option value="right">Direita</option>
+                </select>
+                <FormHelp>Define o alinhamento dos links da navegação no desktop.</FormHelp>
+              </div>
+              <div className="grid gap-2">
+                <div className="flex items-center justify-between gap-4">
+                  <Label htmlFor="store-header-show-name">Exibir nome da loja</Label>
+                  <Switch
+                    id="store-header-show-name"
+                    checked={form.designSettings.header.showStoreName}
+                    onCheckedChange={(showStoreName) => updateHeaderSettings({ showStoreName })}
+                  />
+                </div>
+                <FormHelp>
+                  Mostra ou oculta o nome ao lado da logo. Sem logo válida, o nome permanece como
+                  identificação da loja.
+                </FormHelp>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="store-header-logo-size">Tamanho da logo</Label>
+                <select
+                  id="store-header-logo-size"
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={form.designSettings.header.logoSize}
+                  onChange={(event) =>
+                    updateHeaderSettings({
+                      logoSize: event.target.value as HeaderSettings["logoSize"],
+                    })
+                  }
+                >
+                  <option value="small">Pequena</option>
+                  <option value="medium">Média</option>
+                  <option value="large">Grande</option>
+                </select>
+                <FormHelp>Define um tamanho predefinido para a logo no cabeçalho.</FormHelp>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="store-header-navigation-gap">Espaçamento da navegação</Label>
+                <select
+                  id="store-header-navigation-gap"
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={form.designSettings.header.navigationGap}
+                  onChange={(event) =>
+                    updateHeaderSettings({
+                      navigationGap: event.target.value as HeaderSettings["navigationGap"],
+                    })
+                  }
+                >
+                  <option value="compact">Compacto</option>
+                  <option value="comfortable">Confortável</option>
+                  <option value="spacious">Amplo</option>
+                </select>
+                <FormHelp>Controla a distância entre os links da Navbar.</FormHelp>
+              </div>
+            </section>
+
+            <section className="grid gap-5" aria-labelledby="store-footer-settings-title">
+              <h2 id="store-footer-settings-title" className="text-base font-semibold">
+                Footer
+              </h2>
+              <div className="grid gap-2">
+                <Label htmlFor="store-footer-columns">Número de colunas</Label>
+                <select
+                  id="store-footer-columns"
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={form.designSettings.footer.columns}
+                  onChange={(event) =>
+                    updateFooterSettings({
+                      columns: event.target.value as FooterSettings["columns"],
+                    })
+                  }
+                >
+                  <option value="auto">Automático</option>
+                  <option value="1">1 coluna</option>
+                  <option value="2">2 colunas</option>
+                  <option value="3">3 colunas</option>
+                  <option value="4">4 colunas</option>
+                </select>
+                <FormHelp>
+                  Define quantas colunas o rodapé pode usar quando houver conteúdo suficiente.
+                </FormHelp>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="store-footer-alignment">Alinhamento</Label>
+                <select
+                  id="store-footer-alignment"
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={form.designSettings.footer.alignment}
+                  onChange={(event) =>
+                    updateFooterSettings({
+                      alignment: event.target.value as FooterSettings["alignment"],
+                    })
+                  }
+                >
+                  <option value="left">Esquerda</option>
+                  <option value="center">Centro</option>
+                </select>
+                <FormHelp>Define o alinhamento dos conteúdos do rodapé.</FormHelp>
+              </div>
+              <div className="grid gap-2">
+                <div className="flex items-center justify-between gap-4">
+                  <Label htmlFor="store-footer-show-logo">Exibir logo</Label>
+                  <Switch
+                    id="store-footer-show-logo"
+                    checked={form.designSettings.footer.showLogo}
+                    onCheckedChange={(showLogo) => updateFooterSettings({ showLogo })}
+                  />
+                </div>
+                <FormHelp>Mostra a logo da loja no rodapé quando configurada.</FormHelp>
+              </div>
+              <div className="grid gap-2">
+                <div className="flex items-center justify-between gap-4">
+                  <Label htmlFor="store-footer-show-description">Exibir descrição</Label>
+                  <Switch
+                    id="store-footer-show-description"
+                    checked={form.designSettings.footer.showDescription}
+                    onCheckedChange={(showDescription) => updateFooterSettings({ showDescription })}
+                  />
+                </div>
+                <FormHelp>Mostra ou oculta a descrição curta da loja no rodapé.</FormHelp>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="store-footer-spacing">Espaçamento</Label>
+                <select
+                  id="store-footer-spacing"
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={form.designSettings.footer.spacing}
+                  onChange={(event) =>
+                    updateFooterSettings({
+                      spacing: event.target.value as FooterSettings["spacing"],
+                    })
+                  }
+                >
+                  <option value="compact">Compacto</option>
+                  <option value="comfortable">Confortável</option>
+                  <option value="spacious">Amplo</option>
+                </select>
+                <FormHelp>Controla o espaço entre os blocos e a área interna do rodapé.</FormHelp>
+              </div>
+            </section>
           </CardContent>
         </Card>
 

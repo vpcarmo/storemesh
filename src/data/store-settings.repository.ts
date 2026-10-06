@@ -45,6 +45,8 @@ function designSettingsJson(settings: StoreSettings["designSettings"]): Json {
     shadow: settings.shadow,
     container: settings.container,
     background,
+    header: settings.header,
+    footer: settings.footer,
   };
 }
 

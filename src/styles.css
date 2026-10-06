@@ -246,11 +246,27 @@
     overflow-wrap: anywhere;
   }
 
+  .storefront-theme[data-storefront-header-show-store-name="false"]
+    .storefront-brand[data-has-logo="true"]:not(.has-broken-logo)
+    .storefront-brand-name {
+    display: none;
+  }
+
   .storefront-logo {
     height: 2rem;
     width: auto;
     max-width: 8rem;
     object-fit: contain;
+  }
+
+  .storefront-theme[data-storefront-header-logo-size="small"] .storefront-logo {
+    height: 1.75rem;
+    max-width: 6rem;
+  }
+
+  .storefront-theme[data-storefront-header-logo-size="large"] .storefront-logo {
+    height: 2.5rem;
+    max-width: 10rem;
   }
 
   .storefront-header-actions {
@@ -279,6 +295,28 @@
     margin: 0;
     padding: 0;
     list-style: none;
+  }
+
+  .storefront-theme[data-storefront-header-navigation-gap="compact"]
+    .storefront-header-inner
+    > .storefront-navigation
+    ul {
+    column-gap: 0.5rem;
+  }
+
+  .storefront-theme[data-storefront-header-navigation-gap="spacious"]
+    .storefront-header-inner
+    > .storefront-navigation
+    ul {
+    column-gap: 1.5rem;
+  }
+
+  .storefront-header-inner[data-navigation-alignment="center"] > .storefront-navigation ul {
+    justify-content: center;
+  }
+
+  .storefront-header-inner[data-navigation-alignment="right"] > .storefront-navigation ul {
+    justify-content: flex-end;
   }
 
   .storefront-navigation li {
@@ -435,6 +473,54 @@
     margin-inline: auto;
   }
 
+  .storefront-footer-inner[data-columns="1"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .storefront-footer-inner[data-columns="2"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .storefront-footer-inner[data-columns="3"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .storefront-footer-inner[data-columns="4"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .storefront-footer[data-alignment="center"] .storefront-footer-inner {
+    text-align: center;
+  }
+
+  .storefront-footer[data-alignment="center"] .storefront-navigation ul {
+    justify-content: center;
+  }
+
+  .storefront-footer[data-spacing="compact"] {
+    padding-block: calc(var(--storefront-content-space) * 0.75);
+  }
+
+  .storefront-footer[data-spacing="spacious"] {
+    padding-block: calc(var(--storefront-content-space) * 1.25);
+  }
+
+  .storefront-footer[data-spacing="compact"] .storefront-footer-inner {
+    gap: calc(var(--storefront-grid-space) * 0.75);
+  }
+
+  .storefront-footer[data-spacing="spacious"] .storefront-footer-inner {
+    gap: calc(var(--storefront-grid-space) * 1.25);
+  }
+
+  .storefront-footer-logo {
+    display: block;
+    width: auto;
+    max-width: min(8rem, 100%);
+    max-height: 3rem;
+    object-fit: contain;
+  }
+
   .storefront-footer-inner > * {
     min-width: 0;
     overflow-wrap: anywhere;
@@ -521,6 +607,18 @@
       align-items: center;
     }
 
+    .storefront-header-inner[data-layout="inline"] {
+      display: block;
+    }
+
+    .storefront-header-inner[data-layout="inline"] .storefront-header-row {
+      display: flex;
+    }
+
+    .storefront-header-inner[data-layout="inline"] > .storefront-navigation {
+      margin-top: 1rem;
+    }
+
     .storefront-brand {
       flex: 1 1 auto;
       overflow: hidden;
@@ -536,6 +634,7 @@
 
     .storefront-logo {
       max-width: min(8rem, 32vw);
+      max-height: 2rem;
     }
 
     .storefront-header-controls {
@@ -566,6 +665,35 @@
     .storefront-mobile-menu-trigger:focus-visible {
       outline: 2px solid var(--storefront-primary);
       outline-offset: 2px;
+    }
+
+    .storefront-footer-inner[data-columns] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  @media (min-width: 40rem) {
+    .storefront-header-inner[data-layout="inline"] {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .storefront-header-inner[data-layout="inline"] .storefront-header-row {
+      display: contents;
+    }
+
+    .storefront-header-inner[data-layout="inline"] > .storefront-navigation {
+      grid-column: 2;
+      grid-row: 1;
+      min-width: 0;
+      margin-top: 0;
+    }
+
+    .storefront-header-inner[data-layout="inline"] .storefront-header-controls {
+      grid-column: 3;
+      grid-row: 1;
     }
   }
 }
