@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 
 import {
@@ -50,6 +51,7 @@ export function WebsitePanel({
   const [page, setPage] = useState<(typeof emptyPage & { id: string | null }) | WebsitePage | null>(
     null,
   );
+  const [previewSlug, setPreviewSlug] = useState<string | null>(null);
   const [nav, setNav] = useState<typeof emptyNav | NavigationItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const savePage = useServerFn(saveCurrentStorePage);
@@ -82,6 +84,7 @@ export function WebsitePanel({
         },
       });
       setPage(null);
+      setPreviewSlug(null);
       refresh();
     } catch (e) {
       setError(message(e));
@@ -121,11 +124,14 @@ export function WebsitePanel({
           </p>
         </div>
         <Button
-          onClick={() =>
-            section === "pages"
-              ? setPage(emptyPage)
-              : setNav({ ...emptyNav, position: query.data.navigation.length })
-          }
+          onClick={() => {
+            if (section === "pages") {
+              setPage(emptyPage);
+              setPreviewSlug(null);
+            } else {
+              setNav({ ...emptyNav, position: query.data.navigation.length });
+            }
+          }}
         >
           + {section === "pages" ? "Nova página" : "Novo item"}
         </Button>
@@ -164,9 +170,23 @@ export function WebsitePanel({
                             : "Arquivada"}
                       </td>
                       <td className="p-3">
-                        <Button variant="outline" size="sm" onClick={() => setPage(item)}>
-                          Editar
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setPage(item);
+                              setPreviewSlug(item.slug);
+                            }}
+                          >
+                            Editar
+                          </Button>
+                          <Button asChild variant="outline" size="sm">
+                            <Link to="/admin/preview" search={{ page: item.slug }}>
+                              Visualizar
+                            </Link>
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -259,10 +279,29 @@ export function WebsitePanel({
               ) : null}
               <div className="flex gap-2">
                 <Button type="submit">Salvar</Button>
-                <Button type="button" variant="outline" onClick={() => setPage(null)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setPage(null);
+                    setPreviewSlug(null);
+                  }}
+                >
                   Cancelar
                 </Button>
+                {page.id && previewSlug ? (
+                  <Button asChild type="button" variant="outline">
+                    <Link to="/admin/preview" search={{ page: previewSlug }}>
+                      Visualizar página
+                    </Link>
+                  </Button>
+                ) : null}
               </div>
+              {page.id && previewSlug ? (
+                <p className="text-xs text-muted-foreground">
+                  O preview mostra os dados salvos; alterações ainda não salvas não serão exibidas.
+                </p>
+              ) : null}
             </form>
           )}
         </>
