@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Search, ShoppingBag, UserRound } from "lucide-react";
 
 import { getAdminStorePagePreview, getCurrentStoreWebsite } from "@/auth/website.functions";
 import {
@@ -265,9 +264,7 @@ export function StorefrontPreviewPanel({
                 storeName={settings?.displayName ?? store.name}
                 logoUrl={theme.assets.logoUrl}
                 navigation={navigation}
-                searchSlot={<Search className="size-4" aria-label="Área de busca" />}
-                accountSlot={<UserRound className="size-4" aria-label="Área da conta" />}
-                cartSlot={<ShoppingBag className="size-4" aria-label="Área do carrinho" />}
+                currentPageId={storedPage.id}
               />
             }
             footer={<StorefrontFooter storeName={store.name} settings={settings} />}

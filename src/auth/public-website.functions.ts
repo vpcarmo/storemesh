@@ -120,7 +120,14 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
       },
     );
     const slugByPage = new Map(
-      pages.filter((page) => page.status === "published").map((page) => [page.id, page.slug]),
+      pages
+        .filter(
+          (page) =>
+            page.status === "published" &&
+            /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(page.slug) &&
+            page.slug.length <= 160,
+        )
+        .map((page) => [page.id, page.slug]),
     );
     return {
       store: { name: result.store.name, slug: result.store.slug },
@@ -138,10 +145,20 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
       navigation: navigation
         .filter((item) => item.isActive)
         .flatMap((item) => {
-          const href =
-            item.externalUrl ??
-            (item.pageId ? `/store/${result.store.slug}/${slugByPage.get(item.pageId)}` : null);
-          return href ? [{ id: item.id, label: item.label, href }] : [];
+          if (item.externalUrl) {
+            return [{ id: item.id, label: item.label, href: item.externalUrl, pageId: null }];
+          }
+          const targetSlug = item.pageId ? slugByPage.get(item.pageId) : undefined;
+          return targetSlug
+            ? [
+                {
+                  id: item.id,
+                  label: item.label,
+                  href: `/store/${result.store.slug}/${targetSlug}`,
+                  pageId: item.pageId,
+                },
+              ]
+            : [];
         }),
     };
   });

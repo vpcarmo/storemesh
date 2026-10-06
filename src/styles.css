@@ -209,17 +209,24 @@
 
   .storefront-header {
     border-bottom: 1px solid color-mix(in oklab, var(--storefront-text) 18%, transparent);
-    padding: 1rem var(--storefront-content-space);
+    padding-block: var(--storefront-grid-space);
+    background: var(--storefront-background);
+    box-shadow: var(--storefront-shadow);
   }
 
   .storefront-header-row,
   .storefront-header-actions,
   .storefront-brand,
-  .storefront-navigation,
   .storefront-banner,
   .storefront-cta {
     display: flex;
     align-items: center;
+  }
+
+  .storefront-header-inner {
+    width: min(100%, var(--storefront-container-width));
+    margin-inline: auto;
+    padding-inline: var(--storefront-content-space);
   }
 
   .storefront-header-row {
@@ -246,15 +253,48 @@
   }
 
   .storefront-navigation {
-    flex-wrap: wrap;
-    gap: 0.75rem 1.25rem;
     margin-top: 1rem;
     font-size: 0.875rem;
   }
 
+  .storefront-navigation ul {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
   .storefront-nav-link,
   .storefront-nav-label {
-    color: color-mix(in oklab, var(--storefront-text) 78%, transparent);
+    display: inline-flex;
+    min-height: 2.5rem;
+    align-items: center;
+    color: var(--storefront-text);
+  }
+
+  .storefront-nav-link {
+    border-radius: var(--storefront-button-radius);
+    padding-inline: 0.5rem;
+    text-decoration: none;
+  }
+
+  .storefront-nav-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .storefront-nav-link:focus-visible {
+    outline: 2px solid var(--storefront-primary);
+    outline-offset: 2px;
+  }
+
+  .storefront-nav-link.is-current {
+    background: var(--storefront-primary);
+    color: var(--storefront-primary-foreground);
+    font-weight: 600;
   }
 
   .storefront-section,

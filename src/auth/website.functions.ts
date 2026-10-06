@@ -128,7 +128,14 @@ export const getAdminStorePagePreview = createServerFn({ method: "POST" })
       return section;
     });
     const slugByPage = new Map(
-      pages.filter((item) => item.status === "published").map((item) => [item.id, item.slug]),
+      pages
+        .filter(
+          (item) =>
+            item.status === "published" &&
+            /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(item.slug) &&
+            item.slug.length <= 160,
+        )
+        .map((item) => [item.id, item.slug]),
     );
 
     return {
@@ -141,10 +148,20 @@ export const getAdminStorePagePreview = createServerFn({ method: "POST" })
       navigation: navigation
         .filter((item) => item.isActive)
         .flatMap((item) => {
+          if (item.externalUrl) {
+            return [{ id: item.id, label: item.label, href: item.externalUrl, pageId: null }];
+          }
           const targetSlug = item.pageId ? slugByPage.get(item.pageId) : undefined;
-          const href =
-            item.externalUrl ?? (targetSlug ? `/store/${store.slug}/${targetSlug}` : null);
-          return href ? [{ id: item.id, label: item.label, href }] : [];
+          return targetSlug
+            ? [
+                {
+                  id: item.id,
+                  label: item.label,
+                  href: `/store/${store.slug}/${targetSlug}`,
+                  pageId: item.pageId,
+                },
+              ]
+            : [];
         }),
     };
   });

@@ -59,6 +59,7 @@ function PublicPage() {
             storeName={data.settings?.displayName ?? data.store.name}
             logoUrl={theme.assets.logoUrl}
             navigation={navigation}
+            currentPageId={data.page.id}
           />
         }
         footer={<StorefrontFooter storeName={data.store.name} settings={data.settings} />}

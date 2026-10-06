@@ -4,24 +4,50 @@ import type { StoreSettings } from "@/domain/store-settings";
 import type { StorefrontNavigationItem } from "@/domain/storefront";
 import { hideBrokenImage } from "@/lib/image";
 
-function NavigationItem({ item }: { item: StorefrontNavigationItem }) {
+function NavigationItem({
+  item,
+  isCurrent,
+}: {
+  item: StorefrontNavigationItem;
+  isCurrent: boolean;
+}) {
   return item.href ? (
-    <a className="storefront-nav-link" href={item.href}>
-      {item.label}
-    </a>
+    <li>
+      <a
+        aria-current={isCurrent ? "page" : undefined}
+        className={`storefront-nav-link${isCurrent ? " is-current" : ""}`}
+        href={item.href}
+      >
+        {item.label}
+      </a>
+    </li>
   ) : (
-    <span className="storefront-nav-label">{item.label}</span>
+    <li>
+      <span className="storefront-nav-label">{item.label}</span>
+    </li>
   );
 }
 
-export function StorefrontNavigation({ items }: { items: StorefrontNavigationItem[] }) {
+export function StorefrontNavigation({
+  items,
+  currentPageId,
+}: {
+  items: StorefrontNavigationItem[];
+  currentPageId?: string;
+}) {
   if (items.length === 0) return null;
 
   return (
     <nav aria-label="Navegação da loja" className="storefront-navigation">
-      {items.map((item) => (
-        <NavigationItem key={item.id} item={item} />
-      ))}
+      <ul>
+        {items.map((item) => (
+          <NavigationItem
+            key={item.id}
+            item={item}
+            isCurrent={Boolean(currentPageId && item.pageId === currentPageId)}
+          />
+        ))}
+      </ul>
     </nav>
   );
 }
@@ -33,6 +59,7 @@ export function StorefrontHeader({
   searchSlot,
   accountSlot,
   cartSlot,
+  currentPageId,
 }: {
   storeName: string;
   logoUrl: string | null;
@@ -40,29 +67,39 @@ export function StorefrontHeader({
   searchSlot?: ReactNode;
   accountSlot?: ReactNode;
   cartSlot?: ReactNode;
+  currentPageId?: string;
 }) {
+  const hasActions = Boolean(searchSlot || accountSlot || cartSlot);
+
   return (
     <header className="storefront-header">
-      <div className="storefront-header-row">
-        <div className="storefront-brand">
-          {logoUrl ? (
-            <img
-              key={logoUrl}
-              src={logoUrl}
-              alt=""
-              className="storefront-logo"
-              onError={hideBrokenImage}
-            />
+      <div className="storefront-header-inner">
+        <div className="storefront-header-row">
+          <div className="storefront-brand">
+            {logoUrl ? (
+              <img
+                key={logoUrl}
+                src={logoUrl}
+                alt=""
+                className="storefront-logo"
+                onError={hideBrokenImage}
+              />
+            ) : null}
+            <span>{storeName}</span>
+          </div>
+          {hasActions ? (
+            <div className="storefront-header-actions">
+              {searchSlot}
+              {accountSlot}
+              {cartSlot}
+            </div>
           ) : null}
-          <span>{storeName}</span>
         </div>
-        <div className="storefront-header-actions">
-          {searchSlot}
-          {accountSlot}
-          {cartSlot}
-        </div>
+        <StorefrontNavigation
+          items={navigation}
+          {...(currentPageId === undefined ? {} : { currentPageId })}
+        />
       </div>
-      <StorefrontNavigation items={navigation} />
     </header>
   );
 }

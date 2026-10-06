@@ -17,6 +17,7 @@ export interface StorefrontNavigationItem {
   id: string;
   label: string;
   href?: string;
+  pageId?: string | null;
 }
 
 interface SectionBase {

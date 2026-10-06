@@ -57,7 +57,11 @@ export function WebsitePanel({
   const savePage = useServerFn(saveCurrentStorePage);
   const saveNav = useServerFn(saveCurrentStoreNavigationItem);
   const removeNav = useServerFn(deleteCurrentStoreNavigationItem);
-  const refresh = () => client.invalidateQueries({ queryKey: ["website", storeSlug] });
+  const refresh = () =>
+    Promise.all([
+      client.invalidateQueries({ queryKey: ["website", storeSlug] }),
+      client.invalidateQueries({ queryKey: ["admin-page-preview", storeSlug] }),
+    ]);
   if (requiresStoreSelection && !storeSlug)
     return (
       <p className="text-sm text-muted-foreground">
@@ -85,7 +89,7 @@ export function WebsitePanel({
       });
       setPage(null);
       setPreviewSlug(null);
-      refresh();
+      await refresh();
     } catch (e) {
       setError(message(e));
     }
@@ -107,7 +111,7 @@ export function WebsitePanel({
         },
       });
       setNav(null);
-      refresh();
+      await refresh();
     } catch (e) {
       setError(message(e));
     }
@@ -331,7 +335,7 @@ export function WebsitePanel({
                     variant="destructive"
                     onClick={async () => {
                       await removeNav({ data: { slug: storeSlug, id: item.id } });
-                      refresh();
+                      await refresh();
                     }}
                   >
                     Excluir
