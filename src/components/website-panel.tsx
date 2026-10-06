@@ -144,24 +144,33 @@ export function WebsitePanel({
                 </tr>
               </thead>
               <tbody>
-                {query.data.pages.map((item) => (
-                  <tr key={item.id} className="border-t">
-                    <td className="p-3 font-medium">{item.title}</td>
-                    <td>/{item.slug}</td>
-                    <td>
-                      {item.status === "published"
-                        ? "Publicada"
-                        : item.status === "draft"
-                          ? "Rascunho"
-                          : "Arquivada"}
-                    </td>
-                    <td className="p-3">
-                      <Button variant="outline" size="sm" onClick={() => setPage(item)}>
-                        Editar
-                      </Button>
+                {query.data.pages.length === 0 ? (
+                  <tr className="border-t">
+                    <td colSpan={4} className="p-3 text-muted-foreground">
+                      <p>Nenhuma página cadastrada.</p>
+                      <p>Clique em "Nova página" para criar a primeira.</p>
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  query.data.pages.map((item) => (
+                    <tr key={item.id} className="border-t">
+                      <td className="p-3 font-medium">{item.title}</td>
+                      <td>/{item.slug}</td>
+                      <td>
+                        {item.status === "published"
+                          ? "Publicada"
+                          : item.status === "draft"
+                            ? "Rascunho"
+                            : "Arquivada"}
+                      </td>
+                      <td className="p-3">
+                        <Button variant="outline" size="sm" onClick={() => setPage(item)}>
+                          Editar
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
