@@ -1,4 +1,8 @@
 import type { StoreSettings } from "@/domain/store-settings";
+import {
+  DEFAULT_STOREFRONT_DESIGN_SETTINGS,
+  parseStorefrontDesignSettings,
+} from "@/domain/storefront-design.schema";
 
 export interface StorefrontTheme {
   colors: {
@@ -24,6 +28,21 @@ export interface StorefrontTheme {
   spacing: {
     section: string;
     content: string;
+    grid: string;
+    card: string;
+  };
+  shadows: {
+    elevation: string;
+  };
+  container: {
+    width: string;
+  };
+  background: {
+    value: string;
+    imageUrl: string | null;
+    position: "center" | "top" | "bottom" | "left" | "right";
+    size: "cover" | "contain";
+    overlayOpacity: number;
   };
   assets: {
     logoUrl: string | null;
@@ -57,8 +76,75 @@ function readableForeground(background: string): string {
   return luminance >= 150 ? "#17202A" : "#FFFFFF";
 }
 
-export function createStorefrontTheme(settings: StoreSettings | null): StorefrontTheme {
+export function createStorefrontTheme(
+  settings: StoreSettings | null,
+  backgroundImageUrl: string | null = null,
+): StorefrontTheme {
   const primary = safeColor(settings?.primaryColor ?? null, DEFAULT_STOREFRONT_COLORS.primary);
+  const design = parseStorefrontDesignSettings(
+    settings?.designSettings ?? DEFAULT_STOREFRONT_DESIGN_SETTINGS,
+  );
+  const backgroundColor = safeColor(
+    settings?.backgroundColor ?? null,
+    DEFAULT_STOREFRONT_COLORS.background,
+  );
+  const typography = {
+    modern: {
+      body: "var(--font-interface)",
+      heading: "var(--font-interface)",
+    },
+    editorial: {
+      body: 'var(--font-interface), "Segoe UI", sans-serif',
+      heading: 'Georgia, "Times New Roman", serif',
+    },
+    neutral: {
+      body: 'Arial, "Helvetica Neue", sans-serif',
+      heading: 'Arial, "Helvetica Neue", sans-serif',
+    },
+  }[design.typographyPreset];
+  const spacing = {
+    compact: {
+      section: "clamp(2rem, 5vw, 4rem)",
+      content: "clamp(0.875rem, 3vw, 1.5rem)",
+      grid: "0.75rem",
+      card: "0.875rem",
+    },
+    comfortable: {
+      section: "clamp(3rem, 7vw, 6rem)",
+      content: "clamp(1rem, 4vw, 2rem)",
+      grid: "1rem",
+      card: "1.25rem",
+    },
+    spacious: {
+      section: "clamp(4rem, 9vw, 7rem)",
+      content: "clamp(1.25rem, 5vw, 2.5rem)",
+      grid: "1.5rem",
+      card: "1.75rem",
+    },
+  }[design.density];
+  const radius = {
+    sharp: { button: "0", card: "0" },
+    soft: { button: "0.375rem", card: "0.5rem" },
+    rounded: { button: "0.75rem", card: "1rem" },
+  }[design.radius];
+  const shadow = {
+    none: "none",
+    subtle: "0 2px 10px rgb(0 0 0 / 0.08)",
+    strong: "0 8px 24px rgb(0 0 0 / 0.18)",
+  }[design.shadow];
+  const container = {
+    narrow: "56rem",
+    standard: "72rem",
+    wide: "80rem",
+  }[design.container];
+  const backgroundValue =
+    design.background.type === "gradient"
+      ? `linear-gradient(to ${design.background.direction.replace("-", " ")}, ${design.background.startColor}, ${design.background.endColor})`
+      : backgroundColor;
+  const overlayOpacity =
+    design.background.type !== "image"
+      ? 0
+      : { none: 0, light: 0.15, medium: 0.3, strong: 0.45 }[design.background.overlay];
 
   return {
     colors: {
@@ -67,18 +153,21 @@ export function createStorefrontTheme(settings: StoreSettings | null): Storefron
       secondary: safeColor(settings?.secondaryColor ?? null, DEFAULT_STOREFRONT_COLORS.secondary),
       accent: safeColor(settings?.accentColor ?? null, DEFAULT_STOREFRONT_COLORS.accent),
       text: safeColor(settings?.textColor ?? null, DEFAULT_STOREFRONT_COLORS.text),
-      background: safeColor(
-        settings?.backgroundColor ?? null,
-        DEFAULT_STOREFRONT_COLORS.background,
-      ),
+      background: backgroundColor,
     },
-    typography: {
-      body: "var(--font-interface)",
-      heading: "var(--font-interface)",
+    typography,
+    button: { radius: radius.button, weight: 600 },
+    card: { radius: radius.card, borderWidth: "1px" },
+    spacing,
+    shadows: { elevation: shadow },
+    container: { width: container },
+    background: {
+      value: backgroundValue,
+      imageUrl: design.background.type === "image" ? backgroundImageUrl : null,
+      position: design.background.type === "image" ? design.background.position : "center",
+      size: design.background.type === "image" ? design.background.size : "cover",
+      overlayOpacity,
     },
-    button: { radius: "0.375rem", weight: 600 },
-    card: { radius: "0.5rem", borderWidth: "1px" },
-    spacing: { section: "clamp(3rem, 7vw, 6rem)", content: "clamp(1rem, 4vw, 2rem)" },
     assets: {
       logoUrl: settings?.logoUrl ?? null,
       faviconUrl: settings?.faviconUrl ?? null,

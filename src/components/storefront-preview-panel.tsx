@@ -216,8 +216,8 @@ export function StorefrontPreviewPanel({
     );
   }
 
-  const { store, settings, navigation } = pagePreviewQuery.data;
-  const theme = createStorefrontTheme(settings);
+  const { store, settings, navigation, backgroundImageUrl } = pagePreviewQuery.data;
+  const theme = createStorefrontTheme(settings, backgroundImageUrl);
   const page: StorefrontPageDefinition = {
     id: storedPage.id,
     kind: "static",

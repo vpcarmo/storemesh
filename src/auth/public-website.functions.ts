@@ -26,11 +26,14 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
         ? [section.imageMediaAssetId]
         : [],
     );
-    const mediaReferences = await resolveMediaReferences(
-      supabaseAdmin,
-      result.store.id,
-      imageMediaIds,
-    );
+    const backgroundMediaId =
+      settings?.designSettings.background.type === "image"
+        ? settings.designSettings.background.mediaAssetId
+        : null;
+    const mediaReferences = await resolveMediaReferences(supabaseAdmin, result.store.id, [
+      ...imageMediaIds,
+      ...(backgroundMediaId ? [backgroundMediaId] : []),
+    ]);
     const publicSections = result.page.sections.flatMap<PublicStorefrontSectionDefinition>(
       (section) => {
         switch (section.type) {
@@ -129,6 +132,9 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
         sections: publicSections,
       },
       settings,
+      backgroundImageUrl: backgroundMediaId
+        ? (mediaReferences.get(backgroundMediaId)?.url ?? null)
+        : null,
       navigation: navigation
         .filter((item) => item.isActive)
         .flatMap((item) => {

@@ -43,7 +43,7 @@ function PublicPage() {
   });
   const data = query.data;
   if (!data) return null;
-  const theme = createStorefrontTheme(data.settings);
+  const theme = createStorefrontTheme(data.settings, data.backgroundImageUrl);
   const navigation = data.navigation;
   const page = {
     id: data.page.id,

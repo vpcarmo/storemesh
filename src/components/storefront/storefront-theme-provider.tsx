@@ -17,7 +17,7 @@ export function StorefrontThemeProvider({
     "--storefront-secondary": theme.colors.secondary,
     "--storefront-accent": theme.colors.accent,
     "--storefront-text": theme.colors.text,
-    "--storefront-background": theme.colors.background,
+    "--storefront-background": theme.background.value,
     "--storefront-font-body": theme.typography.body,
     "--storefront-font-heading": theme.typography.heading,
     "--storefront-button-radius": theme.button.radius,
@@ -26,10 +26,23 @@ export function StorefrontThemeProvider({
     "--storefront-card-border-width": theme.card.borderWidth,
     "--storefront-section-space": theme.spacing.section,
     "--storefront-content-space": theme.spacing.content,
+    "--storefront-grid-space": theme.spacing.grid,
+    "--storefront-card-space": theme.spacing.card,
+    "--storefront-shadow": theme.shadows.elevation,
+    "--storefront-container-width": theme.container.width,
+    "--storefront-background-position": theme.background.position,
+    "--storefront-background-size": theme.background.size,
+    "--storefront-background-overlay-opacity": theme.background.overlayOpacity,
   };
 
   return (
     <div className="storefront-theme" style={style}>
+      {theme.background.imageUrl ? (
+        <div className="storefront-global-background" aria-hidden="true">
+          <img src={theme.background.imageUrl} alt="" />
+          <span />
+        </div>
+      ) : null}
       {children}
     </div>
   );

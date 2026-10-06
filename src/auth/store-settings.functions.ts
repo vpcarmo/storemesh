@@ -2,7 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { resolveAuthorizedStore } from "@/auth/authorized-store";
+import { resolveMediaReferences } from "@/data/media.repository";
 import { readStoreSettings, saveStoreSettings } from "@/data/store-settings.repository";
+import { StorefrontDesignSettingsSchema } from "@/domain/storefront-design.schema";
 import { normalizeDisplayName } from "@/domain/store-settings";
 import { isValidHttpUrl, isValidStorefrontHexColor } from "@/domain/storefront-theme";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -44,6 +46,7 @@ const updateStoreSettingsInput = storeSelectionInput.extend({
   secondaryColor: optionalHexColor,
   textColor: optionalHexColor,
   backgroundColor: optionalHexColor,
+  designSettings: StorefrontDesignSettingsSchema,
 });
 
 function emailFromClaims(claims: Record<string, unknown>): string | null {
@@ -82,6 +85,18 @@ export const updateCurrentStoreSettings = createServerFn({ method: "POST" })
 
     if (!store) throw new Error("Nenhuma loja autorizada foi selecionada.");
 
+    if (
+      data.designSettings.background.type === "image" &&
+      data.designSettings.background.mediaAssetId
+    ) {
+      const media = await resolveMediaReferences(context.supabase, store.id, [
+        data.designSettings.background.mediaAssetId,
+      ]);
+      if (!media.has(data.designSettings.background.mediaAssetId)) {
+        throw new Error("A imagem de fundo não pertence à loja autorizada.");
+      }
+    }
+
     return saveStoreSettings(context.supabase, store.id, {
       displayName: normalizeDisplayName(data.displayName),
       shortDescription: data.shortDescription,
@@ -91,5 +106,6 @@ export const updateCurrentStoreSettings = createServerFn({ method: "POST" })
       secondaryColor: data.secondaryColor,
       textColor: data.textColor,
       backgroundColor: data.backgroundColor,
+      designSettings: data.designSettings,
     });
   });

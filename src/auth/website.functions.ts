@@ -105,14 +105,18 @@ export const getAdminStorePagePreview = createServerFn({ method: "POST" })
         ? [section.imageMediaAssetId]
         : [],
     );
-    const mediaReferences = await resolveMediaReferences(
-      context.supabase,
-      store.id,
-      imageMediaIds,
-    ).catch(() => {
+    const sectionMediaIds = [...new Set(imageMediaIds)];
+    const backgroundMediaId =
+      settings?.designSettings.background.type === "image"
+        ? settings.designSettings.background.mediaAssetId
+        : null;
+    const mediaReferences = await resolveMediaReferences(context.supabase, store.id, [
+      ...imageMediaIds,
+      ...(backgroundMediaId ? [backgroundMediaId] : []),
+    ]).catch(() => {
       throw new Error("Não foi possível carregar as mídias da prévia.");
     });
-    if (mediaReferences.size !== new Set(imageMediaIds).size)
+    if (sectionMediaIds.some((id) => !mediaReferences.has(id)))
       throw new Error("Não foi possível carregar as mídias da prévia.");
     const sections = page.sections.map((section): PublicStorefrontSectionDefinition => {
       if (section.type === "hero" || section.type === "banner") {
@@ -130,6 +134,9 @@ export const getAdminStorePagePreview = createServerFn({ method: "POST" })
     return {
       store: { id: store.id, name: store.name, slug: store.slug },
       settings,
+      backgroundImageUrl: backgroundMediaId
+        ? (mediaReferences.get(backgroundMediaId)?.url ?? null)
+        : null,
       page: { ...page, sections },
       navigation: navigation
         .filter((item) => item.isActive)

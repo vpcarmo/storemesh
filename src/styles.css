@@ -155,6 +155,7 @@
   background: var(--storefront-primary);
   color: var(--storefront-primary-foreground);
   font-weight: var(--storefront-button-weight);
+  box-shadow: var(--storefront-shadow);
 
   &:hover {
     background: color-mix(in oklab, var(--storefront-primary) 88%, black);
@@ -163,14 +164,47 @@
 
 @layer components {
   .storefront-theme {
+    position: relative;
+    isolation: isolate;
     background: var(--storefront-background);
     color: var(--storefront-text);
     font-family: var(--storefront-font-body);
   }
 
+  .storefront-global-background {
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .storefront-global-background img,
+  .storefront-global-background span {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .storefront-global-background img {
+    object-position: var(--storefront-background-position);
+    object-fit: var(--storefront-background-size);
+  }
+
+  .storefront-global-background span {
+    background: #000;
+    opacity: var(--storefront-background-overlay-opacity);
+  }
+
+  .storefront-theme > :not(.storefront-global-background) {
+    position: relative;
+    z-index: 1;
+  }
+
   .storefront-layout {
     min-width: 0;
-    background: var(--storefront-background);
+    background: transparent;
   }
 
   .storefront-header {
@@ -233,13 +267,13 @@
   }
 
   .storefront-section-inner {
-    width: min(100%, 72rem);
+    width: min(100%, var(--storefront-container-width));
     margin-inline: auto;
   }
 
   .storefront-section-image {
     display: block;
-    width: min(100%, 72rem);
+    width: min(100%, var(--storefront-container-width));
     max-height: 32rem;
     margin: 0 auto 1.5rem;
     object-fit: cover;
@@ -294,8 +328,8 @@
   .storefront-product-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
-    gap: 1rem;
-    margin-top: 1.5rem;
+    gap: var(--storefront-grid-space);
+    margin-top: var(--storefront-grid-space);
   }
 
   .storefront-card {
@@ -303,7 +337,8 @@
     border: var(--storefront-card-border-width) solid
       color-mix(in oklab, var(--storefront-text) 16%, transparent);
     border-radius: var(--storefront-card-radius);
-    padding: 1.25rem;
+    padding: var(--storefront-card-space);
+    box-shadow: var(--storefront-shadow);
   }
 
   .storefront-product-card {
@@ -311,7 +346,7 @@
   }
 
   .storefront-product-card > div:last-child {
-    padding: 1.25rem;
+    padding: var(--storefront-card-space);
   }
 
   .storefront-product-media {

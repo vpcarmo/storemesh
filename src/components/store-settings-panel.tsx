@@ -7,6 +7,7 @@ import {
   getCurrentStoreSettings,
   updateCurrentStoreSettings,
 } from "@/auth/store-settings.functions";
+import { getCurrentStoreMedia } from "@/auth/media.functions";
 import { FormHelp } from "@/components/admin/form-help";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +15,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { StoreSettings } from "@/domain/store-settings";
+import {
+  DEFAULT_STOREFRONT_DESIGN_SETTINGS,
+  type StorefrontDesignSettings,
+} from "@/domain/storefront-design.schema";
 import { hideBrokenImage } from "@/lib/image";
 import {
   DEFAULT_STOREFRONT_COLORS,
@@ -33,10 +38,13 @@ type SettingsForm = {
   secondaryColor: string;
   textColor: string;
   backgroundColor: string;
+  designSettings: StorefrontDesignSettings;
 };
 
 type SettingsField = keyof SettingsForm;
 type FormErrors = Partial<Record<SettingsField, string>>;
+type GradientBackground = Extract<StorefrontDesignSettings["background"], { type: "gradient" }>;
+type ImageBackground = Extract<StorefrontDesignSettings["background"], { type: "image" }>;
 
 const colorFields = [
   {
@@ -79,6 +87,7 @@ function formFromSettings(settings: StoreSettings | null): SettingsForm {
     secondaryColor: settings?.secondaryColor ?? "",
     textColor: settings?.textColor ?? "",
     backgroundColor: settings?.backgroundColor ?? "",
+    designSettings: settings?.designSettings ?? DEFAULT_STOREFRONT_DESIGN_SETTINGS,
   };
 }
 
@@ -191,6 +200,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
   const queryClient = useQueryClient();
   const loadSettings = useServerFn(getCurrentStoreSettings);
   const saveSettings = useServerFn(updateCurrentStoreSettings);
+  const loadMedia = useServerFn(getCurrentStoreMedia);
   const [form, setForm] = useState<SettingsForm>(() => formFromSettings(null));
   const [errors, setErrors] = useState<FormErrors>({});
   const [pending, setPending] = useState(false);
@@ -198,6 +208,11 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
   const settingsQuery = useQuery({
     queryKey: [...settingsQueryKey, storeSlug],
     queryFn: () => loadSettings({ data: { slug: storeSlug } }),
+  });
+  const mediaQuery = useQuery({
+    queryKey: ["store", "current", "media", storeSlug ?? null],
+    queryFn: () => loadMedia({ data: { slug: storeSlug } }),
+    enabled: Boolean(settingsQuery.data?.store),
   });
 
   useEffect(() => {
@@ -211,6 +226,25 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
     setForm((current) => ({ ...current, [name]: value }));
     setErrors((current) => ({ ...current, [name]: undefined }));
     setFeedback(null);
+  }
+
+  function updateDesignSettings(value: StorefrontDesignSettings) {
+    setForm((current) => ({ ...current, designSettings: value }));
+    setFeedback(null);
+  }
+
+  function updateGradientBackground(
+    update: (background: GradientBackground) => GradientBackground,
+  ) {
+    const background = form.designSettings.background;
+    if (background.type !== "gradient") return;
+    updateDesignSettings({ ...form.designSettings, background: update(background) });
+  }
+
+  function updateImageBackground(update: (background: ImageBackground) => ImageBackground) {
+    const background = form.designSettings.background;
+    if (background.type !== "image") return;
+    updateDesignSettings({ ...form.designSettings, background: update(background) });
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -233,11 +267,13 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
           secondaryColor: form.secondaryColor,
           textColor: form.textColor,
           backgroundColor: form.backgroundColor,
+          designSettings: form.designSettings,
         },
       });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: [...settingsQueryKey, storeSlug] }),
         queryClient.invalidateQueries({ queryKey: [...storefrontQueryKey, storeSlug] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-page-preview", storeSlug] }),
       ]);
       setFeedback("Configurações salvas.");
     } catch (error) {
@@ -270,6 +306,13 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
   );
   const lowTextContrast =
     Math.abs(brightness(effectiveTextColor) - brightness(effectiveBackgroundColor)) < 60;
+  const selectedBackgroundMediaId =
+    form.designSettings.background.type === "image"
+      ? form.designSettings.background.mediaAssetId
+      : null;
+  const selectedBackgroundMedia = mediaQuery.data?.find(
+    (asset) => asset.id === selectedBackgroundMediaId,
+  );
 
   return (
     <section className="mt-6 w-full max-w-3xl" aria-label="Configurações da loja">
@@ -397,20 +440,349 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
             <CardDescription>Personalize as cores usadas no tema da vitrine.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-5">
-            {colorFields.map((color) => (
-              <ColorField
-                key={color.name}
-                {...color}
-                value={form[color.name]}
-                error={errors[color.name]}
-                onChange={(value) => updateField(color.name, value)}
-                onRestore={() => updateField(color.name, color.defaultValue)}
-              />
-            ))}
-            {lowTextContrast ? (
-              <p className="text-sm text-amber-700" role="status">
-                As cores de texto e fundo estão muito próximas e podem dificultar a leitura.
-              </p>
+            {colorFields
+              .filter((color) => color.name !== "backgroundColor")
+              .map((color) => (
+                <ColorField
+                  key={color.name}
+                  {...color}
+                  value={form[color.name]}
+                  error={errors[color.name]}
+                  onChange={(value) => updateField(color.name, value)}
+                  onRestore={() => updateField(color.name, color.defaultValue)}
+                />
+              ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Design da loja</CardTitle>
+            <CardDescription>
+              Essas opções definem a linguagem visual padrão de toda a loja.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-5">
+            <div className="grid gap-2">
+              <Label htmlFor="store-design-typography">Tipografia</Label>
+              <select
+                id="store-design-typography"
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.designSettings.typographyPreset}
+                onChange={(event) =>
+                  updateDesignSettings({
+                    ...form.designSettings,
+                    typographyPreset: event.target
+                      .value as StorefrontDesignSettings["typographyPreset"],
+                  })
+                }
+              >
+                <option value="modern">Moderna</option>
+                <option value="editorial">Editorial</option>
+                <option value="neutral">Neutra</option>
+              </select>
+              <FormHelp>
+                Escolha uma combinação de fontes pré-configurada. Não é necessário configurar CSS ou
+                fontes manualmente.
+              </FormHelp>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="store-design-density">Densidade</Label>
+              <select
+                id="store-design-density"
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.designSettings.density}
+                onChange={(event) =>
+                  updateDesignSettings({
+                    ...form.designSettings,
+                    density: event.target.value as StorefrontDesignSettings["density"],
+                  })
+                }
+              >
+                <option value="compact">Compacta</option>
+                <option value="comfortable">Confortável</option>
+                <option value="spacious">Espaçosa</option>
+              </select>
+              <FormHelp>Controla o espaço geral entre conteúdos e seções.</FormHelp>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="store-design-radius">Cantos</Label>
+              <select
+                id="store-design-radius"
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.designSettings.radius}
+                onChange={(event) =>
+                  updateDesignSettings({
+                    ...form.designSettings,
+                    radius: event.target.value as StorefrontDesignSettings["radius"],
+                  })
+                }
+              >
+                <option value="sharp">Retos</option>
+                <option value="soft">Suaves</option>
+                <option value="rounded">Arredondados</option>
+              </select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="store-design-shadow">Sombras</Label>
+              <select
+                id="store-design-shadow"
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.designSettings.shadow}
+                onChange={(event) =>
+                  updateDesignSettings({
+                    ...form.designSettings,
+                    shadow: event.target.value as StorefrontDesignSettings["shadow"],
+                  })
+                }
+              >
+                <option value="none">Nenhuma</option>
+                <option value="subtle">Sutil</option>
+                <option value="strong">Forte</option>
+              </select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="store-design-container">Largura do conteúdo</Label>
+              <select
+                id="store-design-container"
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.designSettings.container}
+                onChange={(event) =>
+                  updateDesignSettings({
+                    ...form.designSettings,
+                    container: event.target.value as StorefrontDesignSettings["container"],
+                  })
+                }
+              >
+                <option value="narrow">Estreita</option>
+                <option value="standard">Padrão</option>
+                <option value="wide">Ampla</option>
+              </select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="store-design-background">Fundo</Label>
+              <select
+                id="store-design-background"
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.designSettings.background.type}
+                onChange={(event) => {
+                  const type = event.target.value;
+                  if (type === "gradient") {
+                    updateDesignSettings({
+                      ...form.designSettings,
+                      background: {
+                        type,
+                        startColor: "#24303F",
+                        endColor: "#FFFFFF",
+                        direction: "bottom-right",
+                      },
+                    });
+                  } else if (type === "image") {
+                    updateDesignSettings({
+                      ...form.designSettings,
+                      background: {
+                        type,
+                        mediaAssetId: null,
+                        position: "center",
+                        size: "cover",
+                        overlay: "none",
+                      },
+                    });
+                  } else {
+                    updateDesignSettings({
+                      ...form.designSettings,
+                      background: { type: "solid" },
+                    });
+                  }
+                }}
+              >
+                <option value="solid">Cor</option>
+                <option value="gradient">Degradê</option>
+                <option value="image">Imagem</option>
+              </select>
+              <FormHelp>
+                Define o fundo global da vitrine. As seções poderão ganhar estilos próprios em uma
+                etapa futura.
+              </FormHelp>
+            </div>
+
+            {form.designSettings.background.type === "solid" ? (
+              <>
+                <ColorField
+                  name="backgroundColor"
+                  label="Cor do fundo"
+                  defaultValue={DEFAULT_STOREFRONT_COLORS.background}
+                  help="Cor de fundo principal da vitrine."
+                  value={form.backgroundColor}
+                  error={errors.backgroundColor}
+                  onChange={(value) => updateField("backgroundColor", value)}
+                  onRestore={() =>
+                    updateField("backgroundColor", DEFAULT_STOREFRONT_COLORS.background)
+                  }
+                />
+                {lowTextContrast ? (
+                  <p className="text-sm text-amber-700" role="status">
+                    As cores de texto e fundo estão muito próximas e podem dificultar a leitura.
+                  </p>
+                ) : null}
+              </>
+            ) : null}
+
+            {form.designSettings.background.type === "gradient" ? (
+              <>
+                <div className="grid gap-2">
+                  <Label htmlFor="store-design-gradient-start">Cor inicial</Label>
+                  <input
+                    id="store-design-gradient-start"
+                    className="h-10 w-16 cursor-pointer rounded-md border border-input bg-background p-1"
+                    type="color"
+                    value={form.designSettings.background.startColor}
+                    onChange={(event) =>
+                      updateGradientBackground((background) => ({
+                        ...background,
+                        startColor: event.target.value.toUpperCase(),
+                      }))
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="store-design-gradient-end">Cor final</Label>
+                  <input
+                    id="store-design-gradient-end"
+                    className="h-10 w-16 cursor-pointer rounded-md border border-input bg-background p-1"
+                    type="color"
+                    value={form.designSettings.background.endColor}
+                    onChange={(event) =>
+                      updateGradientBackground((background) => ({
+                        ...background,
+                        endColor: event.target.value.toUpperCase(),
+                      }))
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="store-design-gradient-direction">Direção</Label>
+                  <select
+                    id="store-design-gradient-direction"
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    value={form.designSettings.background.direction}
+                    onChange={(event) =>
+                      updateGradientBackground((background) => ({
+                        ...background,
+                        direction: event.target.value as GradientBackground["direction"],
+                      }))
+                    }
+                  >
+                    <option value="right">Direita</option>
+                    <option value="bottom">Baixo</option>
+                    <option value="bottom-right">Diagonal inferior direita</option>
+                    <option value="left">Esquerda</option>
+                    <option value="top">Cima</option>
+                  </select>
+                </div>
+              </>
+            ) : null}
+
+            {form.designSettings.background.type === "image" ? (
+              <>
+                <div className="grid gap-2">
+                  <Label htmlFor="store-design-background-media">
+                    Imagem da Biblioteca de mídia
+                  </Label>
+                  <select
+                    id="store-design-background-media"
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    value={form.designSettings.background.mediaAssetId ?? ""}
+                    onChange={(event) =>
+                      updateImageBackground((background) => ({
+                        ...background,
+                        mediaAssetId: event.target.value || null,
+                      }))
+                    }
+                  >
+                    <option value="">Selecione uma imagem</option>
+                    {mediaQuery.data?.map((asset) => (
+                      <option key={asset.id} value={asset.id}>
+                        {asset.filename}
+                      </option>
+                    ))}
+                  </select>
+                  <FormHelp>
+                    Use uma imagem da Biblioteca de mídia desta loja. O arquivo não será duplicado.
+                  </FormHelp>
+                  {mediaQuery.isError ? (
+                    <p className="text-sm text-destructive">{messageFrom(mediaQuery.error)}</p>
+                  ) : null}
+                  {selectedBackgroundMedia ? (
+                    <img
+                      src={selectedBackgroundMedia.imageUrl}
+                      alt={selectedBackgroundMedia.alt ?? ""}
+                      className="max-h-48 w-fit rounded-md border object-contain"
+                    />
+                  ) : null}
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="store-design-background-position">Posição</Label>
+                  <select
+                    id="store-design-background-position"
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    value={form.designSettings.background.position}
+                    onChange={(event) =>
+                      updateImageBackground((background) => ({
+                        ...background,
+                        position: event.target.value as ImageBackground["position"],
+                      }))
+                    }
+                  >
+                    <option value="center">Centro</option>
+                    <option value="top">Topo</option>
+                    <option value="bottom">Base</option>
+                    <option value="left">Esquerda</option>
+                    <option value="right">Direita</option>
+                  </select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="store-design-background-size">Ajuste</Label>
+                  <select
+                    id="store-design-background-size"
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    value={form.designSettings.background.size}
+                    onChange={(event) =>
+                      updateImageBackground((background) => ({
+                        ...background,
+                        size: event.target.value as ImageBackground["size"],
+                      }))
+                    }
+                  >
+                    <option value="cover">Preencher (cover)</option>
+                    <option value="contain">Conter (contain)</option>
+                  </select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="store-design-background-overlay">Sobreposição</Label>
+                  <select
+                    id="store-design-background-overlay"
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    value={form.designSettings.background.overlay}
+                    onChange={(event) =>
+                      updateImageBackground((background) => ({
+                        ...background,
+                        overlay: event.target.value as ImageBackground["overlay"],
+                      }))
+                    }
+                  >
+                    <option value="none">Nenhuma</option>
+                    <option value="light">Leve</option>
+                    <option value="medium">Média</option>
+                    <option value="strong">Forte</option>
+                  </select>
+                </div>
+              </>
             ) : null}
           </CardContent>
         </Card>

@@ -1,12 +1,55 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { StoreSettings } from "@/domain/store-settings";
-import type { Database, Tables } from "@/integrations/supabase/types";
+import { parseStorefrontDesignSettings } from "@/domain/storefront-design.schema";
+import type { Database, Json, Tables } from "@/integrations/supabase/types";
 
 type AppClient = SupabaseClient<Database>;
 type StoreSettingsRow = Tables<"store_settings">;
+type StoreSettingsTable = Database["public"]["Tables"]["store_settings"];
+// Keep the new column typed locally until the generated Supabase schema is refreshed.
+type DesignSettingsDatabase = Omit<Database, "public"> & {
+  public: Omit<Database["public"], "Tables"> & {
+    Tables: Omit<Database["public"]["Tables"], "store_settings"> & {
+      store_settings: Omit<StoreSettingsTable, "Row" | "Insert" | "Update"> & {
+        Row: StoreSettingsTable["Row"] & { design_settings: Json | null };
+        Insert: StoreSettingsTable["Insert"] & { design_settings?: Json | null };
+        Update: StoreSettingsTable["Update"] & { design_settings?: Json | null };
+      };
+    };
+  };
+};
+
+function designSettingsJson(settings: StoreSettings["designSettings"]): Json {
+  const background =
+    settings.background.type === "solid"
+      ? { type: "solid" }
+      : settings.background.type === "gradient"
+        ? {
+            type: "gradient",
+            startColor: settings.background.startColor,
+            endColor: settings.background.endColor,
+            direction: settings.background.direction,
+          }
+        : {
+            type: "image",
+            mediaAssetId: settings.background.mediaAssetId,
+            position: settings.background.position,
+            size: settings.background.size,
+            overlay: settings.background.overlay,
+          };
+  return {
+    typographyPreset: settings.typographyPreset,
+    density: settings.density,
+    radius: settings.radius,
+    shadow: settings.shadow,
+    container: settings.container,
+    background,
+  };
+}
 
 function toDomain(row: StoreSettingsRow): StoreSettings {
+  const designSettings = "design_settings" in row ? row.design_settings : null;
   return {
     storeId: row.store_id,
     displayName: row.display_name,
@@ -28,6 +71,7 @@ function toDomain(row: StoreSettingsRow): StoreSettings {
     accentColor: row.accent_color,
     textColor: row.text_color,
     backgroundColor: row.background_color,
+    designSettings: parseStorefrontDesignSettings(designSettings),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -56,6 +100,7 @@ export interface StoreSettingsUpdate {
   secondaryColor: string | null;
   textColor: string | null;
   backgroundColor: string | null;
+  designSettings: StoreSettings["designSettings"];
 }
 
 export async function saveStoreSettings(
@@ -63,22 +108,24 @@ export async function saveStoreSettings(
   storeId: string,
   settings: StoreSettingsUpdate,
 ): Promise<StoreSettings> {
-  const { data, error } = await client
+  const values: StoreSettingsTable["Insert"] & {
+    design_settings: Json;
+  } = {
+    store_id: storeId,
+    display_name: settings.displayName,
+    short_description: settings.shortDescription,
+    logo_url: settings.logoUrl,
+    favicon_url: settings.faviconUrl,
+    primary_color: settings.primaryColor,
+    secondary_color: settings.secondaryColor,
+    text_color: settings.textColor,
+    background_color: settings.backgroundColor,
+    design_settings: designSettingsJson(settings.designSettings),
+  };
+  const designSettingsClient = client as SupabaseClient<DesignSettingsDatabase>;
+  const { data, error } = await designSettingsClient
     .from("store_settings")
-    .upsert(
-      {
-        store_id: storeId,
-        display_name: settings.displayName,
-        short_description: settings.shortDescription,
-        logo_url: settings.logoUrl,
-        favicon_url: settings.faviconUrl,
-        primary_color: settings.primaryColor,
-        secondary_color: settings.secondaryColor,
-        text_color: settings.textColor,
-        background_color: settings.backgroundColor,
-      },
-      { onConflict: "store_id" },
-    )
+    .upsert(values, { onConflict: "store_id" })
     .select("*")
     .single();
 

@@ -1,4 +1,5 @@
 import type { Json } from "@/integrations/supabase/types";
+import type { StorefrontDesignSettings } from "@/domain/storefront-design.schema";
 
 export interface StoreSettings {
   storeId: string;
@@ -21,6 +22,7 @@ export interface StoreSettings {
   accentColor: string | null;
   textColor: string | null;
   backgroundColor: string | null;
+  designSettings: StorefrontDesignSettings;
   createdAt: string;
   updatedAt: string;
 }
