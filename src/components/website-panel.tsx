@@ -9,6 +9,7 @@ import {
   saveCurrentStorePage,
 } from "@/auth/website.functions";
 import { FormHelp } from "@/components/admin/form-help";
+import { WebsiteSectionsEditor } from "@/components/website-sections-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -168,8 +169,8 @@ export function WebsitePanel({
             <form onSubmit={submitPage} className="grid gap-3 rounded-lg border p-4">
               <h2 className="font-medium">{page.id ? "Editar página" : "Nova página"}</h2>
               <FormHelp variant="callout">
-                Esta tela define o endereço, o status e os metadados da página. O conteúdo visual
-                das seções ainda não é editado aqui.
+                Os dados da página definem endereço, status e SEO. As seções definem o conteúdo
+                visual.
               </FormHelp>
               <Label>
                 Título
@@ -238,6 +239,15 @@ export function WebsitePanel({
                 Alterar os campos de SEO posteriormente não significa que um Hero já existente será
                 atualizado automaticamente.
               </FormHelp>
+              {page.id && "sections" in page ? (
+                <WebsiteSectionsEditor
+                  key={page.id}
+                  pageId={page.id}
+                  status={page.status}
+                  sections={page.sections}
+                  storeSlug={storeSlug}
+                />
+              ) : null}
               <div className="flex gap-2">
                 <Button type="submit">Salvar</Button>
                 <Button type="button" variant="outline" onClick={() => setPage(null)}>

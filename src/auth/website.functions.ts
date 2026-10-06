@@ -8,6 +8,7 @@ import {
   readPages,
   saveNavigationItem,
   savePage,
+  updatePageSections,
   updatePageStatus,
 } from "@/data/website.repository";
 import { PAGE_STATUSES } from "@/domain/website";
@@ -27,6 +28,10 @@ const pageInput = storeInput.extend({
   seoDescription: z.string().trim().max(320).nullable(),
 });
 const pageStatusInput = storeInput.extend({ id: z.string().uuid(), status: z.enum(PAGE_STATUSES) });
+const pageSectionsInput = storeInput.extend({
+  id: z.string().uuid(),
+  sections: z.array(z.unknown()),
+});
 const navigationInput = storeInput
   .extend({
     id: z.string().uuid().nullable(),
@@ -87,6 +92,18 @@ export const saveCurrentStorePage = createServerFn({ method: "POST" })
       seoTitle: data.seoTitle,
       seoDescription: data.seoDescription,
     });
+  });
+export const saveCurrentStorePageSections = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => pageSectionsInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const store = await authorizedStore(
+      context.supabase,
+      context.userId,
+      context.claims,
+      data.slug,
+    );
+    await updatePageSections(context.supabase, store.id, data.id, data.sections);
   });
 export const setCurrentStorePageStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
