@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminCatalogRouteImport } from './routes/admin.catalog'
 import { Route as AdminCommerceRouteImport } from './routes/admin.commerce'
@@ -20,6 +22,8 @@ import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminStoresRouteImport } from './routes/admin.stores'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminWebsiteRouteImport } from './routes/admin.website'
+import { Route as AuthAcceptInviteRouteImport } from './routes/auth.accept-invite'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
 import { Route as AdminCatalogIndexRouteImport } from './routes/admin.catalog.index'
 import { Route as AdminCatalogAttributesRouteImport } from './routes/admin.catalog.attributes'
 import { Route as AdminCatalogCategoriesRouteImport } from './routes/admin.catalog.categories'
@@ -40,6 +44,16 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -86,6 +100,16 @@ const AdminWebsiteRoute = AdminWebsiteRouteImport.update({
   id: '/website',
   path: '/website',
   getParentRoute: () => AdminRoute,
+} as any)
+const AuthAcceptInviteRoute = AuthAcceptInviteRouteImport.update({
+  id: '/auth/accept-invite',
+  path: '/auth/accept-invite',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/auth/reset-password',
+  path: '/auth/reset-password',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminCatalogIndexRoute = AdminCatalogIndexRouteImport.update({
   id: '/',
@@ -148,6 +172,8 @@ const StoreStoreSlugProductProductSlugRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/login': typeof LoginRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/commerce': typeof AdminCommerceRoute
   '/admin/content': typeof AdminContentRouteWithChildren
@@ -156,6 +182,8 @@ export interface FileRoutesByFullPath {
   '/admin/stores': typeof AdminStoresRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/website': typeof AdminWebsiteRouteWithChildren
+  '/auth/accept-invite': typeof AuthAcceptInviteRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/catalog/attributes': typeof AdminCatalogAttributesRoute
   '/admin/catalog/categories': typeof AdminCatalogCategoriesRoute
@@ -171,12 +199,16 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/login': typeof LoginRoute
   '/admin/commerce': typeof AdminCommerceRoute
   '/admin/content': typeof AdminContentRouteWithChildren
   '/admin/preview': typeof AdminPreviewRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/stores': typeof AdminStoresRoute
   '/admin/users': typeof AdminUsersRoute
+  '/auth/accept-invite': typeof AuthAcceptInviteRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/admin': typeof AdminIndexRoute
   '/admin/catalog/attributes': typeof AdminCatalogAttributesRoute
   '/admin/catalog/categories': typeof AdminCatalogCategoriesRoute
@@ -194,6 +226,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/login': typeof LoginRoute
   '/admin/catalog': typeof AdminCatalogRouteWithChildren
   '/admin/commerce': typeof AdminCommerceRoute
   '/admin/content': typeof AdminContentRouteWithChildren
@@ -202,6 +236,8 @@ export interface FileRoutesById {
   '/admin/stores': typeof AdminStoresRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/website': typeof AdminWebsiteRouteWithChildren
+  '/auth/accept-invite': typeof AuthAcceptInviteRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/catalog/attributes': typeof AdminCatalogAttributesRoute
   '/admin/catalog/categories': typeof AdminCatalogCategoriesRoute
@@ -220,6 +256,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/forgot-password'
+    | '/login'
     | '/admin/catalog'
     | '/admin/commerce'
     | '/admin/content'
@@ -228,6 +266,8 @@ export interface FileRouteTypes {
     | '/admin/stores'
     | '/admin/users'
     | '/admin/website'
+    | '/auth/accept-invite'
+    | '/auth/reset-password'
     | '/admin/'
     | '/admin/catalog/attributes'
     | '/admin/catalog/categories'
@@ -243,12 +283,16 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/forgot-password'
+    | '/login'
     | '/admin/commerce'
     | '/admin/content'
     | '/admin/preview'
     | '/admin/settings'
     | '/admin/stores'
     | '/admin/users'
+    | '/auth/accept-invite'
+    | '/auth/reset-password'
     | '/admin'
     | '/admin/catalog/attributes'
     | '/admin/catalog/categories'
@@ -265,6 +309,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/forgot-password'
+    | '/login'
     | '/admin/catalog'
     | '/admin/commerce'
     | '/admin/content'
@@ -273,6 +319,8 @@ export interface FileRouteTypes {
     | '/admin/stores'
     | '/admin/users'
     | '/admin/website'
+    | '/auth/accept-invite'
+    | '/auth/reset-password'
     | '/admin/'
     | '/admin/catalog/attributes'
     | '/admin/catalog/categories'
@@ -290,6 +338,10 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
+  LoginRoute: typeof LoginRoute
+  AuthAcceptInviteRoute: typeof AuthAcceptInviteRoute
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
   StoreStoreSlugPageSlugRoute: typeof StoreStoreSlugPageSlugRoute
   StoreStoreSlugCategoryCategorySlugRoute: typeof StoreStoreSlugCategoryCategorySlugRoute
   StoreStoreSlugProductProductSlugRoute: typeof StoreStoreSlugProductProductSlugRoute
@@ -309,6 +361,20 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -373,6 +439,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/website'
       preLoaderRoute: typeof AdminWebsiteRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/auth/accept-invite': {
+      id: '/auth/accept-invite'
+      path: '/auth/accept-invite'
+      fullPath: '/auth/accept-invite'
+      preLoaderRoute: typeof AuthAcceptInviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/auth/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/catalog/': {
       id: '/admin/catalog/'
@@ -529,6 +609,10 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
+  ForgotPasswordRoute: ForgotPasswordRoute,
+  LoginRoute: LoginRoute,
+  AuthAcceptInviteRoute: AuthAcceptInviteRoute,
+  AuthResetPasswordRoute: AuthResetPasswordRoute,
   StoreStoreSlugPageSlugRoute: StoreStoreSlugPageSlugRoute,
   StoreStoreSlugCategoryCategorySlugRoute:
     StoreStoreSlugCategoryCategorySlugRoute,

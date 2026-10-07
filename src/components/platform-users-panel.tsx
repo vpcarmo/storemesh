@@ -22,6 +22,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -33,6 +40,7 @@ import type { PlatformManagedUser } from "@/data/platform-stores.repository";
 
 const usersQueryKey = ["platform", "users"] as const;
 const storesQueryKey = ["platform", "stores"] as const;
+type InviteRole = "super_admin" | "store_admin";
 
 interface UserEditor {
   fullName: string;
@@ -65,6 +73,8 @@ export function PlatformUsersPanel() {
   const saveUser = useServerFn(savePlatformUser);
   const revoke = useServerFn(revokePlatformUser);
   const [email, setEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<InviteRole>("store_admin");
+  const [inviteStoreIds, setInviteStoreIds] = useState<string[]>([]);
   const [invitePending, setInvitePending] = useState(false);
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -84,12 +94,23 @@ export function PlatformUsersPanel() {
   async function submitInvite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (invitePending) return;
+    if (inviteRole === "store_admin" && inviteStoreIds.length === 0) {
+      setFeedback("Selecione pelo menos uma loja para Store Admin.");
+      return;
+    }
     setInvitePending(true);
     setFeedback(null);
     try {
-      await invite({ data: { email: email.trim() } });
+      await invite({
+        data: {
+          email: email.trim(),
+          role: inviteRole,
+          storeIds: inviteRole === "store_admin" ? inviteStoreIds : [],
+        },
+      });
       setEmail("");
-      setFeedback("Convite enviado. Nenhum papel ou acesso a loja foi atribuído.");
+      setInviteStoreIds([]);
+      setFeedback("Convite enviado e acesso provisionado.");
       await refresh();
     } catch (error) {
       setFeedback(errorMessage(error));
@@ -186,10 +207,10 @@ export function PlatformUsersPanel() {
 
       <form
         onSubmit={submitInvite}
-        className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
+        className="grid gap-4 rounded-lg border border-border p-4 md:grid-cols-2"
       >
         <div className="grid gap-2">
-          <Label htmlFor="platform-user-invite-email">Convidar por e-mail</Label>
+          <Label htmlFor="platform-user-invite-email">Novo usuário — e-mail</Label>
           <Input
             id="platform-user-invite-email"
             type="email"
@@ -199,13 +220,65 @@ export function PlatformUsersPanel() {
             placeholder="nome@exemplo.com"
             required
           />
-          <p className="text-xs text-muted-foreground">
-            O convite não atribui papel nem acesso a uma loja.
-          </p>
         </div>
-        <Button type="submit" disabled={invitePending}>
-          {invitePending ? "Enviando convite…" : "Enviar convite"}
-        </Button>
+        <div className="grid gap-2">
+          <Label htmlFor="platform-user-invite-role">Papel</Label>
+          <Select
+            value={inviteRole}
+            onValueChange={(value: InviteRole) => {
+              setInviteRole(value);
+              if (value === "super_admin") setInviteStoreIds([]);
+            }}
+          >
+            <SelectTrigger id="platform-user-invite-role">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="store_admin">Store Admin</SelectItem>
+              <SelectItem value="super_admin">Super Admin</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {inviteRole === "store_admin" ? (
+          <fieldset className="space-y-2 md:col-span-2">
+            <legend className="text-sm font-medium">Lojas</legend>
+            {stores.map((store) => (
+              <label key={store.id} className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={inviteStoreIds.includes(store.id)}
+                  onCheckedChange={(checked) =>
+                    setInviteStoreIds((current) =>
+                      checked
+                        ? [...new Set([...current, store.id])]
+                        : current.filter((storeId) => storeId !== store.id),
+                    )
+                  }
+                />
+                <span>
+                  {store.name} <span className="text-muted-foreground">({store.slug})</span>
+                  {store.status === "inactive" ? " — inativa" : ""}
+                </span>
+              </label>
+            ))}
+            {stores.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma loja cadastrada.{" "}
+                <Link to="/admin/stores" className="underline">
+                  Criar loja
+                </Link>
+              </p>
+            ) : null}
+          </fieldset>
+        ) : (
+          <p className="text-sm text-muted-foreground md:col-span-2">
+            Super Admin recebe acesso global e não pode ser associado a lojas.
+          </p>
+        )}
+        <div className="md:col-span-2">
+          <Button type="submit" disabled={invitePending}>
+            {invitePending ? "Enviando convite…" : "Enviar convite"}
+          </Button>
+        </div>
       </form>
 
       {feedback ? (

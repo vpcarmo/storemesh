@@ -96,9 +96,15 @@ export async function readPlatformUsers(client: AppClient): Promise<PlatformMana
   });
 }
 
-export async function invitePlatformUser(client: AppClient, email: string): Promise<void> {
-  const { error } = await client.auth.admin.inviteUserByEmail(email);
+export async function invitePlatformUser(
+  client: AppClient,
+  email: string,
+  redirectTo: string,
+): Promise<string> {
+  const { data, error } = await client.auth.admin.inviteUserByEmail(email, { redirectTo });
   if (error) throw error;
+  if (!data.user) throw new Error("O Supabase Auth não retornou o usuário convidado.");
+  return data.user.id;
 }
 
 export async function savePlatformUserRecord(

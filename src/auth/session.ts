@@ -8,11 +8,17 @@ export async function signIn(email: string, password: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function signUp(email: string, password: string): Promise<boolean> {
-  const { data, error } = await supabase.auth.signUp({ email, password });
+export async function requestPasswordReset(email: string): Promise<void> {
+  const redirectTo = new URL("/auth/reset-password", window.location.origin).toString();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
 
   if (error) throw error;
-  return data.session !== null;
+}
+
+export async function updatePassword(password: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) throw error;
 }
 
 export async function getCurrentUser(): Promise<User | null> {
@@ -24,6 +30,13 @@ export async function getCurrentUser(): Promise<User | null> {
   }
 
   return data.user;
+}
+
+export async function getCurrentSession(): Promise<Session | null> {
+  const { data, error } = await supabase.auth.getSession();
+
+  if (error) throw error;
+  return data.session;
 }
 
 export function observeSession(

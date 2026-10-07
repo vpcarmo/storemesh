@@ -129,9 +129,13 @@ function RootComponent() {
         if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
 
         router.invalidate();
-        if (session) {
-          queryClient.invalidateQueries();
+        if (!session) {
+          queryClient.clear();
+          queryClient.setQueryData(["auth", "user"], null);
+          return;
         }
+
+        queryClient.invalidateQueries();
       }),
     [queryClient, router],
   );

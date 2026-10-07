@@ -123,7 +123,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       await queryClient.cancelQueries();
       queryClient.clear();
       queryClient.setQueryData(sessionQueryKey, null);
-      await navigate({ to: "/", replace: true });
+      await navigate({ to: "/login", replace: true });
     } catch (error) {
       setSignOutError(
         error instanceof Error ? error.message : "Não foi possível encerrar a sessão.",
@@ -138,7 +138,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   if (!userQuery.data) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   if (accessQuery.isError) {

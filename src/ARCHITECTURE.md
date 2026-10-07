@@ -12,11 +12,20 @@ Novos módulos devem ser criados somente quando uma funcionalidade real exigir. 
 
 ## Autenticação e autorização
 
-- A autenticação usa e-mail e senha e mantém a sessão exclusivamente no cliente oficial do backend.
+- O único login é `/login`, com e-mail e senha. Não há cadastro público: novos usuários são convidados pelo `super_admin` em `/admin/users`.
+- O convite é enviado pelo Auth Admin exclusivamente no servidor, para a URL fixa `/auth/accept-invite`; `APP_URL` deve conter a origem pública HTTPS da aplicação em produção (HTTP é aceito somente em desenvolvimento). A role e as lojas selecionadas são atribuídas depois da criação no Auth pelo RPC transacional `manage_platform_user_access`. Auth e PostgreSQL não compartilham uma transação: se a atribuição falhar, o usuário permanece sem acesso administrativo e pode ser corrigido por um `super_admin`.
+- O convidado define a própria senha em `/auth/accept-invite`. A recuperação começa em `/forgot-password` e retorna a `/auth/reset-password`. O cliente oficial do Supabase processa os callbacks/PKCE e mantém a sessão; as telas apenas exigem uma sessão antes de chamar `updateUser({ password })`. Destinos de callback são fixos, sem redirects arbitrários.
+- A resposta da recuperação não informa se o e-mail existe. Senhas são enviadas diretamente do browser autenticado ao Supabase Auth, não são persistidas pelo StoreMesh, e a política efetiva permanece configurada no Supabase.
+- A sessão é mantida pelo cliente oficial compartilhado em `auth/session.ts`, com cookies gerenciados por `@supabase/ssr` (Secure em produção), sem persistência de sessão/tokens em `localStorage` ou `sessionStorage`; o listener global fica no root da aplicação.
 - Papéis e vínculos com lojas são carregados por funções de servidor autenticadas através de `auth/` e `data/`.
 - A autorização efetiva reside nas políticas RLS e nas funções de autorização do banco; verificações de interface são apenas apresentação.
 - `super_admin` possui escopo global. `store_admin` sempre possui uma loja e só acessa registros autorizados para ela.
-- Atribuição de papéis e gestão de lojas não fazem parte da interface desta etapa e permanecem restritas a operações privilegiadas do backend.
+- Um usuário autenticado sem `user_roles` continua sem acesso administrativo; o login e a aceitação do convite não atribuem papéis automaticamente.
+- O provisionamento de roles e lojas continua usando a infraestrutura atômica da Stage 10G.1, incluindo autorização server-side e proteção do último `super_admin`.
+
+### Configuração operacional de Auth
+
+No Dashboard Supabase, manter signup público e anonymous sign-ins desabilitados; habilitar confirmação de e-mail; permitir somente as URLs fixas de callback da aplicação; configurar política forte de senha, proteção de senhas vazadas quando disponível, rate limits/Attack Protection e SMTP de produção. A aplicação não altera essas configurações. MFA não faz parte desta etapa e deve ser priorizado para `super_admin` em uma futura Stage de Segurança — MFA.
 
 ## Isolamento entre lojas
 
