@@ -611,6 +611,22 @@
     box-shadow: var(--storefront-shadow);
   }
 
+  .storefront-card-link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .storefront-card-link:hover {
+    border-color: var(--storefront-primary);
+  }
+
+  .storefront-card-link:focus-visible {
+    outline: 2px solid var(--storefront-primary);
+    outline-offset: 3px;
+  }
+
   .storefront-product-card {
     padding: 0;
   }
@@ -635,6 +651,88 @@
     display: block;
     margin-top: 1rem;
     color: var(--storefront-primary);
+  }
+
+  .storefront-product-page h1,
+  .storefront-category-page h1 {
+    font-family: var(--storefront-font-heading);
+    font-size: clamp(1.75rem, 4vw, 3rem);
+    font-weight: 700;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+  }
+
+  .storefront-product-detail {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--storefront-grid-space);
+  }
+
+  .storefront-product-detail-media {
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: var(--storefront-secondary);
+  }
+
+  .storefront-product-detail-media img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .storefront-product-detail-info {
+    min-width: 0;
+  }
+
+  .storefront-product-detail-description {
+    white-space: pre-wrap;
+  }
+
+  .storefront-product-detail-info > strong {
+    display: block;
+    margin-top: 1.5rem;
+    color: var(--storefront-primary);
+    font-size: 1.25rem;
+  }
+
+  .storefront-product-detail-info > p a {
+    color: var(--storefront-primary);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+
+  .storefront-product-detail-info > p a:focus-visible {
+    outline: 2px solid var(--storefront-primary);
+    outline-offset: 2px;
+  }
+
+  .storefront-category-empty {
+    margin-top: var(--storefront-grid-space);
+  }
+
+  .storefront-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: var(--storefront-grid-space);
+  }
+
+  .storefront-pagination a {
+    color: var(--storefront-primary);
+    text-underline-offset: 0.15em;
+  }
+
+  .storefront-pagination a:focus-visible {
+    outline: 2px solid var(--storefront-primary);
+    outline-offset: 2px;
+  }
+
+  .storefront-pagination [aria-disabled="true"] {
+    opacity: 0.6;
   }
 
   .storefront-footer {
@@ -793,6 +891,10 @@
   }
 
   @media (max-width: 39.999rem) {
+    .storefront-product-detail {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
     .storefront-banner,
     .storefront-cta {
       align-items: flex-start;

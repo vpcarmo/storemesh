@@ -32,7 +32,10 @@ function toAsset(row: MediaRow, imageUrl: string): MediaAsset {
   };
 }
 
-async function imageUrl(client: AppClient, row: MediaRow): Promise<string> {
+async function imageUrl(
+  client: AppClient,
+  row: Pick<MediaRow, "source_type" | "external_url" | "storage_path">,
+): Promise<string> {
   if (row.source_type === "external") return row.external_url!;
   const { data, error } = await client.storage
     .from(MEDIA_BUCKET)
@@ -224,7 +227,7 @@ export async function resolveMediaReferences(
   if (!uniqueIds.length) return new Map();
   const { data, error } = await client
     .from("media_assets")
-    .select("*")
+    .select("id, store_id, source_type, external_url, storage_path, alt")
     .eq("store_id", storeId)
     .in("id", uniqueIds);
   if (error) throw error;

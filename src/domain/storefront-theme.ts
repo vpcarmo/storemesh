@@ -80,7 +80,7 @@ function readableForeground(background: string): string {
 }
 
 export function createStorefrontTheme(
-  settings: StoreSettings | null,
+  settings: Partial<StoreSettings> | null,
   backgroundImageUrl: string | null = null,
 ): StorefrontTheme {
   const primary = safeColor(settings?.primaryColor ?? null, DEFAULT_STOREFRONT_COLORS.primary);

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { StoreSettings } from "@/domain/store-settings";
+import type { PublicStorefrontSettings, StoreSettings } from "@/domain/store-settings";
 import { parseStorefrontDesignSettings } from "@/domain/storefront-design.schema";
 import type { Database, Json, Tables } from "@/integrations/supabase/types";
 
@@ -91,6 +91,39 @@ export async function readStoreSettings(
 
   if (error) throw error;
   return data ? toDomain(data) : null;
+}
+
+export async function readPublicStorefrontSettings(
+  client: AppClient,
+  storeId: string,
+): Promise<PublicStorefrontSettings | null> {
+  const publicClient = client as SupabaseClient<DesignSettingsDatabase>;
+  const { data, error } = await publicClient
+    .from("store_settings")
+    .select(
+      "display_name, short_description, logo_url, favicon_url, phone, whatsapp, contact_email, address, social_links, primary_color, secondary_color, accent_color, text_color, background_color, design_settings",
+    )
+    .eq("store_id", storeId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    displayName: data.display_name,
+    shortDescription: data.short_description,
+    logoUrl: data.logo_url,
+    faviconUrl: data.favicon_url,
+    phone: data.phone,
+    whatsapp: data.whatsapp,
+    contactEmail: data.contact_email,
+    address: data.address,
+    socialLinks: data.social_links,
+    primaryColor: data.primary_color,
+    secondaryColor: data.secondary_color,
+    accentColor: data.accent_color,
+    textColor: data.text_color,
+    backgroundColor: data.background_color,
+    designSettings: parseStorefrontDesignSettings(data.design_settings),
+  };
 }
 
 export interface StoreSettingsUpdate {

@@ -27,6 +27,25 @@ export interface StoreSettings {
   updatedAt: string;
 }
 
+export type PublicStorefrontSettings = Pick<
+  StoreSettings,
+  | "displayName"
+  | "shortDescription"
+  | "logoUrl"
+  | "faviconUrl"
+  | "phone"
+  | "whatsapp"
+  | "contactEmail"
+  | "address"
+  | "socialLinks"
+  | "primaryColor"
+  | "secondaryColor"
+  | "accentColor"
+  | "textColor"
+  | "backgroundColor"
+  | "designSettings"
+>;
+
 export function normalizeDisplayName(value: string): string | null {
   const normalized = value.trim();
   return normalized.length === 0 ? null : normalized;

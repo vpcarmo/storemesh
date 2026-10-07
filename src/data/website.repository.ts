@@ -319,6 +319,29 @@ export async function readNavigation(
   if (error) throw error;
   return data.map(navigationFromRow);
 }
+
+export async function readPublicNavigation(
+  client: AppClient,
+  storeId: string,
+): Promise<
+  Pick<NavigationItem, "id" | "label" | "pageId" | "externalUrl" | "position" | "isActive">[]
+> {
+  const { data, error } = await client
+    .from("navigation_items")
+    .select("id, label, page_id, external_url, position, is_active")
+    .eq("store_id", storeId)
+    .order("position")
+    .order("created_at");
+  if (error) throw error;
+  return data.map((row) => ({
+    id: row.id,
+    label: row.label,
+    pageId: row.page_id,
+    externalUrl: row.external_url,
+    position: row.position,
+    isActive: row.is_active,
+  }));
+}
 export async function saveNavigationItem(
   client: AppClient,
   storeId: string,
@@ -350,13 +373,7 @@ export async function deleteNavigationItem(client: AppClient, storeId: string, i
 }
 
 export async function readPublishedPage(client: AppClient, storeSlug: string, pageSlug: string) {
-  const { data: store, error: storeError } = await client
-    .from("stores")
-    .select("id, name, slug")
-    .eq("slug", storeSlug)
-    .eq("status", "active")
-    .maybeSingle();
-  if (storeError) throw storeError;
+  const store = await readActiveStore(client, storeSlug);
   if (!store) return null;
   const { data: page, error } = await client
     .from("pages")
@@ -367,4 +384,26 @@ export async function readPublishedPage(client: AppClient, storeSlug: string, pa
     .maybeSingle();
   if (error) throw error;
   return page ? { store, page: pageFromRow(page) } : null;
+}
+
+export async function readActiveStore(client: AppClient, storeSlug: string) {
+  const { data: store, error: storeError } = await client
+    .from("stores")
+    .select("id, name, slug")
+    .eq("slug", storeSlug)
+    .eq("status", "active")
+    .maybeSingle();
+  if (storeError) throw storeError;
+  if (!store) return null;
+  return store;
+}
+
+export async function readPublishedPageLinks(client: AppClient, storeId: string) {
+  const { data, error } = await client
+    .from("pages")
+    .select("id, slug")
+    .eq("store_id", storeId)
+    .eq("status", "published");
+  if (error) throw error;
+  return data;
 }
