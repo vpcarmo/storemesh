@@ -36,6 +36,7 @@ type SettingsForm = {
   contactEmail: string;
   phone: string;
   whatsapp: string;
+  addressFormatted: string;
   logoUrl: string;
   faviconUrl: string;
   primaryColor: string;
@@ -90,6 +91,12 @@ function formFromSettings(settings: StoreSettings | null): SettingsForm {
     contactEmail: settings?.contactEmail ?? "",
     phone: settings?.phone ?? "",
     whatsapp: settings?.whatsapp ?? "",
+    addressFormatted:
+      settings?.address && typeof settings.address === "object" && !Array.isArray(settings.address)
+        ? typeof settings.address["formatted"] === "string"
+          ? settings.address["formatted"]
+          : ""
+        : "",
     logoUrl: settings?.logoUrl ?? "",
     faviconUrl: settings?.faviconUrl ?? "",
     primaryColor: settings?.primaryColor ?? "",
@@ -114,6 +121,9 @@ function validateForm(form: SettingsForm): FormErrors {
   }
   if (form.phone.trim().length > 40) errors.phone = "Use no máximo 40 caracteres.";
   if (form.whatsapp.trim().length > 40) errors.whatsapp = "Use no máximo 40 caracteres.";
+  if (form.addressFormatted.length > 280) {
+    errors.addressFormatted = "Use no máximo 280 caracteres.";
+  }
 
   for (const [name, value] of [
     ["logoUrl", form.logoUrl],
@@ -295,6 +305,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
           contactEmail: form.contactEmail,
           phone: form.phone,
           whatsapp: form.whatsapp,
+          addressFormatted: form.addressFormatted.trim(),
           logoUrl: form.logoUrl,
           faviconUrl: form.faviconUrl,
           primaryColor: form.primaryColor,
@@ -519,6 +530,25 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               {errors.whatsapp ? (
                 <p id="store-contact-whatsapp-error" className="text-sm text-destructive">
                   {errors.whatsapp}
+                </p>
+              ) : null}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="store-contact-address">Endereço</Label>
+              <Input
+                id="store-contact-address"
+                value={form.addressFormatted}
+                onChange={(event) => updateField("addressFormatted", event.target.value)}
+                maxLength={280}
+                aria-invalid={Boolean(errors.addressFormatted)}
+                aria-describedby={
+                  errors.addressFormatted ? "store-contact-address-error" : undefined
+                }
+              />
+              <FormHelp>Endereço exibido no rodapé da loja.</FormHelp>
+              {errors.addressFormatted ? (
+                <p id="store-contact-address-error" className="text-sm text-destructive">
+                  {errors.addressFormatted}
                 </p>
               ) : null}
             </div>

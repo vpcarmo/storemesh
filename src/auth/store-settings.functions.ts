@@ -32,6 +32,11 @@ const optionalContactText = (maxLength: number) =>
       `Use no máximo ${maxLength} caracteres.`,
     );
 
+const optionalFormattedAddress = z
+  .string()
+  .max(280, "Use no máximo 280 caracteres.")
+  .transform((value) => value.trim() || null);
+
 const optionalContactEmail = z
   .string()
   .transform((value) => value.trim() || null)
@@ -60,6 +65,7 @@ const updateStoreSettingsInput = storeSelectionInput.extend({
   contactEmail: optionalContactEmail,
   phone: optionalContactText(40),
   whatsapp: optionalContactText(40),
+  addressFormatted: optionalFormattedAddress,
   logoUrl: optionalHttpUrl,
   faviconUrl: optionalHttpUrl,
   primaryColor: optionalHexColor,
@@ -123,6 +129,7 @@ export const updateCurrentStoreSettings = createServerFn({ method: "POST" })
       contactEmail: data.contactEmail,
       phone: data.phone,
       whatsapp: data.whatsapp,
+      addressFormatted: data.addressFormatted,
       logoUrl: data.logoUrl,
       faviconUrl: data.faviconUrl,
       primaryColor: data.primaryColor,

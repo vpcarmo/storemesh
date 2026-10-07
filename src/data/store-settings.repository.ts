@@ -99,6 +99,7 @@ export interface StoreSettingsUpdate {
   contactEmail: string | null;
   phone: string | null;
   whatsapp: string | null;
+  addressFormatted: string | null;
   logoUrl: string | null;
   faviconUrl: string | null;
   primaryColor: string | null;
@@ -108,11 +109,33 @@ export interface StoreSettingsUpdate {
   designSettings: StoreSettings["designSettings"];
 }
 
+function addressWithFormatted(
+  address: StoreSettings["address"],
+  formatted: string | null,
+): StoreSettings["address"] {
+  const existingAddress =
+    address !== null && typeof address === "object" && !Array.isArray(address) ? address : {};
+  const nextAddress: Record<string, Json | undefined> = { ...existingAddress };
+
+  if (formatted) nextAddress["formatted"] = formatted;
+  else delete nextAddress["formatted"];
+
+  return nextAddress;
+}
+
 export async function saveStoreSettings(
   client: AppClient,
   storeId: string,
   settings: StoreSettingsUpdate,
 ): Promise<StoreSettings> {
+  const { data: currentSettings, error: readError } = await client
+    .from("store_settings")
+    .select("address")
+    .eq("store_id", storeId)
+    .maybeSingle();
+
+  if (readError) throw readError;
+
   const values: StoreSettingsTable["Insert"] & {
     design_settings: Json;
   } = {
@@ -122,6 +145,7 @@ export async function saveStoreSettings(
     contact_email: settings.contactEmail,
     phone: settings.phone,
     whatsapp: settings.whatsapp,
+    address: addressWithFormatted(currentSettings?.address ?? null, settings.addressFormatted),
     logo_url: settings.logoUrl,
     favicon_url: settings.faviconUrl,
     primary_color: settings.primaryColor,
