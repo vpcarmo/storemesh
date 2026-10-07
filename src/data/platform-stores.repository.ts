@@ -47,8 +47,9 @@ function platformUserStatus(
   user: Pick<User, "invited_at" | "email_confirmed_at">,
   hasRoles: boolean,
 ): PlatformManagedUser["status"] {
+  if (user.invited_at && !user.email_confirmed_at) return "invited";
   if (hasRoles) return "active";
-  return user.invited_at && !user.email_confirmed_at ? "invited" : "no_access";
+  return "no_access";
 }
 
 // Auth users are identities; profiles hold application profile data and user_roles grant StoreMesh access.
