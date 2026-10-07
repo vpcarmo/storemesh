@@ -5,12 +5,7 @@ import {
   readAccessContext,
   readAuthorizedStoreBySlug,
 } from "@/data/access.repository";
-import {
-  canAccessStore,
-  isSuperAdmin,
-  resolveAssignedStore,
-  type StoreAccess,
-} from "@/domain/access";
+import { canAccessStore, resolveAssignedStore, type StoreAccess } from "@/domain/access";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppClient = SupabaseClient<Database>;
@@ -24,15 +19,13 @@ export async function resolveAuthorizedStore(
   await ensureProfile(client, userId);
   const access = await readAccessContext(client, userId, email);
 
-  if (!slug) return resolveAssignedStore(access);
+  if (!slug) {
+    const store = resolveAssignedStore(access);
+    return store?.status === "active" ? store : null;
+  }
 
   const store = await readAuthorizedStoreBySlug(client, slug);
-  if (
-    !store ||
-    !canAccessStore(access, store.id) ||
-    (isSuperAdmin(access) && store.status !== "active")
-  )
-    return null;
+  if (!store || store.status !== "active" || !canAccessStore(access, store.id)) return null;
 
   return store;
 }

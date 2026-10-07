@@ -6,6 +6,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } f
 
 import { getAccessContext, getAuthorizedStores } from "@/auth/access.functions";
 import { getCurrentUser, signOut } from "@/auth/session";
+import { getCurrentStoreWebsite } from "@/auth/website.functions";
 import { ADMIN_NAVIGATION, adminBreadcrumbs } from "@/components/admin/admin-navigation";
 import {
   AdminStoreContext,
@@ -39,6 +40,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const loadAccess = useServerFn(getAccessContext);
   const loadStores = useServerFn(getAuthorizedStores);
+  const loadWebsite = useServerFn(getCurrentStoreWebsite);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const isPlatformStoresRoute = pathname === "/admin/stores";
@@ -59,7 +61,17 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     enabled: Boolean(userQuery.data) && !isPlatformStoresRoute,
   });
 
-  const requiresStoreSelection = accessQuery.data ? isSuperAdmin(accessQuery.data) : false;
+  const access = accessQuery.data;
+  const isSuperAdminUser = access ? isSuperAdmin(access) : false;
+  const assignedStoreIds = new Set(
+    access?.assignments
+      .filter((assignment) => assignment.role === "store_admin" && assignment.storeId !== null)
+      .map((assignment) => assignment.storeId) ?? [],
+  );
+  const hasStoreAdminRole =
+    access?.assignments.some((assignment) => assignment.role === "store_admin") ?? false;
+  const requiresStoreSelection =
+    isSuperAdminUser || (!isSuperAdminUser && assignedStoreIds.size > 1);
   const stores = useMemo(() => storesQuery.data ?? [], [storesQuery.data]);
 
   const selectStore = useCallback((next: string | null) => {
@@ -74,17 +86,27 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!storesQuery.isSuccess) return;
-    if (slug && !stores.some((store) => store.slug === slug)) {
+    if (storesQuery.isSuccess && slug && !stores.some((store) => store.slug === slug)) {
       selectStore(null);
-      return;
     }
-    if (!slug && stores.length === 1) selectStore(stores[0]!.slug);
-  }, [slug, stores, requiresStoreSelection, selectStore, storesQuery.isSuccess]);
+  }, [slug, stores, selectStore, storesQuery.isSuccess]);
+
+  const autoSelectedStore =
+    stores.length === 1 && (isSuperAdminUser || assignedStoreIds.size === 1) ? stores[0] : null;
+  const selectedStore = stores.find((store) => store.slug === slug) ?? autoSelectedStore;
+  const storeSlug = selectedStore?.slug ?? null;
+  const websiteQuery = useQuery({
+    queryKey: ["admin", "storefront-home", storeSlug],
+    queryFn: () => loadWebsite({ data: { slug: storeSlug } }),
+    enabled: Boolean(storeSlug && selectedStore?.status === "active" && !isPlatformStoresRoute),
+  });
+  const publishedHome = websiteQuery.data?.pages.find(
+    (page) => page.slug === "home" && page.status === "published",
+  );
 
   const contextValue = useMemo(
-    () => ({ storeSlug: slug, requiresStoreSelection, stores, selectStore }),
-    [slug, requiresStoreSelection, stores, selectStore],
+    () => ({ storeSlug, requiresStoreSelection, stores, selectStore }),
+    [storeSlug, requiresStoreSelection, stores, selectStore],
   );
 
   async function handleSignOut() {
@@ -127,6 +149,15 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   if (isPlatformStoresRoute && !isSuperAdmin(accessQuery.data)) {
     return <p className="p-8 text-sm text-destructive">Acesso restrito ao super_admin.</p>;
+  }
+
+  if (!isPlatformStoresRoute && hasStoreAdminRole && assignedStoreIds.size === 0) {
+    return (
+      <p className="p-8 text-sm text-muted-foreground">
+        Sua conta ainda não está vinculada a uma loja. Entre em contato com o administrador da
+        plataforma.
+      </p>
+    );
   }
 
   if (!isPlatformStoresRoute && accessQuery.data.assignments.length === 0) {
@@ -257,7 +288,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                   <select
                     id="admin-store"
                     className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
-                    value={slug ?? ""}
+                    value={storeSlug ?? ""}
                     onChange={(event) => selectStore(event.target.value || null)}
                     disabled={!requiresStoreSelection || stores.length <= 1}
                   >
@@ -267,10 +298,40 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                     {stores.map((store) => (
                       <option key={store.id} value={store.slug}>
                         {store.name}
+                        {store.status === "inactive" ? " (Inativa)" : ""}
                       </option>
                     ))}
                   </select>
                 </div>
+              ) : null}
+              {!isPlatformStoresRoute && selectedStore ? (
+                <span className="max-w-[16rem] truncate text-sm font-medium">
+                  Administrando: {selectedStore.name}
+                </span>
+              ) : null}
+              {!isPlatformStoresRoute && selectedStore?.status === "active" && publishedHome ? (
+                <a
+                  className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                  href={`/store/${selectedStore.slug}/${publishedHome.slug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Ver minha loja
+                </a>
+              ) : null}
+              {!isPlatformStoresRoute &&
+              selectedStore?.status === "active" &&
+              !websiteQuery.isPending &&
+              !websiteQuery.isError &&
+              !publishedHome ? (
+                <span className="text-sm text-muted-foreground">
+                  A Home desta loja ainda não está publicada.
+                </span>
+              ) : null}
+              {!isPlatformStoresRoute && websiteQuery.isError ? (
+                <span className="text-sm text-destructive" role="alert">
+                  Não foi possível verificar a Home publicada.
+                </span>
               ) : null}
               <span className="hidden max-w-[16rem] truncate text-sm text-muted-foreground sm:inline">
                 {userQuery.data.email}
@@ -294,7 +355,19 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           ) : null}
 
           <TooltipProvider>
-            <main className="min-w-0 flex-1 px-4 py-6 sm:px-6">{children}</main>
+            <main className="min-w-0 flex-1 px-4 py-6 sm:px-6">
+              {!isPlatformStoresRoute && selectedStore?.status === "inactive" ? (
+                <p className="text-sm text-destructive" role="alert">
+                  Esta loja está inativa e não pode ser administrada no momento.
+                </p>
+              ) : requiresStoreSelection && !storeSlug ? (
+                <p className="text-sm text-muted-foreground">
+                  Selecione a loja que deseja administrar.
+                </p>
+              ) : (
+                children
+              )}
+            </main>
           </TooltipProvider>
         </div>
       </div>

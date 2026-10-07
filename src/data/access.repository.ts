@@ -86,7 +86,7 @@ export async function readAuthorizedStores(
   const stores = new Map<string, StoreAccess>();
 
   for (const assignment of access.assignments) {
-    if (assignment.role === "store_admin" && assignment.store?.status === "active") {
+    if (assignment.role === "store_admin" && assignment.store) {
       stores.set(assignment.store.id, assignment.store);
     }
   }
