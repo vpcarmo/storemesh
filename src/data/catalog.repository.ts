@@ -11,7 +11,12 @@ import type {
   ProductVariant,
 } from "@/domain/catalog";
 import { resolveMediaReferences } from "@/data/media.repository";
-import type { StorefrontProductGridItem } from "@/domain/storefront";
+import {
+  storefrontCategoryHref,
+  storefrontProductHref,
+  PUBLIC_CATEGORY_PAGE_SIZE,
+  type StorefrontProductGridItem,
+} from "@/domain/storefront";
 import { isValidHttpUrl } from "@/domain/storefront-theme";
 import type { Database, Tables } from "@/integrations/supabase/types";
 
@@ -33,6 +38,11 @@ export interface ResolvedProductGridImage {
 export interface ResolvedProductGridSnapshots {
   validProductIds: Set<string>;
   images: Map<string, ResolvedProductGridImage>;
+  hrefs: Map<string, string>;
+}
+
+export interface ResolvedCategorySnapshots {
+  hrefs: Map<string, string>;
 }
 
 export interface CategoryValues {
@@ -237,47 +247,90 @@ export async function readCatalog(client: AppClient, storeId: string) {
 export async function resolveProductGridSnapshots(
   client: AppClient,
   storeId: string,
+  storeSlug: string,
   products: Pick<StorefrontProductGridItem, "id">[],
 ): Promise<ResolvedProductGridSnapshots> {
   const productIds = [...new Set(products.map(({ id }) => id))];
   if (productIds.length === 0) {
-    return { validProductIds: new Set(), images: new Map() };
+    return { validProductIds: new Set(), images: new Map(), hrefs: new Map() };
   }
 
   const { data: productRows, error: productsError } = await client
     .from("products")
-    .select("id, store_id")
+    .select("id, store_id, slug, is_active")
     .eq("store_id", storeId)
+    .eq("is_active", true)
     .in("id", productIds);
   if (productsError) throw productsError;
 
   const validProductIds = new Set(
     productRows.filter((product) => product.store_id === storeId).map(({ id }) => id),
   );
-  if (validProductIds.size === 0) return { validProductIds, images: new Map() };
+  const hrefs = new Map(
+    productRows.flatMap((product) => {
+      if (product.store_id !== storeId) return [];
+      const href = storefrontProductHref(storeSlug, product.slug);
+      return href ? [[product.id, href] as const] : [];
+    }),
+  );
+  if (validProductIds.size === 0) return { validProductIds, images: new Map(), hrefs };
 
+  const images = await resolveProductImages(client, storeId, [...validProductIds]);
+  return { validProductIds, images, hrefs };
+}
+
+export async function resolveCategoryGridSnapshots(
+  client: AppClient,
+  storeId: string,
+  storeSlug: string,
+  categories: { id: string }[],
+): Promise<ResolvedCategorySnapshots> {
+  const categoryIds = [...new Set(categories.map(({ id }) => id))];
+  if (categoryIds.length === 0) return { hrefs: new Map() };
+  const { data, error } = await client
+    .from("categories")
+    .select("id, store_id, slug")
+    .eq("store_id", storeId)
+    .eq("is_active", true)
+    .in("id", categoryIds);
+  if (error) throw error;
+  const hrefs = new Map(
+    data.flatMap((category) => {
+      if (category.store_id !== storeId) return [];
+      const href = storefrontCategoryHref(storeSlug, category.slug);
+      return href ? [[category.id, href] as const] : [];
+    }),
+  );
+  return { hrefs };
+}
+
+async function resolveProductImages(
+  client: AppClient,
+  storeId: string,
+  productIds: string[],
+): Promise<Map<string, ResolvedProductGridImage>> {
+  if (productIds.length === 0) return new Map();
   const { data: imageRows, error: imagesError } = await client
     .from("product_images")
     .select("id, store_id, product_id, media_asset_id, url, alt_text, position, is_primary")
     .eq("store_id", storeId)
-    .in("product_id", [...validProductIds]);
+    .in("product_id", productIds);
   if (imagesError) throw imagesError;
 
   const imagesByProduct = new Map<string, typeof imageRows>();
+  const productIdSet = new Set(productIds);
   const mediaAssetIds: string[] = [];
   for (const image of imageRows) {
-    if (image.store_id !== storeId || !validProductIds.has(image.product_id)) continue;
+    if (image.store_id !== storeId || !productIdSet.has(image.product_id)) continue;
     const list = imagesByProduct.get(image.product_id) ?? [];
     list.push(image);
     imagesByProduct.set(image.product_id, list);
     if (image.media_asset_id) mediaAssetIds.push(image.media_asset_id);
   }
-
   const mediaReferences = await resolveMediaReferences(client, storeId, mediaAssetIds, {
     tolerateUnavailable: true,
   });
   const resolvedImages = new Map<string, ResolvedProductGridImage>();
-
   for (const [productId, productImages] of imagesByProduct) {
     const orderedImages = [...productImages].sort(
       (left, right) =>
@@ -294,7 +347,6 @@ export async function resolveProductGridSnapshots(
             ? image.url
             : null;
       if (!url) continue;
-
       resolvedImages.set(productId, {
         url,
         alt: image.alt_text?.trim() || media?.alt?.trim() || null,
@@ -302,8 +354,141 @@ export async function resolveProductGridSnapshots(
       break;
     }
   }
+  return resolvedImages;
+}
 
-  return { validProductIds, images: resolvedImages };
+export interface PublicCatalogProduct {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  price: number;
+  categoryId: string | null;
+  imageUrl: string | null;
+  imageAlt: string;
+}
+
+export interface PublicCatalogCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+}
+
+export async function readPublicProduct(
+  client: AppClient,
+  storeId: string,
+  productSlug: string,
+): Promise<{ product: PublicCatalogProduct; category: PublicCatalogCategory | null } | null> {
+  const { data: product, error } = await client
+    .from("products")
+    .select("id, store_id, category_id, name, slug, description, price")
+    .eq("store_id", storeId)
+    .eq("slug", productSlug)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (error) throw error;
+  if (!product || product.store_id !== storeId) return null;
+
+  const [images, categoryResult] = await Promise.all([
+    resolveProductImages(client, storeId, [product.id]),
+    product.category_id
+      ? client
+          .from("categories")
+          .select("id, store_id, name, slug, description")
+          .eq("store_id", storeId)
+          .eq("id", product.category_id)
+          .eq("is_active", true)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+  if (categoryResult.error) throw categoryResult.error;
+  const image = images.get(product.id);
+  const categoryRow = categoryResult.data;
+  return {
+    product: {
+      id: product.id,
+      name: product.name,
+      slug: product.slug,
+      description: product.description,
+      price: product.price,
+      categoryId: product.category_id,
+      imageUrl: image?.url ?? null,
+      imageAlt: image?.alt?.trim() || product.name,
+    },
+    category:
+      categoryRow && categoryRow.store_id === storeId
+        ? {
+            id: categoryRow.id,
+            name: categoryRow.name,
+            slug: categoryRow.slug,
+            description: categoryRow.description,
+          }
+        : null,
+  };
+}
+
+export async function readPublicCategoryPage(
+  client: AppClient,
+  storeId: string,
+  storeSlug: string,
+  categorySlug: string,
+  page: number,
+): Promise<{
+  category: PublicCatalogCategory;
+  products: (Omit<PublicCatalogProduct, "categoryId"> & { href: string | null })[];
+  totalProducts: number;
+} | null> {
+  const { data: category, error: categoryError } = await client
+    .from("categories")
+    .select("id, store_id, name, slug, description")
+    .eq("store_id", storeId)
+    .eq("slug", categorySlug)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (categoryError) throw categoryError;
+  if (!category || category.store_id !== storeId) return null;
+
+  const first = (page - 1) * PUBLIC_CATEGORY_PAGE_SIZE;
+  const {
+    data: products,
+    error: productsError,
+    count,
+  } = await client
+    .from("products")
+    .select("id, store_id, name, slug, description, price", { count: "exact" })
+    .eq("store_id", storeId)
+    .eq("category_id", category.id)
+    .eq("is_active", true)
+    .order("name", { ascending: true })
+    .order("id", { ascending: true })
+    .range(first, first + PUBLIC_CATEGORY_PAGE_SIZE - 1);
+  if (productsError) throw productsError;
+  const eligibleProducts = products.filter((product) => product.store_id === storeId);
+  const images = await resolveProductImages(
+    client,
+    storeId,
+    eligibleProducts.map(({ id }) => id),
+  );
+  return {
+    category: {
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+    },
+    products: eligibleProducts.map((product) => ({
+      id: product.id,
+      name: product.name,
+      slug: product.slug,
+      description: product.description,
+      price: product.price,
+      imageUrl: images.get(product.id)?.url ?? null,
+      imageAlt: images.get(product.id)?.alt?.trim() || product.name,
+      href: storefrontProductHref(storeSlug, product.slug),
+    })),
+    totalProducts: count ?? 0,
+  };
 }
 
 export async function saveCatalogAttribute(

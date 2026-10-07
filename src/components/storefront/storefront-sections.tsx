@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { StorefrontRichText } from "@/components/storefront/storefront-rich-text";
-import type { Category } from "@/domain/catalog";
 import { hideBrokenImage } from "@/lib/image";
-import type { StorefrontProductGridItem, TextContentSectionDefinition } from "@/domain/storefront";
+import type {
+  StorefrontCategoryItem,
+  StorefrontProductGridItem,
+  TextContentSectionDefinition,
+} from "@/domain/storefront";
 
 function SectionAction({ action }: { action: { label: string; href: string } | undefined }) {
   if (!action) return null;
@@ -67,7 +70,7 @@ export function StorefrontCategoriesSection({
   categories,
 }: {
   title?: string;
-  categories: Pick<Category, "id" | "name" | "description">[];
+  categories: StorefrontCategoryItem[];
 }) {
   return (
     <section className="storefront-section">
@@ -76,15 +79,76 @@ export function StorefrontCategoriesSection({
         {categories.length > 0 ? (
           <div className="storefront-category-grid">
             {categories.map((category) => (
-              <article className="storefront-card" key={category.id}>
-                <h3>{category.name}</h3>
-                {category.description ? <p>{category.description}</p> : null}
-              </article>
+              <CategoryCard category={category} key={category.id} />
             ))}
           </div>
         ) : null}
       </div>
     </section>
+  );
+}
+
+function CategoryCard({ category }: { category: StorefrontCategoryItem }) {
+  const content = (
+    <>
+      <h3>{category.name}</h3>
+      {category.description ? <p>{category.description}</p> : null}
+    </>
+  );
+  return category.href ? (
+    <a className="storefront-card storefront-card-link" href={category.href}>
+      {content}
+    </a>
+  ) : (
+    <article className="storefront-card">{content}</article>
+  );
+}
+
+function ProductCard({ product }: { product: StorefrontProductGridItem }) {
+  const content = (
+    <>
+      {product.imageUrl ? (
+        <div className="storefront-product-media">
+          <img
+            src={product.imageUrl}
+            alt={product.imageAlt ?? product.name}
+            onError={hideBrokenImage}
+            loading="lazy"
+          />
+        </div>
+      ) : (
+        <div className="storefront-product-media" aria-hidden="true" />
+      )}
+      <div>
+        <h3>{product.name}</h3>
+        <p>{product.description}</p>
+        <strong>
+          {new Intl.NumberFormat("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          }).format(product.price)}
+        </strong>
+      </div>
+    </>
+  );
+  const className = "storefront-card storefront-product-card";
+  return product.href ? (
+    <a className={`${className} storefront-card-link`} href={product.href}>
+      {content}
+    </a>
+  ) : (
+    <article className={className}>{content}</article>
+  );
+}
+
+export function StorefrontProductCards({ products }: { products: StorefrontProductGridItem[] }) {
+  if (products.length === 0) return null;
+  return (
+    <div className="storefront-product-grid">
+      {products.map((product) => (
+        <ProductCard key={product.id} product={product} />
+      ))}
+    </div>
   );
 }
 
@@ -99,36 +163,7 @@ export function StorefrontProductGridSection({
     <section className="storefront-section">
       <div className="storefront-section-inner">
         {title ? <h2>{title}</h2> : null}
-        {products.length > 0 ? (
-          <div className="storefront-product-grid">
-            {products.map((product) => (
-              <article className="storefront-card storefront-product-card" key={product.id}>
-                {product.imageUrl ? (
-                  <div className="storefront-product-media">
-                    <img
-                      src={product.imageUrl}
-                      alt={product.imageAlt ?? product.name}
-                      onError={hideBrokenImage}
-                      loading="lazy"
-                    />
-                  </div>
-                ) : (
-                  <div className="storefront-product-media" aria-hidden="true" />
-                )}
-                <div>
-                  <h3>{product.name}</h3>
-                  <p>{product.description}</p>
-                  <strong>
-                    {new Intl.NumberFormat("pt-BR", {
-                      style: "currency",
-                      currency: "BRL",
-                    }).format(product.price)}
-                  </strong>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : null}
+        <StorefrontProductCards products={products} />
       </div>
     </section>
   );

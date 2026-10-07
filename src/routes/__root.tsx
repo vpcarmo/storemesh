@@ -87,7 +87,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      ...(matches.some((match) => String(match.routeId) === "/store/$storeSlug/$pageSlug")
+      ...(matches.some((match) => {
+        const routeId = String(match.routeId);
+        return (
+          routeId === "/store/$storeSlug/$pageSlug" ||
+          routeId === "/store/$storeSlug/product/$productSlug" ||
+          routeId === "/store/$storeSlug/category/$categorySlug"
+        );
+      })
         ? []
         : [{ rel: "icon" as const, href: "/favicon.ico", type: "image/x-icon" }]),
     ],

@@ -251,7 +251,17 @@ export function StorefrontFooter({
   copyrightYear,
 }: {
   storeName: string;
-  settings: StoreSettings | null;
+  settings: Pick<
+    StoreSettings,
+    | "displayName"
+    | "shortDescription"
+    | "logoUrl"
+    | "phone"
+    | "whatsapp"
+    | "contactEmail"
+    | "address"
+    | "socialLinks"
+  > | null;
   helpLinks?: StorefrontNavigationItem[];
   institutionalLinks?: StorefrontNavigationItem[];
   copyrightYear: number;

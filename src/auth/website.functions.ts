@@ -2,7 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { resolveAuthorizedStore } from "@/auth/authorized-store";
-import { resolveProductGridSnapshots } from "@/data/catalog.repository";
+import {
+  resolveCategoryGridSnapshots,
+  resolveProductGridSnapshots,
+} from "@/data/catalog.repository";
 import { resolveMediaReferences } from "@/data/media.repository";
 import { readStoreSettings } from "@/data/store-settings.repository";
 import {
@@ -18,6 +21,7 @@ import {
 } from "@/data/website.repository";
 import {
   enrichProductGridSection,
+  enrichCategoriesSection,
   type PublicStorefrontSectionDefinition,
 } from "@/domain/storefront";
 import { DEFAULT_STOREFRONT_DESIGN_SETTINGS } from "@/domain/storefront-design.schema";
@@ -115,18 +119,22 @@ export const getAdminStorePagePreview = createServerFn({ method: "POST" })
     const productSnapshots = page.sections.flatMap((section) =>
       section.type === "product-grid" ? section.products : [],
     );
+    const categorySnapshots = page.sections.flatMap((section) =>
+      section.type === "categories" ? section.categories : [],
+    );
     const backgroundMediaId =
       settings?.designSettings.background.type === "image"
         ? settings.designSettings.background.mediaAssetId
         : null;
-    const [mediaReferences, productGridSnapshots] = await Promise.all([
+    const [mediaReferences, productGridSnapshots, categoryGridSnapshots] = await Promise.all([
       resolveMediaReferences(context.supabase, store.id, [
         ...imageMediaIds,
         ...(backgroundMediaId ? [backgroundMediaId] : []),
       ]).catch(() => {
         throw new Error("Não foi possível carregar as mídias da prévia.");
       }),
-      resolveProductGridSnapshots(context.supabase, store.id, productSnapshots),
+      resolveProductGridSnapshots(context.supabase, store.id, store.slug, productSnapshots),
+      resolveCategoryGridSnapshots(context.supabase, store.id, store.slug, categorySnapshots),
     ]);
     if (sectionMediaIds.some((id) => !mediaReferences.has(id)))
       throw new Error("Não foi possível carregar as mídias da prévia.");
@@ -142,7 +150,11 @@ export const getAdminStorePagePreview = createServerFn({ method: "POST" })
           section,
           productGridSnapshots.validProductIds,
           productGridSnapshots.images,
+          productGridSnapshots.hrefs,
         );
+      }
+      if (section.type === "categories") {
+        return enrichCategoriesSection(section, categoryGridSnapshots.hrefs);
       }
       return section;
     });
