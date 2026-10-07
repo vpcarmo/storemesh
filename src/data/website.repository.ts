@@ -7,7 +7,10 @@ import {
   type PageStatus,
   type WebsitePage,
 } from "@/domain/website";
-import { storefrontSectionsSchema } from "@/domain/storefront-sections.schema";
+import {
+  parseStorefrontSectionsForSave,
+  storefrontSectionsReadSchema,
+} from "@/domain/storefront-sections.schema";
 
 // New database tables are intentionally kept behind this repository until generated types refresh.
 type AppClient = SupabaseClient<any>;
@@ -65,7 +68,7 @@ export async function readStorePageForPreview(
   if (error) throw new Error("Não foi possível carregar a página de prévia.");
   if (!data) return null;
 
-  const parsedSections = storefrontSectionsSchema.safeParse(data.sections);
+  const parsedSections = storefrontSectionsReadSchema.safeParse(data.sections);
   if (!parsedSections.success) throw new Error("As seções salvas desta página são inválidas.");
 
   const sections = parsedSections.data.map((section) => {
@@ -115,6 +118,7 @@ export async function readStorePageForPreview(
           type: section.type,
           ...(section.title === undefined ? {} : { title: section.title }),
           content: section.content,
+          ...(section.contentFormat === undefined ? {} : { contentFormat: section.contentFormat }),
         };
       case "call-to-action":
         return {
@@ -160,14 +164,14 @@ export async function updatePageSections(
 ): Promise<void> {
   const { data: page, error: pageError } = await client
     .from("pages")
-    .select("id")
+    .select("id, sections")
     .eq("id", pageId)
     .eq("store_id", storeId)
     .maybeSingle();
   if (pageError) throw pageError;
   if (!page) throw new Error("A página não foi encontrada na loja autorizada.");
 
-  const parsedSections = storefrontSectionsSchema.safeParse(sectionsInput);
+  const parsedSections = parseStorefrontSectionsForSave(sectionsInput, page.sections);
   if (!parsedSections.success) {
     const firstIssue = parsedSections.error.issues[0];
     throw new Error(firstIssue?.message ?? "As seções da página são inválidas.");

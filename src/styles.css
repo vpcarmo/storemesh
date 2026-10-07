@@ -405,6 +405,92 @@
     color: color-mix(in oklab, var(--storefront-text) 72%, transparent);
   }
 
+  .storefront-rich-text > h2:first-child,
+  .storefront-rich-text > h3:first-child,
+  .storefront-rich-text > h4:first-child,
+  .storefront-rich-text > h5:first-child,
+  .storefront-rich-text > h6:first-child {
+    margin-top: 0;
+  }
+
+  .storefront-rich-text p {
+    margin: 0.75rem 0 0;
+    line-height: 1.65;
+    color: color-mix(in oklab, var(--storefront-text) 72%, transparent);
+  }
+
+  .storefront-rich-text h2,
+  .storefront-rich-text h3,
+  .storefront-rich-text h4,
+  .storefront-rich-text h5,
+  .storefront-rich-text h6 {
+    margin: 1.5rem 0 0.5rem;
+    color: var(--storefront-text);
+    font-family: var(--storefront-font-heading);
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .storefront-rich-text h2 {
+    font-size: clamp(1.5rem, 4vw, 2rem);
+  }
+
+  .storefront-rich-text h3 {
+    font-size: 1.5rem;
+  }
+
+  .storefront-rich-text h4 {
+    font-size: 1.25rem;
+  }
+
+  .storefront-rich-text h5 {
+    font-size: 1.125rem;
+  }
+
+  .storefront-rich-text h6 {
+    font-size: 1rem;
+  }
+
+  .storefront-rich-text ul,
+  .storefront-rich-text ol {
+    margin: 0.75rem 0 0;
+    padding-inline-start: 1.5rem;
+    line-height: 1.65;
+  }
+
+  .storefront-rich-text blockquote {
+    margin: 1rem 0 0;
+    border-inline-start: 3px solid var(--storefront-primary);
+    padding-inline-start: 1rem;
+    color: color-mix(in oklab, var(--storefront-text) 72%, transparent);
+  }
+
+  .storefront-rich-text a {
+    color: var(--storefront-primary);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+
+  .storefront-rich-text code {
+    border-radius: 0.25rem;
+    background: color-mix(in oklab, var(--storefront-text) 8%, transparent);
+    padding: 0.1em 0.3em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .storefront-rich-text pre {
+    overflow-x: auto;
+    margin: 1rem 0 0;
+    border-radius: var(--storefront-card-radius);
+    background: color-mix(in oklab, var(--storefront-text) 8%, transparent);
+    padding: 1rem;
+  }
+
+  .storefront-rich-text pre code {
+    background: transparent;
+    padding: 0;
+  }
+
   .storefront-hero .storefront-button {
     margin-top: 1.5rem;
   }

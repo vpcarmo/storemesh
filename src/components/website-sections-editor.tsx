@@ -33,8 +33,18 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { storefrontSectionsSchema } from "@/domain/storefront-sections.schema";
+import {
+  parseStorefrontSectionsForSave,
+  STOREFRONT_TEXT_CONTENT_MAX_LENGTH,
+} from "@/domain/storefront-sections.schema";
 import type { StorefrontSectionDefinition } from "@/domain/storefront";
 import type { WebsitePage } from "@/domain/website";
 
@@ -76,7 +86,7 @@ function newSection(type: StorefrontSectionDefinition["type"]): StorefrontSectio
     case "product-grid":
       return { id, type, products: [] };
     case "text-content":
-      return { id, type, content: "" };
+      return { id, type, content: "", contentFormat: "plain" };
     case "call-to-action":
       return { id, type, title: "", description: "", action: { label: "", href: "" } };
   }
@@ -199,7 +209,7 @@ export function WebsiteSectionsEditor({
   async function submitSections() {
     setError(null);
     setFeedback(null);
-    const parsed = storefrontSectionsSchema.safeParse(sections);
+    const parsed = parseStorefrontSectionsForSave(sections, initialSections);
     if (!parsed.success) {
       const nextErrors: Record<string, string> = {};
       for (const issue of parsed.error.issues) {
@@ -472,13 +482,43 @@ export function WebsiteSectionsEditor({
       case "text-content":
         return (
           <div className="grid gap-4">
-            <FormHelp>Use texto simples. HTML e Markdown não são interpretados.</FormHelp>
             {textField("Título (opcional)", section.title ?? "", (title) =>
               replaceSection(section.id, { title }),
             )}
             <Label>
+              Formato
+              <Select
+                value={section.contentFormat ?? "plain"}
+                onValueChange={(contentFormat) => {
+                  if (contentFormat === "plain" || contentFormat === "markdown")
+                    replaceSection(section.id, { contentFormat });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="plain">Texto simples</SelectItem>
+                  <SelectItem value="markdown">Markdown</SelectItem>
+                </SelectContent>
+              </Select>
+            </Label>
+            {section.contentFormat === "markdown" ? (
+              <>
+                <FormHelp>
+                  Use Markdown para títulos, negrito, itálico, listas, citações e links.
+                </FormHelp>
+                <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">
+                  {"## Título\n\nTexto com **destaque**.\n\n[Saiba mais](https://exemplo.com)"}
+                </pre>
+              </>
+            ) : (
+              <FormHelp>Texto simples. Markdown não é interpretado.</FormHelp>
+            )}
+            <Label>
               Conteúdo
               <Textarea
+                maxLength={STOREFRONT_TEXT_CONTENT_MAX_LENGTH}
                 value={section.content}
                 onChange={(event) => replaceSection(section.id, { content: event.target.value })}
               />

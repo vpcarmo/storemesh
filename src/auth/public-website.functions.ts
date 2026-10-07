@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { resolveMediaReferences } from "@/data/media.repository";
 import type { PublicStorefrontSectionDefinition } from "@/domain/storefront";
+import { storefrontSectionsReadSchema } from "@/domain/storefront-sections.schema";
 import { readNavigation, readPages, readPublishedPage } from "@/data/website.repository";
 import { readStoreSettings } from "@/data/store-settings.repository";
 
@@ -16,12 +17,15 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const result = await readPublishedPage(supabaseAdmin, data.storeSlug, data.pageSlug);
     if (!result) return null;
+    const parsedSections = storefrontSectionsReadSchema.safeParse(result.page.sections);
+    if (!parsedSections.success) throw new Error("As seções salvas desta página são inválidas.");
+    const parsedPageSections = parsedSections.data;
     const [settings, navigation, pages] = await Promise.all([
       readStoreSettings(supabaseAdmin, result.store.id),
       readNavigation(supabaseAdmin, result.store.id),
       readPages(supabaseAdmin, result.store.id),
     ]);
-    const imageMediaIds = result.page.sections.flatMap((section) =>
+    const imageMediaIds = parsedPageSections.flatMap((section) =>
       (section.type === "hero" || section.type === "banner") && section.imageMediaAssetId
         ? [section.imageMediaAssetId]
         : [],
@@ -34,7 +38,7 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
       ...imageMediaIds,
       ...(backgroundMediaId ? [backgroundMediaId] : []),
     ]);
-    const publicSections = result.page.sections.flatMap<PublicStorefrontSectionDefinition>(
+    const publicSections = parsedPageSections.flatMap<PublicStorefrontSectionDefinition>(
       (section) => {
         switch (section.type) {
           case "hero": {
@@ -102,6 +106,9 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
                 type: section.type,
                 ...(section.title === undefined ? {} : { title: section.title }),
                 content: section.content,
+                ...(section.contentFormat === undefined
+                  ? {}
+                  : { contentFormat: section.contentFormat }),
               },
             ];
           case "call-to-action":

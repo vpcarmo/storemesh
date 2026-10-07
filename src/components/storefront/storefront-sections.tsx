@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button";
+import { StorefrontRichText } from "@/components/storefront/storefront-rich-text";
 import type { Category, Product } from "@/domain/catalog";
+import type { TextContentSectionDefinition } from "@/domain/storefront";
 
 function SectionAction({ action }: { action: { label: string; href: string } | undefined }) {
   if (!action) return null;
@@ -123,15 +125,13 @@ export function StorefrontProductGridSection({
 export function StorefrontTextContentSection({
   title,
   content,
-}: {
-  title?: string;
-  content: string;
-}) {
+  contentFormat,
+}: Pick<TextContentSectionDefinition, "title" | "content" | "contentFormat">) {
   return (
     <section className="storefront-section">
       <div className="storefront-section-inner storefront-prose">
         {title ? <h2>{title}</h2> : null}
-        <p>{content}</p>
+        <StorefrontRichText content={content} format={contentFormat ?? "plain"} />
       </div>
     </section>
   );

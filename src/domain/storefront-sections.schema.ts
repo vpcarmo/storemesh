@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const STOREFRONT_TEXT_CONTENT_MAX_LENGTH = 20_000;
+
 const nonBlankString = z.string().refine((value) => value.trim().length > 0, "Campo obrigatório.");
 const optionalDescription = z.string().nullable().optional();
 const safeHref = nonBlankString.refine((value) => {
@@ -101,14 +103,20 @@ const productGridSectionSchema = z
   })
   .strict();
 
-const textContentSectionSchema = z
+const textContentSectionReadSchema = z
   .object({
     id: nonBlankString,
     type: z.literal("text-content"),
     title: z.string().optional(),
     content: z.string(),
+    contentFormat: z.enum(["plain", "markdown"]).optional(),
   })
   .strict();
+const textContentSectionSchema = textContentSectionReadSchema.extend({
+  content: z
+    .string()
+    .max(STOREFRONT_TEXT_CONTENT_MAX_LENGTH, "O conteúdo deve ter até 20.000 caracteres."),
+});
 
 const callToActionSectionSchema = z
   .object({
@@ -120,18 +128,18 @@ const callToActionSectionSchema = z
   })
   .strict();
 
-export const storefrontSectionSchema = z.discriminatedUnion("type", [
-  heroSectionSchema,
-  bannerSectionSchema,
-  categoriesSectionSchema,
-  productGridSectionSchema,
-  textContentSectionSchema,
-  callToActionSectionSchema,
-]);
+const createStorefrontSectionSchema = (textContentSchema: typeof textContentSectionSchema) =>
+  z.discriminatedUnion("type", [
+    heroSectionSchema,
+    bannerSectionSchema,
+    categoriesSectionSchema,
+    productGridSectionSchema,
+    textContentSchema,
+    callToActionSectionSchema,
+  ]);
 
-export const storefrontSectionsSchema = z
-  .array(storefrontSectionSchema)
-  .superRefine((sections, context) => {
+const createStorefrontSectionsSchema = (textContentSchema: typeof textContentSectionSchema) =>
+  z.array(createStorefrontSectionSchema(textContentSchema)).superRefine((sections, context) => {
     const ids = new Set<string>();
     sections.forEach((section, index) => {
       if (ids.has(section.id))
@@ -143,3 +151,36 @@ export const storefrontSectionsSchema = z
       ids.add(section.id);
     });
   });
+
+const textContentReadSchema = textContentSectionReadSchema;
+
+export const storefrontSectionsReadSchema = createStorefrontSectionsSchema(textContentReadSchema);
+export const storefrontSectionsSchema = createStorefrontSectionsSchema(textContentSectionSchema);
+
+export function parseStorefrontSectionsForSave(input: unknown, previousSections?: unknown) {
+  const parsed = storefrontSectionsSchema.safeParse(input);
+  if (parsed.success || previousSections === undefined) return parsed;
+  if (
+    !parsed.error.issues.every(
+      (issue) => issue.code === "too_big" && issue.path.length === 2 && issue.path[1] === "content",
+    )
+  )
+    return parsed;
+
+  const currentReadable = storefrontSectionsReadSchema.safeParse(input);
+  const previousReadable = storefrontSectionsReadSchema.safeParse(previousSections);
+  if (!currentReadable.success || !previousReadable.success) return parsed;
+
+  const previousTextContent = new Map(
+    previousReadable.data.flatMap((section) =>
+      section.type === "text-content" ? [[section.id, section.content] as const] : [],
+    ),
+  );
+  const hasChangedOversizedContent = currentReadable.data.some(
+    (section) =>
+      section.type === "text-content" &&
+      section.content.length > STOREFRONT_TEXT_CONTENT_MAX_LENGTH &&
+      previousTextContent.get(section.id) !== section.content,
+  );
+  return hasChangedOversizedContent ? parsed : currentReadable;
+}

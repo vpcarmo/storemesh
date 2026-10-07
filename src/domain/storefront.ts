@@ -59,6 +59,7 @@ export interface TextContentSectionDefinition extends SectionBase {
   type: "text-content";
   title?: string;
   content: string;
+  contentFormat?: "plain" | "markdown";
 }
 
 export interface CallToActionSectionDefinition extends SectionBase {
