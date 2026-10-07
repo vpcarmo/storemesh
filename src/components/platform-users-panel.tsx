@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import {
   getPlatformUsers,
   invitePlatformUserByEmail,
+  resendPlatformUserInviteLink,
   revokePlatformUser,
   savePlatformUser,
 } from "@/auth/platform-users.functions";
@@ -70,12 +71,14 @@ export function PlatformUsersPanel() {
   const loadUsers = useServerFn(getPlatformUsers);
   const loadStores = useServerFn(getPlatformStores);
   const invite = useServerFn(invitePlatformUserByEmail);
+  const resendInvite = useServerFn(resendPlatformUserInviteLink);
   const saveUser = useServerFn(savePlatformUser);
   const revoke = useServerFn(revokePlatformUser);
   const [email, setEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<InviteRole>("store_admin");
   const [inviteStoreIds, setInviteStoreIds] = useState<string[]>([]);
   const [invitePending, setInvitePending] = useState(false);
+  const [resendingUserId, setResendingUserId] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<PlatformManagedUser | null>(null);
@@ -118,6 +121,33 @@ export function PlatformUsersPanel() {
       setFeedback(errorMessage(error));
     } finally {
       setInvitePending(false);
+    }
+  }
+
+  async function resendPendingInvite(user: PlatformManagedUser) {
+    if (user.status !== "invited" || resendingUserId) return;
+    setResendingUserId(user.id);
+    setFeedback(null);
+    let succeeded = false;
+    try {
+      await resendInvite({ data: { userId: user.id } });
+      succeeded = true;
+      setFeedback("Novo convite aceito pelo Supabase Auth.");
+    } catch (error) {
+      setFeedback(errorMessage(error));
+    } finally {
+      try {
+        await queryClient.invalidateQueries({ queryKey: usersQueryKey });
+      } catch {
+        setFeedback(
+          (current) =>
+            current ??
+            (succeeded
+              ? "Convite reenviado, mas não foi possível atualizar a lista. Atualize a página."
+              : "Não foi possível atualizar a lista. Atualize a página."),
+        );
+      }
+      setResendingUserId(null);
     }
   }
 
@@ -315,6 +345,17 @@ export function PlatformUsersPanel() {
                 </TableCell>
                 <TableCell>{accessLabel(user.status)}</TableCell>
                 <TableCell>
+                  {user.status === "invited" ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={resendingUserId !== null}
+                      onClick={() => void resendPendingInvite(user)}
+                    >
+                      {resendingUserId === user.id ? "Reenviando…" : "Reenviar convite"}
+                    </Button>
+                  ) : null}{" "}
                   <Button
                     type="button"
                     variant="outline"

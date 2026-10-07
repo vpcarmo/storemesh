@@ -6,8 +6,10 @@ import {
   findPlatformAuthUserByEmail,
   invitePlatformUser,
   readPlatformUsers,
+  resendPlatformUserInvite,
   revokePlatformUserAccess,
   savePlatformUserRecord,
+  PlatformUserInviteError,
 } from "@/data/platform-stores.repository";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
@@ -56,6 +58,7 @@ const saveUserInput = z.object({
 });
 
 const revokeInput = z.object({ userId: z.string().uuid() });
+const resendInviteInput = z.object({ userId: z.string().uuid() });
 
 function authErrorDetails(error: unknown): {
   code: string | null;
@@ -77,6 +80,44 @@ function authErrorDetails(error: unknown): {
 function isExistingAuthIdentityError(error: unknown): boolean {
   const { code } = authErrorDetails(error);
   return code === "email_exists" || code === "user_already_exists";
+}
+
+function resolvePlatformInviteRedirect(actorUserId: string): string {
+  const appUrl = process.env["APP_URL"]?.trim();
+  if (!appUrl) {
+    console.error("[Platform users] Could not resolve the configured invite redirect.", {
+      actorUserId,
+      reason: "APP_URL is not configured.",
+    });
+    throw new Error(
+      "Convite bloqueado: APP_URL não está configurada no ambiente servidor da aplicação.",
+    );
+  }
+
+  try {
+    const baseUrl = new URL(appUrl);
+    if (
+      !["http:", "https:"].includes(baseUrl.protocol) ||
+      (process.env["NODE_ENV"] !== "development" && baseUrl.protocol !== "https:") ||
+      !baseUrl.hostname ||
+      baseUrl.username ||
+      baseUrl.password ||
+      baseUrl.pathname !== "/" ||
+      baseUrl.search ||
+      baseUrl.hash
+    ) {
+      throw new Error("APP_URL is invalid.");
+    }
+    return `${baseUrl.origin}/auth/accept-invite`;
+  } catch {
+    console.error("[Platform users] Could not resolve the configured invite redirect.", {
+      actorUserId,
+      reason: "APP_URL is invalid.",
+    });
+    throw new Error(
+      "Convite bloqueado: APP_URL é inválida. Configure a origem pública correta no ambiente servidor.",
+    );
+  }
 }
 
 export const getPlatformUsers = createServerFn({ method: "POST" })
@@ -102,42 +143,7 @@ export const invitePlatformUserByEmail = createServerFn({ method: "POST" })
     await requireSuperAdmin(context.supabase, context.userId);
     const inviteData = inviteInput.parse(data);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const appUrl = process.env["APP_URL"]?.trim();
-    if (!appUrl) {
-      console.error("[Platform users] Could not resolve the configured invite redirect.", {
-        userId: context.userId,
-        reason: "APP_URL is not configured.",
-      });
-      throw new Error(
-        "Convite bloqueado: APP_URL não está configurada no ambiente servidor da aplicação.",
-      );
-    }
-
-    let redirectTo: string;
-    try {
-      const baseUrl = new URL(appUrl);
-      if (
-        !["http:", "https:"].includes(baseUrl.protocol) ||
-        (process.env["NODE_ENV"] !== "development" && baseUrl.protocol !== "https:") ||
-        !baseUrl.hostname ||
-        baseUrl.username ||
-        baseUrl.password ||
-        baseUrl.pathname !== "/" ||
-        baseUrl.search ||
-        baseUrl.hash
-      ) {
-        throw new Error("APP_URL is invalid.");
-      }
-      redirectTo = new URL("/auth/accept-invite", baseUrl.origin).toString();
-    } catch {
-      console.error("[Platform users] Could not resolve the configured invite redirect.", {
-        userId: context.userId,
-        reason: "APP_URL is invalid.",
-      });
-      throw new Error(
-        "Convite bloqueado: APP_URL é inválida. Configure a origem pública correta no ambiente servidor.",
-      );
-    }
+    const redirectTo = resolvePlatformInviteRedirect(context.userId);
 
     if (inviteData.role === "store_admin") {
       const { data: stores, error } = await supabaseAdmin
@@ -226,6 +232,39 @@ export const invitePlatformUserByEmail = createServerFn({ method: "POST" })
       });
       throw new Error(
         "O Supabase Auth aceitou o convite, mas a atribuição de acesso falhou. A conta permanece sem acesso administrativo; corrija o usuário em /admin/users.",
+      );
+    }
+  });
+
+export const resendPlatformUserInviteLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => input)
+  .handler(async ({ data, context }) => {
+    await requireSuperAdmin(context.supabase, context.userId);
+    const { userId } = resendInviteInput.parse(data);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const redirectTo = resolvePlatformInviteRedirect(context.userId);
+
+    try {
+      await resendPlatformUserInvite(supabaseAdmin, userId, redirectTo);
+    } catch (error) {
+      const authError = authErrorDetails(error);
+      console.error("[Platform users] Could not resend a user invitation.", {
+        actorUserId: context.userId,
+        targetUserId: userId,
+        error: authError,
+      });
+      if (error instanceof PlatformUserInviteError) throw error;
+      if (authError.code === "over_email_send_rate_limit" || authError.status === 429) {
+        throw new Error(
+          "Não foi possível reenviar agora. Aguarde alguns minutos e tente novamente.",
+        );
+      }
+      if (authError.status === 404) {
+        throw new Error("Usuário não encontrado no Supabase Auth.");
+      }
+      throw new Error(
+        "Não foi possível reenviar o convite. Verifique a configuração de e-mail do projeto.",
       );
     }
   });

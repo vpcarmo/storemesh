@@ -41,6 +41,16 @@ export interface PlatformManagedUser {
   status: "active" | "invited" | "no_access";
 }
 
+export class PlatformUserInviteError extends Error {}
+
+function platformUserStatus(
+  user: Pick<User, "invited_at" | "email_confirmed_at">,
+  hasRoles: boolean,
+): PlatformManagedUser["status"] {
+  if (hasRoles) return "active";
+  return user.invited_at && !user.email_confirmed_at ? "invited" : "no_access";
+}
+
 // Auth users are identities; profiles hold application profile data and user_roles grant StoreMesh access.
 async function listAllAuthUsers(client: AppClient): Promise<User[]> {
   const users: User[] = [];
@@ -93,12 +103,7 @@ export async function readPlatformUsers(client: AppClient): Promise<PlatformMana
       role.role === "store_admin" && role.store_id ? [role.store_id] : [],
     );
     const isSuperAdmin = roles.some((role) => role.role === "super_admin");
-    const status =
-      roles.length > 0
-        ? "active"
-        : user.invited_at && !user.email_confirmed_at
-          ? "invited"
-          : "no_access";
+    const status = platformUserStatus(user, roles.length > 0);
 
     return {
       id: user.id,
@@ -124,6 +129,55 @@ export async function invitePlatformUser(
   if (error) throw error;
   if (!data.user) throw new Error("O Supabase Auth não retornou o usuário convidado.");
   return data.user.id;
+}
+
+export async function resendPlatformUserInvite(
+  client: AppClient,
+  userId: string,
+  redirectTo: string,
+): Promise<void> {
+  const { data, error } = await client.auth.admin.getUserById(userId);
+  if (error) throw error;
+  if (!data.user) throw new PlatformUserInviteError("Usuário não encontrado no Supabase Auth.");
+
+  const user = data.user;
+  if (user.email_confirmed_at) {
+    throw new PlatformUserInviteError(
+      "Este usuário já confirmou o convite. Não é necessário reenviar.",
+    );
+  }
+  if (!user.email?.trim()) {
+    throw new PlatformUserInviteError("Este usuário não possui um e-mail válido no Supabase Auth.");
+  }
+
+  const { data: roles, error: rolesError } = await client
+    .from("user_roles")
+    .select("id")
+    .eq("user_id", userId);
+  if (rolesError) throw rolesError;
+  if (platformUserStatus(user, roles.length > 0) !== "invited") {
+    throw new PlatformUserInviteError("Este usuário não possui um convite pendente.");
+  }
+
+  let invitedUserId: string;
+  try {
+    invitedUserId = await invitePlatformUser(client, user.email, redirectTo);
+  } catch (inviteError) {
+    const { data: latestUser, error: lookupError } = await client.auth.admin.getUserById(userId);
+    if (lookupError) throw lookupError;
+    if (latestUser.user?.email_confirmed_at) {
+      throw new PlatformUserInviteError(
+        "Este usuário já confirmou o convite. Não é necessário reenviar.",
+      );
+    }
+    throw inviteError;
+  }
+
+  if (invitedUserId !== userId) {
+    throw new PlatformUserInviteError(
+      "O Supabase Auth retornou uma identidade diferente da solicitada.",
+    );
+  }
 }
 
 export async function savePlatformUserRecord(
