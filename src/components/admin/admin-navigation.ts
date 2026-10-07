@@ -11,6 +11,7 @@ export type AdminPath =
   | "/admin/content/media"
   | "/admin/commerce"
   | "/admin/stores"
+  | "/admin/users"
   | "/admin/settings"
   | "/admin/preview";
 
@@ -54,6 +55,7 @@ export const ADMIN_NAVIGATION: AdminNavigationGroup[] = [
   },
   { label: "Comércio", to: "/admin/commerce" },
   { label: "Lojas", to: "/admin/stores", superAdminOnly: true },
+  { label: "Usuários", to: "/admin/users", superAdminOnly: true },
   { label: "Configurações", to: "/admin/settings" },
   { label: "Preview", to: "/admin/preview" },
 ];
@@ -71,6 +73,7 @@ const LABELS: Record<AdminPath, string> = {
   "/admin/content/media": "Mídia",
   "/admin/commerce": "Comércio",
   "/admin/stores": "Lojas",
+  "/admin/users": "Usuários",
   "/admin/settings": "Configurações",
   "/admin/preview": "Preview",
 };

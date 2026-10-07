@@ -18,6 +18,7 @@ import { Route as AdminContentRouteImport } from './routes/admin.content'
 import { Route as AdminPreviewRouteImport } from './routes/admin.preview'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminStoresRouteImport } from './routes/admin.stores'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminWebsiteRouteImport } from './routes/admin.website'
 import { Route as AdminCatalogIndexRouteImport } from './routes/admin.catalog.index'
 import { Route as AdminCatalogAttributesRouteImport } from './routes/admin.catalog.attributes'
@@ -74,6 +75,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
 const AdminStoresRoute = AdminStoresRouteImport.update({
   id: '/stores',
   path: '/stores',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminWebsiteRoute = AdminWebsiteRouteImport.update({
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/admin/preview': typeof AdminPreviewRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/stores': typeof AdminStoresRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin/website': typeof AdminWebsiteRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/admin/catalog/attributes': typeof AdminCatalogAttributesRoute
@@ -169,6 +176,7 @@ export interface FileRoutesByTo {
   '/admin/preview': typeof AdminPreviewRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/stores': typeof AdminStoresRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin': typeof AdminIndexRoute
   '/admin/catalog/attributes': typeof AdminCatalogAttributesRoute
   '/admin/catalog/categories': typeof AdminCatalogCategoriesRoute
@@ -192,6 +200,7 @@ export interface FileRoutesById {
   '/admin/preview': typeof AdminPreviewRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/stores': typeof AdminStoresRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin/website': typeof AdminWebsiteRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/admin/catalog/attributes': typeof AdminCatalogAttributesRoute
@@ -217,6 +226,7 @@ export interface FileRouteTypes {
     | '/admin/preview'
     | '/admin/settings'
     | '/admin/stores'
+    | '/admin/users'
     | '/admin/website'
     | '/admin/'
     | '/admin/catalog/attributes'
@@ -238,6 +248,7 @@ export interface FileRouteTypes {
     | '/admin/preview'
     | '/admin/settings'
     | '/admin/stores'
+    | '/admin/users'
     | '/admin'
     | '/admin/catalog/attributes'
     | '/admin/catalog/categories'
@@ -260,6 +271,7 @@ export interface FileRouteTypes {
     | '/admin/preview'
     | '/admin/settings'
     | '/admin/stores'
+    | '/admin/users'
     | '/admin/website'
     | '/admin/'
     | '/admin/catalog/attributes'
@@ -346,6 +358,13 @@ declare module '@tanstack/react-router' {
       path: '/stores'
       fullPath: '/admin/stores'
       preLoaderRoute: typeof AdminStoresRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/website': {
@@ -488,6 +507,7 @@ interface AdminRouteChildren {
   AdminPreviewRoute: typeof AdminPreviewRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStoresRoute: typeof AdminStoresRoute
+  AdminUsersRoute: typeof AdminUsersRoute
   AdminWebsiteRoute: typeof AdminWebsiteRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
 }
@@ -499,6 +519,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminPreviewRoute: AdminPreviewRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStoresRoute: AdminStoresRoute,
+  AdminUsersRoute: AdminUsersRoute,
   AdminWebsiteRoute: AdminWebsiteRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
 }

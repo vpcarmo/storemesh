@@ -739,6 +739,17 @@ export type Database = {
     Functions: {
       has_store_access: { Args: { _store_id: string }; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
+      manage_platform_user_access: {
+        Args: {
+          p_full_name: string | null
+          p_is_super_admin: boolean
+          p_revoke_access: boolean
+          p_store_ids: string[]
+          p_update_profile: boolean
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       list_platform_store_users: {
         Args: never
         Returns: {

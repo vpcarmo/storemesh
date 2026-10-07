@@ -7,6 +7,7 @@ type AppClient = SupabaseClient<Database>;
 type StoreRow = Pick<Tables<"stores">, "id" | "name" | "slug" | "status" | "created_at">;
 type ProfileRow = Pick<Tables<"profiles">, "id" | "full_name">;
 type RoleRow = Pick<Tables<"user_roles">, "user_id" | "role" | "store_id">;
+type ManagedUserRoleRow = Pick<Tables<"user_roles">, "id" | "user_id" | "role" | "store_id">;
 type SavePlatformStoreArgs = Omit<
   Database["public"]["Functions"]["save_platform_store"]["Args"],
   "p_store_id"
@@ -28,6 +29,108 @@ export interface PlatformUser {
   id: string;
   fullName: string | null;
   isSuperAdmin: boolean;
+}
+
+export interface PlatformManagedUser {
+  id: string;
+  email: string | null;
+  fullName: string | null;
+  isSuperAdmin: boolean;
+  storeIds: string[];
+  stores: Pick<StoreRow, "id" | "name" | "slug">[];
+  status: "active" | "invited" | "no_access";
+}
+
+export async function readPlatformUsers(client: AppClient): Promise<PlatformManagedUser[]> {
+  const authUsers = [];
+  for (let page = 1; ; page += 1) {
+    const { data, error } = await client.auth.admin.listUsers({ page, perPage: 100 });
+    if (error) throw error;
+    authUsers.push(...data.users);
+    if (data.users.length < 100) break;
+  }
+
+  const [profilesResult, rolesResult, storesResult] = await Promise.all([
+    client.from("profiles").select("id, full_name"),
+    client.from("user_roles").select("id, user_id, role, store_id"),
+    client.from("stores").select("id, name, slug"),
+  ]);
+  if (profilesResult.error) throw profilesResult.error;
+  if (rolesResult.error) throw rolesResult.error;
+  if (storesResult.error) throw storesResult.error;
+
+  const profilesById = new Map(profilesResult.data.map((profile) => [profile.id, profile]));
+  const storesById = new Map(storesResult.data.map((store) => [store.id, store]));
+  const rolesByUser = new Map<string, ManagedUserRoleRow[]>();
+  for (const role of rolesResult.data as ManagedUserRoleRow[]) {
+    const userRoles = rolesByUser.get(role.user_id) ?? [];
+    userRoles.push(role);
+    rolesByUser.set(role.user_id, userRoles);
+  }
+
+  return authUsers.map((user) => {
+    const roles = rolesByUser.get(user.id) ?? [];
+    const storeIds = roles.flatMap((role) =>
+      role.role === "store_admin" && role.store_id ? [role.store_id] : [],
+    );
+    const isSuperAdmin = roles.some((role) => role.role === "super_admin");
+    const status =
+      roles.length > 0
+        ? "active"
+        : user.invited_at && !user.email_confirmed_at
+          ? "invited"
+          : "no_access";
+
+    return {
+      id: user.id,
+      email: user.email ?? null,
+      fullName: profilesById.get(user.id)?.full_name ?? null,
+      isSuperAdmin,
+      storeIds,
+      stores: storeIds.flatMap((storeId) => {
+        const store = storesById.get(storeId);
+        return store ? [store] : [];
+      }),
+      status,
+    };
+  });
+}
+
+export async function invitePlatformUser(client: AppClient, email: string): Promise<void> {
+  const { error } = await client.auth.admin.inviteUserByEmail(email);
+  if (error) throw error;
+}
+
+export async function savePlatformUserRecord(
+  client: AppClient,
+  input: {
+    userId: string;
+    fullName: string;
+    isSuperAdmin: boolean;
+    storeIds: string[];
+  },
+): Promise<void> {
+  const { error } = await client.rpc("manage_platform_user_access", {
+    p_user_id: input.userId,
+    p_is_super_admin: input.isSuperAdmin,
+    p_store_ids: input.storeIds,
+    p_full_name: input.fullName.trim() || null,
+    p_revoke_access: false,
+    p_update_profile: true,
+  });
+  if (error) throw error;
+}
+
+export async function revokePlatformUserAccess(client: AppClient, userId: string): Promise<void> {
+  const { error } = await client.rpc("manage_platform_user_access", {
+    p_user_id: userId,
+    p_is_super_admin: false,
+    p_store_ids: [],
+    p_full_name: null,
+    p_revoke_access: true,
+    p_update_profile: false,
+  });
+  if (error) throw error;
 }
 
 export async function readPlatformStores(client: AppClient) {
