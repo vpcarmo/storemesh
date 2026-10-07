@@ -102,14 +102,24 @@ export const invitePlatformUserByEmail = createServerFn({ method: "POST" })
     await requireSuperAdmin(context.supabase, context.userId);
     const inviteData = inviteInput.parse(data);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const appUrl = process.env["APP_URL"];
+    const appUrl = process.env["APP_URL"]?.trim();
+    if (!appUrl) {
+      console.error("[Platform users] Could not resolve the configured invite redirect.", {
+        userId: context.userId,
+        reason: "APP_URL is not configured.",
+      });
+      throw new Error(
+        "Convite bloqueado: APP_URL não está configurada no ambiente servidor da aplicação.",
+      );
+    }
+
     let redirectTo: string;
     try {
-      if (!appUrl) throw new Error("APP_URL is not configured.");
       const baseUrl = new URL(appUrl);
       if (
         !["http:", "https:"].includes(baseUrl.protocol) ||
         (process.env["NODE_ENV"] !== "development" && baseUrl.protocol !== "https:") ||
+        !baseUrl.hostname ||
         baseUrl.username ||
         baseUrl.password ||
         baseUrl.pathname !== "/" ||
@@ -119,13 +129,13 @@ export const invitePlatformUserByEmail = createServerFn({ method: "POST" })
         throw new Error("APP_URL is invalid.");
       }
       redirectTo = new URL("/auth/accept-invite", baseUrl.origin).toString();
-    } catch (error) {
+    } catch {
       console.error("[Platform users] Could not resolve the configured invite redirect.", {
         userId: context.userId,
-        reason: error instanceof Error ? error.message : "APP_URL is invalid.",
+        reason: "APP_URL is invalid.",
       });
       throw new Error(
-        "Convite bloqueado por configuração de ambiente. Configure APP_URL no servidor.",
+        "Convite bloqueado: APP_URL é inválida. Configure a origem pública correta no ambiente servidor.",
       );
     }
 

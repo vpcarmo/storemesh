@@ -97,6 +97,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     stores.length === 1 && (isSuperAdminUser || assignedStoreIds.size === 1) ? stores[0] : null;
   const selectedStore = stores.find((store) => store.slug === slug) ?? autoSelectedStore;
   const storeSlug = selectedStore?.slug ?? null;
+  const storeSelectionMissing = !isPlatformRoute && requiresStoreSelection && !storeSlug;
   const websiteQuery = useQuery({
     queryKey: ["admin", "storefront-home", storeSlug],
     queryFn: () => loadWebsite({ data: { slug: storeSlug } }),
@@ -362,7 +363,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                 <p className="text-sm text-destructive" role="alert">
                   Esta loja está inativa e não pode ser administrada no momento.
                 </p>
-              ) : requiresStoreSelection && !storeSlug ? (
+              ) : storeSelectionMissing ? (
                 <p className="text-sm text-muted-foreground">
                   Selecione a loja que deseja administrar.
                 </p>
