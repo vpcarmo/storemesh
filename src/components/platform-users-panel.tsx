@@ -110,7 +110,9 @@ export function PlatformUsersPanel() {
       });
       setEmail("");
       setInviteStoreIds([]);
-      setFeedback("Convite enviado e acesso provisionado.");
+      setFeedback(
+        "Convite aceito pelo Supabase Auth e acesso provisionado. A entrega do e-mail depende da configuração do provedor.",
+      );
       await refresh();
     } catch (error) {
       setFeedback(errorMessage(error));
@@ -215,6 +217,7 @@ export function PlatformUsersPanel() {
             id="platform-user-invite-email"
             type="email"
             autoComplete="email"
+            maxLength={254}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder="nome@exemplo.com"

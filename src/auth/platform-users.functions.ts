@@ -1,7 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+import { requireSuperAdmin } from "@/auth/require-super-admin";
 import {
+  findPlatformAuthUserByEmail,
   invitePlatformUser,
   readPlatformUsers,
   revokePlatformUserAccess,
@@ -55,19 +57,26 @@ const saveUserInput = z.object({
 
 const revokeInput = z.object({ userId: z.string().uuid() });
 
-async function requireSuperAdmin(
-  client: Parameters<typeof readPlatformUsers>[0],
-  userId: string,
-): Promise<void> {
-  const { data, error } = await client.rpc("is_super_admin");
-  if (error) {
-    console.error("[Platform users] Could not verify super_admin access.", { userId, error });
-    throw error;
+function authErrorDetails(error: unknown): {
+  code: string | null;
+  message: string | null;
+  status: number | null;
+} {
+  if (!error || typeof error !== "object") {
+    return { code: null, message: null, status: null };
   }
-  if (!data) {
-    console.warn("[Platform users] Rejected a non-super_admin request.", { userId });
-    throw new Error("Acesso restrito ao super_admin.");
-  }
+
+  const candidate = error as { code?: unknown; message?: unknown; status?: unknown };
+  return {
+    code: typeof candidate.code === "string" ? candidate.code : null,
+    message: typeof candidate.message === "string" ? candidate.message : null,
+    status: typeof candidate.status === "number" ? candidate.status : null,
+  };
+}
+
+function isExistingAuthIdentityError(error: unknown): boolean {
+  const { code } = authErrorDetails(error);
+  return code === "email_exists" || code === "user_already_exists";
 }
 
 export const getPlatformUsers = createServerFn({ method: "POST" })
@@ -88,9 +97,10 @@ export const getPlatformUsers = createServerFn({ method: "POST" })
 
 export const invitePlatformUserByEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input) => inviteInput.parse(input))
+  .validator((input: unknown) => input)
   .handler(async ({ data, context }) => {
     await requireSuperAdmin(context.supabase, context.userId);
+    const inviteData = inviteInput.parse(data);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const appUrl = process.env["APP_URL"];
     let redirectTo: string;
@@ -99,9 +109,10 @@ export const invitePlatformUserByEmail = createServerFn({ method: "POST" })
       const baseUrl = new URL(appUrl);
       if (
         !["http:", "https:"].includes(baseUrl.protocol) ||
-        (process.env["NODE_ENV"] === "production" && baseUrl.protocol !== "https:") ||
+        (process.env["NODE_ENV"] !== "development" && baseUrl.protocol !== "https:") ||
         baseUrl.username ||
         baseUrl.password ||
+        baseUrl.pathname !== "/" ||
         baseUrl.search ||
         baseUrl.hash
       ) {
@@ -111,16 +122,18 @@ export const invitePlatformUserByEmail = createServerFn({ method: "POST" })
     } catch (error) {
       console.error("[Platform users] Could not resolve the configured invite redirect.", {
         userId: context.userId,
-        error,
+        reason: error instanceof Error ? error.message : "APP_URL is invalid.",
       });
-      throw new Error("Convites indisponíveis. Configure a URL pública da aplicação no servidor.");
+      throw new Error(
+        "Convite bloqueado por configuração de ambiente. Configure APP_URL no servidor.",
+      );
     }
 
-    if (data.role === "store_admin") {
+    if (inviteData.role === "store_admin") {
       const { data: stores, error } = await supabaseAdmin
         .from("stores")
         .select("id")
-        .in("id", data.storeIds);
+        .in("id", inviteData.storeIds);
       if (error) {
         console.error("[Platform users] Could not validate invite stores.", {
           userId: context.userId,
@@ -128,36 +141,72 @@ export const invitePlatformUserByEmail = createServerFn({ method: "POST" })
         });
         throw new Error("Não foi possível validar as lojas selecionadas.");
       }
-      if (stores.length !== data.storeIds.length) {
+      if (stores.length !== inviteData.storeIds.length) {
         throw new Error("Uma ou mais lojas selecionadas não existem.");
       }
     }
 
+    const email = inviteData.email.trim().toLowerCase();
+    let existingAuthUser: Awaited<ReturnType<typeof findPlatformAuthUserByEmail>>;
+    try {
+      existingAuthUser = await findPlatformAuthUserByEmail(supabaseAdmin, email);
+    } catch (error) {
+      console.error("[Platform users] Could not check for an existing Auth identity.", {
+        userId: context.userId,
+        authError: authErrorDetails(error),
+      });
+      throw new Error(
+        "Não foi possível verificar se este e-mail já possui uma conta. Nenhum convite foi criado.",
+      );
+    }
+
+    if (existingAuthUser) {
+      throw new Error(
+        existingAuthUser.email_confirmed_at
+          ? "Este e-mail já possui uma conta no StoreMesh. Gerencie o usuário existente em Usuários."
+          : "Já existe uma conta pendente para este e-mail. Finalize o convite existente ou utilize o fluxo de gerenciamento disponível.",
+      );
+    }
+
     let invitedUserId: string;
     try {
-      invitedUserId = await invitePlatformUser(supabaseAdmin, data.email.toLowerCase(), redirectTo);
+      invitedUserId = await invitePlatformUser(supabaseAdmin, email, redirectTo);
     } catch (error) {
       console.error("[Platform users] Could not send a user invitation.", {
         userId: context.userId,
-        error,
+        authError: authErrorDetails(error),
       });
-      if (
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        (error.code === "email_exists" || error.code === "user_already_exists")
-      ) {
-        throw new Error("Este e-mail já pertence a uma conta. Gerencie o usuário existente.");
+      if (isExistingAuthIdentityError(error)) {
+        try {
+          existingAuthUser = await findPlatformAuthUserByEmail(supabaseAdmin, email);
+        } catch (lookupError) {
+          console.error("[Platform users] Could not classify an existing Auth identity.", {
+            userId: context.userId,
+            authError: authErrorDetails(lookupError),
+          });
+        }
+        if (existingAuthUser) {
+          throw new Error(
+            existingAuthUser.email_confirmed_at
+              ? "Este e-mail já possui uma conta no StoreMesh. Gerencie o usuário existente em Usuários."
+              : "Já existe uma conta pendente para este e-mail. Finalize o convite existente ou utilize o fluxo de gerenciamento disponível.",
+          );
+        }
+        throw new Error(
+          "Este e-mail já possui uma conta no StoreMesh. Gerencie o usuário existente em Usuários.",
+        );
       }
-      throw new Error("Não foi possível enviar o convite. Verifique o e-mail e tente novamente.");
+      throw new Error(
+        "Não foi possível enviar o convite. Verifique a configuração de e-mail do projeto.",
+      );
     }
 
     try {
       await savePlatformUserRecord(context.supabase, {
         userId: invitedUserId,
         fullName: "",
-        isSuperAdmin: data.role === "super_admin",
-        storeIds: data.storeIds,
+        isSuperAdmin: inviteData.role === "super_admin",
+        storeIds: inviteData.role === "store_admin" ? inviteData.storeIds : [],
       });
     } catch (error) {
       console.error("[Platform users] Invitation succeeded but access provisioning failed.", {
@@ -166,7 +215,7 @@ export const invitePlatformUserByEmail = createServerFn({ method: "POST" })
         error,
       });
       throw new Error(
-        "O convite foi enviado, mas a atribuição de acesso falhou. A conta permanece sem acesso administrativo; corrija o usuário em /admin/users.",
+        "O Supabase Auth aceitou o convite, mas a atribuição de acesso falhou. A conta permanece sem acesso administrativo; corrija o usuário em /admin/users.",
       );
     }
   });

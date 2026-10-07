@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 import type { StoreStatus } from "@/domain/access";
 import type { Database, Tables } from "@/integrations/supabase/types";
@@ -41,14 +41,33 @@ export interface PlatformManagedUser {
   status: "active" | "invited" | "no_access";
 }
 
-export async function readPlatformUsers(client: AppClient): Promise<PlatformManagedUser[]> {
-  const authUsers = [];
+// Auth users are identities; profiles hold application profile data and user_roles grant StoreMesh access.
+async function listAllAuthUsers(client: AppClient): Promise<User[]> {
+  const users: User[] = [];
   for (let page = 1; ; page += 1) {
     const { data, error } = await client.auth.admin.listUsers({ page, perPage: 100 });
     if (error) throw error;
-    authUsers.push(...data.users);
+    users.push(...data.users);
     if (data.users.length < 100) break;
   }
+
+  return users;
+}
+
+export async function findPlatformAuthUserByEmail(
+  client: AppClient,
+  email: string,
+): Promise<{ id: string; email_confirmed_at: string | null } | null> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = (await listAllAuthUsers(client)).find(
+    (authUser) => authUser.email?.toLowerCase() === normalizedEmail,
+  );
+
+  return user ? { id: user.id, email_confirmed_at: user.email_confirmed_at ?? null } : null;
+}
+
+export async function readPlatformUsers(client: AppClient): Promise<PlatformManagedUser[]> {
+  const authUsers = await listAllAuthUsers(client);
 
   const [profilesResult, rolesResult, storesResult] = await Promise.all([
     client.from("profiles").select("id, full_name"),
