@@ -64,7 +64,15 @@ function PublicPage() {
             currentPageId={data.page.id}
           />
         }
-        footer={<StorefrontFooter storeName={data.store.name} settings={data.settings} />}
+        footer={
+          <StorefrontFooter
+            storeName={data.store.name}
+            settings={data.settings}
+            helpLinks={data.footerNavigation.help}
+            institutionalLinks={data.footerNavigation.institutional}
+            copyrightYear={data.copyrightYear}
+          />
+        }
       >
         <StorefrontPage page={page} />
       </StorefrontLayout>

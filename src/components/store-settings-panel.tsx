@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { StoreSettings } from "@/domain/store-settings";
+import type { StorefrontFooterPage } from "@/domain/storefront-footer";
 import {
   DEFAULT_STOREFRONT_DESIGN_SETTINGS,
   type StorefrontDesignSettings,
@@ -43,9 +44,11 @@ type SettingsForm = {
   secondaryColor: string;
   textColor: string;
   backgroundColor: string;
+  socialLinks: SocialLinkForm[];
   designSettings: StorefrontDesignSettings;
 };
 
+type SocialLinkForm = { label: string; url: string };
 type SettingsField = keyof SettingsForm;
 type FormErrors = Partial<Record<SettingsField, string>>;
 type GradientBackground = Extract<StorefrontDesignSettings["background"], { type: "gradient" }>;
@@ -84,6 +87,13 @@ function messageFrom(error: unknown): string {
   return error instanceof Error ? error.message : "Não foi possível salvar as configurações.";
 }
 
+function socialLinksFromSettings(value: StoreSettings["socialLinks"]): SocialLinkForm[] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+  return Object.entries(value).flatMap(([label, url]) =>
+    typeof url === "string" ? [{ label, url }] : [],
+  );
+}
+
 function formFromSettings(settings: StoreSettings | null): SettingsForm {
   return {
     displayName: settings?.displayName ?? "",
@@ -103,6 +113,7 @@ function formFromSettings(settings: StoreSettings | null): SettingsForm {
     secondaryColor: settings?.secondaryColor ?? "",
     textColor: settings?.textColor ?? "",
     backgroundColor: settings?.backgroundColor ?? "",
+    socialLinks: socialLinksFromSettings(settings?.socialLinks ?? null),
     designSettings: settings?.designSettings ?? DEFAULT_STOREFRONT_DESIGN_SETTINGS,
   };
 }
@@ -142,7 +153,134 @@ function validateForm(form: SettingsForm): FormErrors {
     }
   }
 
+  const labels = new Set<string>();
+  for (const [index, link] of form.socialLinks.entries()) {
+    const label = link.label.trim();
+    const url = link.url.trim();
+    if (!label) errors.socialLinks = "Informe o nome de todas as redes sociais.";
+    else if (label.length > 60 || /[<>\r\n]/.test(label)) {
+      errors.socialLinks = "Use rótulos de texto simples com até 60 caracteres.";
+    } else if (labels.has(label.toLowerCase())) {
+      errors.socialLinks = "Os nomes das redes sociais não podem se repetir.";
+    }
+    labels.add(label.toLowerCase());
+    if (!url || url.length > 2048 || !isValidHttpUrl(url)) {
+      errors.socialLinks = `Informe uma URL HTTP(S) válida para a rede ${index + 1}.`;
+    }
+  }
+
   return errors;
+}
+
+function FooterPageGroup({
+  idPrefix,
+  title,
+  pages,
+  selectedIds,
+  onChange,
+}: {
+  idPrefix: string;
+  title: string;
+  pages: StorefrontFooterPage[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  function movePage(index: number, offset: -1 | 1) {
+    const next = [...selectedIds];
+    const target = index + offset;
+    const movedPage = next[index];
+    if (!movedPage) return;
+    next.splice(index, 1);
+    next.splice(target, 0, movedPage);
+    onChange(next);
+  }
+
+  return (
+    <fieldset className="grid gap-3">
+      <legend className="text-sm font-medium">{title}</legend>
+      {pages.length ? (
+        <div className="grid gap-2">
+          {pages.map((page) => {
+            const id = `${idPrefix}-${page.id}`;
+            return (
+              <label key={page.id} htmlFor={id} className="flex items-center gap-2 text-sm">
+                <input
+                  id={id}
+                  type="checkbox"
+                  checked={selectedIds.includes(page.id)}
+                  onChange={(event) =>
+                    onChange(
+                      event.target.checked
+                        ? [...selectedIds, page.id]
+                        : selectedIds.filter((selectedId) => selectedId !== page.id),
+                    )
+                  }
+                />
+                {page.title}
+              </label>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">Não há páginas publicadas nesta loja.</p>
+      )}
+      {selectedIds.length ? (
+        <ol className="grid gap-2">
+          {selectedIds.map((pageId, index) => {
+            const page = pages.find(({ id }) => id === pageId);
+            if (!page) {
+              return (
+                <li
+                  key={pageId}
+                  className="flex items-center justify-between gap-3 text-sm text-muted-foreground"
+                >
+                  <span>Página indisponível</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      onChange(selectedIds.filter((selectedId) => selectedId !== pageId))
+                    }
+                  >
+                    Remover referência
+                  </Button>
+                </li>
+              );
+            }
+            return (
+              <li key={pageId} className="flex items-center justify-between gap-3 text-sm">
+                <span>{page.title}</span>
+                <span className="flex gap-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    aria-label={`Mover ${page.title} para cima em ${title}`}
+                    disabled={index === 0}
+                    onClick={() => movePage(index, -1)}
+                  >
+                    ↑
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    aria-label={`Mover ${page.title} para baixo em ${title}`}
+                    disabled={index === selectedIds.length - 1}
+                    onClick={() => movePage(index, 1)}
+                  >
+                    ↓
+                  </Button>
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      ) : null}
+      <FormHelp>A ordem desta lista define a ordem visual dos links no Footer.</FormHelp>
+    </fieldset>
+  );
 }
 
 function effectiveColor(value: string, defaultValue: string): string {
@@ -312,6 +450,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
           secondaryColor: form.secondaryColor,
           textColor: form.textColor,
           backgroundColor: form.backgroundColor,
+          socialLinks: form.socialLinks,
           designSettings: form.designSettings,
         },
       });
@@ -1089,6 +1228,91 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                 </select>
                 <FormHelp>Controla o espaço entre os blocos e a área interna do rodapé.</FormHelp>
               </div>
+              <FooterPageGroup
+                idPrefix="store-footer-help-page"
+                title="AJUDA"
+                pages={settingsQuery.data.footerPages}
+                selectedIds={form.designSettings.footer.helpPages}
+                onChange={(helpPages) => updateFooterSettings({ helpPages })}
+              />
+              <FooterPageGroup
+                idPrefix="store-footer-institutional-page"
+                title="INSTITUCIONAL"
+                pages={settingsQuery.data.footerPages}
+                selectedIds={form.designSettings.footer.institutionalPages}
+                onChange={(institutionalPages) => updateFooterSettings({ institutionalPages })}
+              />
+              <fieldset className="grid gap-3">
+                <legend className="text-sm font-medium">SIGA A LOJA</legend>
+                {form.socialLinks.map((link, index) => (
+                  <div key={index} className="grid gap-2 rounded-md border p-3">
+                    <div className="grid gap-2">
+                      <Label htmlFor={`store-social-label-${index}`}>Nome/rótulo</Label>
+                      <Input
+                        id={`store-social-label-${index}`}
+                        value={link.label}
+                        maxLength={60}
+                        onChange={(event) =>
+                          updateField(
+                            "socialLinks",
+                            form.socialLinks.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, label: event.target.value } : item,
+                            ),
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor={`store-social-url-${index}`}>URL</Label>
+                      <Input
+                        id={`store-social-url-${index}`}
+                        type="url"
+                        value={link.url}
+                        maxLength={2048}
+                        placeholder="https://"
+                        onChange={(event) =>
+                          updateField(
+                            "socialLinks",
+                            form.socialLinks.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, url: event.target.value } : item,
+                            ),
+                          )
+                        }
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="justify-self-start"
+                      onClick={() =>
+                        updateField(
+                          "socialLinks",
+                          form.socialLinks.filter((_, itemIndex) => itemIndex !== index),
+                        )
+                      }
+                    >
+                      Remover rede social
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="justify-self-start"
+                  onClick={() =>
+                    updateField("socialLinks", [...form.socialLinks, { label: "", url: "" }])
+                  }
+                >
+                  Adicionar rede social
+                </Button>
+                {errors.socialLinks ? (
+                  <p className="text-sm text-destructive" role="alert">
+                    {errors.socialLinks}
+                  </p>
+                ) : null}
+              </fieldset>
             </section>
           </CardContent>
         </Card>

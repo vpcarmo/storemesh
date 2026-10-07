@@ -11,11 +11,52 @@ import {
   parseStorefrontSectionsForSave,
   storefrontSectionsReadSchema,
 } from "@/domain/storefront-sections.schema";
+import type { StorefrontDesignSettings } from "@/domain/storefront-design.schema";
+import {
+  resolveStorefrontFooterNavigation,
+  type StorefrontFooterPage,
+} from "@/domain/storefront-footer";
 
 // New database tables are intentionally kept behind this repository until generated types refresh.
 type AppClient = SupabaseClient<any>;
 type PageRow = any;
 type NavigationRow = any;
+
+export async function readPublishedFooterPages(
+  client: AppClient,
+  storeId: string,
+  pageIds?: string[],
+): Promise<StorefrontFooterPage[]> {
+  if (pageIds && pageIds.length === 0) return [];
+
+  let query = client
+    .from("pages")
+    .select("id, store_id, title, slug, status")
+    .eq("store_id", storeId)
+    .eq("status", "published");
+  if (pageIds) query = query.in("id", pageIds);
+
+  const { data, error } = await query.order("title");
+  if (error) throw error;
+  return data.map((row: any) => ({
+    id: row.id,
+    storeId: row.store_id,
+    title: row.title,
+    slug: row.slug,
+    status: row.status,
+  }));
+}
+
+export async function loadStorefrontFooterNavigation(
+  client: AppClient,
+  storeId: string,
+  storeSlug: string,
+  footer: StorefrontDesignSettings["footer"],
+) {
+  const pageIds = [...new Set([...footer.helpPages, ...footer.institutionalPages])];
+  const pages = await readPublishedFooterPages(client, storeId, pageIds);
+  return resolveStorefrontFooterNavigation(footer, pages, storeId, storeSlug);
+}
 
 function pageFromRow(row: PageRow): WebsitePage {
   return {

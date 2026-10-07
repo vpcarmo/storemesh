@@ -3,8 +3,14 @@ import { z } from "zod";
 
 import { resolveMediaReferences } from "@/data/media.repository";
 import type { PublicStorefrontSectionDefinition } from "@/domain/storefront";
+import { DEFAULT_STOREFRONT_DESIGN_SETTINGS } from "@/domain/storefront-design.schema";
 import { storefrontSectionsReadSchema } from "@/domain/storefront-sections.schema";
-import { readNavigation, readPages, readPublishedPage } from "@/data/website.repository";
+import {
+  loadStorefrontFooterNavigation,
+  readNavigation,
+  readPages,
+  readPublishedPage,
+} from "@/data/website.repository";
 import { readStoreSettings } from "@/data/store-settings.repository";
 
 const slug = z
@@ -34,9 +40,17 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
       settings?.designSettings.background.type === "image"
         ? settings.designSettings.background.mediaAssetId
         : null;
-    const mediaReferences = await resolveMediaReferences(supabaseAdmin, result.store.id, [
-      ...imageMediaIds,
-      ...(backgroundMediaId ? [backgroundMediaId] : []),
+    const [mediaReferences, footerNavigation] = await Promise.all([
+      resolveMediaReferences(supabaseAdmin, result.store.id, [
+        ...imageMediaIds,
+        ...(backgroundMediaId ? [backgroundMediaId] : []),
+      ]),
+      loadStorefrontFooterNavigation(
+        supabaseAdmin,
+        result.store.id,
+        result.store.slug,
+        settings?.designSettings.footer ?? DEFAULT_STOREFRONT_DESIGN_SETTINGS.footer,
+      ),
     ]);
     const publicSections = parsedPageSections.flatMap<PublicStorefrontSectionDefinition>(
       (section) => {
@@ -146,6 +160,8 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
         sections: publicSections,
       },
       settings,
+      footerNavigation,
+      copyrightYear: new Date().getUTCFullYear(),
       backgroundImageUrl: backgroundMediaId
         ? (mediaReferences.get(backgroundMediaId)?.url ?? null)
         : null,

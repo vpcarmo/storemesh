@@ -6,6 +6,7 @@ import { resolveMediaReferences } from "@/data/media.repository";
 import { readStoreSettings } from "@/data/store-settings.repository";
 import {
   deleteNavigationItem,
+  loadStorefrontFooterNavigation,
   readNavigation,
   readPages,
   readStorePageForPreview,
@@ -15,6 +16,7 @@ import {
   updatePageStatus,
 } from "@/data/website.repository";
 import type { PublicStorefrontSectionDefinition } from "@/domain/storefront";
+import { DEFAULT_STOREFRONT_DESIGN_SETTINGS } from "@/domain/storefront-design.schema";
 import { PAGE_STATUSES } from "@/domain/website";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
@@ -137,10 +139,18 @@ export const getAdminStorePagePreview = createServerFn({ method: "POST" })
         )
         .map((item) => [item.id, item.slug]),
     );
+    const footerNavigation = await loadStorefrontFooterNavigation(
+      context.supabase,
+      store.id,
+      store.slug,
+      settings?.designSettings.footer ?? DEFAULT_STOREFRONT_DESIGN_SETTINGS.footer,
+    );
 
     return {
       store: { id: store.id, name: store.name, slug: store.slug },
       settings,
+      footerNavigation,
+      copyrightYear: new Date().getUTCFullYear(),
       backgroundImageUrl: backgroundMediaId
         ? (mediaReferences.get(backgroundMediaId)?.url ?? null)
         : null,

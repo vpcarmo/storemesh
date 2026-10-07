@@ -13,6 +13,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { isValidHttpUrl } from "@/domain/storefront-theme";
 
 function NavigationItem({
   item,
@@ -238,26 +239,32 @@ function socialItems(value: StoreSettings["socialLinks"]): StorefrontNavigationI
   if (!value || typeof value !== "object" || Array.isArray(value)) return [];
 
   return Object.entries(value).flatMap(([label, href]) =>
-    typeof href === "string" && /^https?:\/\//.test(href) ? [{ id: label, label, href }] : [],
+    typeof href === "string" && isValidHttpUrl(href) ? [{ id: label, label, href }] : [],
   );
 }
 
 export function StorefrontFooter({
   storeName,
   settings,
+  helpLinks = [],
   institutionalLinks = [],
-  policyLinks = [],
+  copyrightYear,
 }: {
   storeName: string;
   settings: StoreSettings | null;
+  helpLinks?: StorefrontNavigationItem[];
   institutionalLinks?: StorefrontNavigationItem[];
-  policyLinks?: StorefrontNavigationItem[];
+  copyrightYear: number;
 }) {
   const themeStyle = useContext(StorefrontThemeStyleContext);
   const address = settings ? textFromObject(settings.address) : null;
   const socials = settings ? socialItems(settings.socialLinks) : [];
+  const displayName = settings?.displayName?.trim() || storeName;
   const hasContact = Boolean(
-    settings?.contactEmail?.trim() || settings?.phone?.trim() || settings?.whatsapp?.trim(),
+    address ||
+    settings?.contactEmail?.trim() ||
+    settings?.phone?.trim() ||
+    settings?.whatsapp?.trim(),
   );
   const showLogo = themeStyle?.["--storefront-footer-show-logo"] === "true";
   const showDescription = themeStyle?.["--storefront-footer-show-description"] !== "false";
@@ -266,8 +273,8 @@ export function StorefrontFooter({
     1 +
     Number(hasContact) +
     Number(socials.length > 0) +
-    Number(institutionalLinks.length > 0) +
-    Number(policyLinks.length > 0);
+    Number(helpLinks.length > 0) +
+    Number(institutionalLinks.length > 0);
   const visibleColumns =
     columns === "auto" ? "auto" : String(Math.min(Number(columns), contentBlockCount));
   const footerAlignment = String(themeStyle?.["--storefront-footer-alignment"] ?? "left");
@@ -289,23 +296,42 @@ export function StorefrontFooter({
               onError={hideBrokenImage}
             />
           ) : null}
-          <p className="storefront-footer-title">{settings?.displayName ?? storeName}</p>
+          <p className="storefront-footer-title">{displayName}</p>
           {showDescription && settings?.shortDescription ? (
             <p className="storefront-footer-description">{settings.shortDescription}</p>
           ) : null}
-          {address ? <p>{address}</p> : null}
         </div>
+        {helpLinks.length ? (
+          <section className="storefront-footer-group">
+            <h2>AJUDA</h2>
+            <StorefrontNavigation items={helpLinks} />
+          </section>
+        ) : null}
+        {institutionalLinks.length ? (
+          <section className="storefront-footer-group">
+            <h2>INSTITUCIONAL</h2>
+            <StorefrontNavigation items={institutionalLinks} />
+          </section>
+        ) : null}
+        {socials.length ? (
+          <section className="storefront-footer-group">
+            <h2>SIGA A LOJA</h2>
+            <StorefrontNavigation items={socials} />
+          </section>
+        ) : null}
         {hasContact ? (
-          <div>
+          <section className="storefront-footer-group">
+            <h2>Contato</h2>
+            {address ? <p>{address}</p> : null}
             {settings?.contactEmail ? <p>{settings.contactEmail}</p> : null}
             {settings?.phone ? <p>{settings.phone}</p> : null}
             {settings?.whatsapp ? <p>{settings.whatsapp}</p> : null}
-          </div>
+          </section>
         ) : null}
-        <StorefrontNavigation items={socials} />
-        <StorefrontNavigation items={institutionalLinks} />
-        <StorefrontNavigation items={policyLinks} />
       </div>
+      <p className="storefront-footer-copyright">
+        © {copyrightYear} {displayName} — Todos os direitos reservados.
+      </p>
     </footer>
   );
 }

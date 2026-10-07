@@ -215,7 +215,8 @@ export function StorefrontPreviewPanel({
     );
   }
 
-  const { store, settings, navigation, backgroundImageUrl } = pagePreviewQuery.data;
+  const { store, settings, navigation, footerNavigation, copyrightYear, backgroundImageUrl } =
+    pagePreviewQuery.data;
   const theme = createStorefrontTheme(settings, backgroundImageUrl);
   const page: StorefrontPageDefinition = {
     id: storedPage.id,
@@ -267,7 +268,15 @@ export function StorefrontPreviewPanel({
                 currentPageId={storedPage.id}
               />
             }
-            footer={<StorefrontFooter storeName={store.name} settings={settings} />}
+            footer={
+              <StorefrontFooter
+                storeName={store.name}
+                settings={settings}
+                helpLinks={footerNavigation.help}
+                institutionalLinks={footerNavigation.institutional}
+                copyrightYear={copyrightYear}
+              />
+            }
           >
             {page.sections.length === 0 ? (
               <p className="p-6 text-sm text-muted-foreground">

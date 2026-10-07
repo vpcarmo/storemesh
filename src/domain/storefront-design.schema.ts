@@ -16,7 +16,15 @@ const DEFAULT_FOOTER_SETTINGS = {
   showLogo: false,
   showDescription: true,
   spacing: "comfortable",
+  helpPages: [] as string[],
+  institutionalPages: [] as string[],
 } as const;
+
+const footerPageId = z.string().uuid();
+const footerPageIds = z
+  .array(footerPageId)
+  .default([])
+  .refine((ids) => new Set(ids).size === ids.length, "Uma página não pode se repetir no grupo.");
 
 export const StorefrontDesignSettingsSchema = z
   .object({
@@ -58,6 +66,8 @@ export const StorefrontDesignSettingsSchema = z
         showLogo: z.boolean(),
         showDescription: z.boolean(),
         spacing: z.enum(["compact", "comfortable", "spacious"]),
+        helpPages: footerPageIds,
+        institutionalPages: footerPageIds,
       })
       .strict()
       .default(DEFAULT_FOOTER_SETTINGS),
@@ -78,6 +88,30 @@ export const DEFAULT_STOREFRONT_DESIGN_SETTINGS: StorefrontDesignSettings = {
 };
 
 export function parseStorefrontDesignSettings(value: unknown): StorefrontDesignSettings {
-  const result = StorefrontDesignSettingsSchema.safeParse(value);
+  const sanitizedValue =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? sanitizeFooterPageReferences(value as Record<string, unknown>)
+      : value;
+  const result = StorefrontDesignSettingsSchema.safeParse(sanitizedValue);
   return result.success ? result.data : DEFAULT_STOREFRONT_DESIGN_SETTINGS;
+}
+
+function sanitizeFooterPageReferences(value: Record<string, unknown>): Record<string, unknown> {
+  const footer = value["footer"];
+  if (!footer || typeof footer !== "object" || Array.isArray(footer)) return value;
+
+  const footerSettings = footer as Record<string, unknown>;
+  const pageIds = (input: unknown): string[] => {
+    if (!Array.isArray(input)) return [];
+    const validIds = input.filter((id): id is string => footerPageId.safeParse(id).success);
+    return [...new Set(validIds)];
+  };
+  return {
+    ...value,
+    footer: {
+      ...footerSettings,
+      helpPages: pageIds(footerSettings["helpPages"]),
+      institutionalPages: pageIds(footerSettings["institutionalPages"]),
+    },
+  };
 }

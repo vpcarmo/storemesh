@@ -4,6 +4,7 @@ import { z } from "zod";
 import { resolveAuthorizedStore } from "@/auth/authorized-store";
 import { resolveMediaReferences } from "@/data/media.repository";
 import { readStoreSettings, saveStoreSettings } from "@/data/store-settings.repository";
+import { readPublishedFooterPages } from "@/data/website.repository";
 import { StorefrontDesignSettingsSchema } from "@/domain/storefront-design.schema";
 import { normalizeDisplayName } from "@/domain/store-settings";
 import { isValidHttpUrl, isValidStorefrontHexColor } from "@/domain/storefront-theme";
@@ -59,6 +60,33 @@ const optionalHexColor = z
     "Use uma cor hexadecimal no formato #RRGGBB.",
   );
 
+const socialLinksInput = z
+  .array(
+    z.object({
+      label: z
+        .string()
+        .trim()
+        .min(1, "Informe o nome da rede social.")
+        .max(60)
+        .regex(/^[^<>\r\n]+$/, "Use um rótulo de texto simples."),
+      url: z.string().trim().max(2048).refine(isValidHttpUrl, "Informe uma URL HTTP(S) válida."),
+    }),
+  )
+  .superRefine((links, context) => {
+    const labels = new Set<string>();
+    for (const [index, link] of links.entries()) {
+      const normalized = link.label.toLowerCase();
+      if (labels.has(normalized)) {
+        context.addIssue({
+          code: "custom",
+          message: "Os nomes das redes sociais não podem se repetir.",
+          path: [index, "label"],
+        });
+      }
+      labels.add(normalized);
+    }
+  });
+
 const updateStoreSettingsInput = storeSelectionInput.extend({
   displayName: z.string().max(120),
   shortDescription: optionalText(280),
@@ -72,6 +100,7 @@ const updateStoreSettingsInput = storeSelectionInput.extend({
   secondaryColor: optionalHexColor,
   textColor: optionalHexColor,
   backgroundColor: optionalHexColor,
+  socialLinks: socialLinksInput,
   designSettings: StorefrontDesignSettingsSchema,
 });
 
@@ -92,10 +121,11 @@ export const getCurrentStoreSettings = createServerFn({ method: "POST" })
 
     if (!store) return { store: null, settings: null };
 
-    return {
-      store,
-      settings: await readStoreSettings(context.supabase, store.id),
-    };
+    const [settings, footerPages] = await Promise.all([
+      readStoreSettings(context.supabase, store.id),
+      readPublishedFooterPages(context.supabase, store.id),
+    ]);
+    return { store, settings, footerPages };
   });
 
 export const updateCurrentStoreSettings = createServerFn({ method: "POST" })
@@ -110,6 +140,21 @@ export const updateCurrentStoreSettings = createServerFn({ method: "POST" })
     );
 
     if (!store) throw new Error("Nenhuma loja autorizada foi selecionada.");
+
+    const selectedPageIds = [
+      ...new Set([
+        ...data.designSettings.footer.helpPages,
+        ...data.designSettings.footer.institutionalPages,
+      ]),
+    ];
+    const selectedPages = await readPublishedFooterPages(
+      context.supabase,
+      store.id,
+      selectedPageIds,
+    );
+    if (new Set(selectedPages.map((page) => page.id)).size !== selectedPageIds.length) {
+      throw new Error("Selecione somente páginas publicadas da loja autorizada.");
+    }
 
     if (
       data.designSettings.background.type === "image" &&
@@ -136,6 +181,7 @@ export const updateCurrentStoreSettings = createServerFn({ method: "POST" })
       secondaryColor: data.secondaryColor,
       textColor: data.textColor,
       backgroundColor: data.backgroundColor,
+      socialLinks: Object.fromEntries(data.socialLinks.map(({ label, url }) => [label, url])),
       designSettings: data.designSettings,
     });
   });

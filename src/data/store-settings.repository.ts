@@ -106,6 +106,7 @@ export interface StoreSettingsUpdate {
   secondaryColor: string | null;
   textColor: string | null;
   backgroundColor: string | null;
+  socialLinks: Json;
   designSettings: StoreSettings["designSettings"];
 }
 
@@ -152,6 +153,7 @@ export async function saveStoreSettings(
     secondary_color: settings.secondaryColor,
     text_color: settings.textColor,
     background_color: settings.backgroundColor,
+    social_links: settings.socialLinks,
     design_settings: designSettingsJson(settings.designSettings),
   };
   const designSettingsClient = client as SupabaseClient<DesignSettingsDatabase>;
