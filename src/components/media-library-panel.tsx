@@ -64,8 +64,11 @@ export function MediaLibraryPanel() {
     enabled: !requiresStoreSelection || storeSlug !== null,
   });
 
-  async function refresh(message: string) {
+  async function refresh(message: string, invalidatePreview = false) {
     await queryClient.invalidateQueries({ queryKey: mediaQueryKey(storeSlug) });
+    if (invalidatePreview) {
+      await queryClient.invalidateQueries({ queryKey: ["admin-page-preview", storeSlug] });
+    }
     setFeedback(message);
   }
 
@@ -108,11 +111,11 @@ export function MediaLibraryPanel() {
     }
   }
 
-  function run(action: () => Promise<unknown>, message: string) {
+  function run(action: () => Promise<unknown>, message: string, invalidatePreview = false) {
     setPending(true);
     setFeedback(null);
     void action()
-      .then(() => refresh(message))
+      .then(() => refresh(message, invalidatePreview))
       .catch((error: unknown) => setFeedback(errorMessage(error)))
       .finally(() => setPending(false));
   }
@@ -250,6 +253,7 @@ export function MediaLibraryPanel() {
                               data: { slug: storeSlug, id: asset.id, alt: alt.trim() || null },
                             }),
                           "Texto alternativo atualizado.",
+                          true,
                         );
                     }}
                   >
@@ -266,6 +270,7 @@ export function MediaLibraryPanel() {
                       run(
                         () => deleteMedia({ data: { slug: storeSlug, id: asset.id } }),
                         "Mídia removida.",
+                        true,
                       )
                     }
                   >

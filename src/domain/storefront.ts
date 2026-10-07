@@ -55,6 +55,40 @@ export interface ProductGridSectionDefinition extends SectionBase {
   products: Pick<Product, "id" | "name" | "description" | "price">[];
 }
 
+export type StorefrontProductGridItem = Pick<Product, "id" | "name" | "description" | "price"> & {
+  imageUrl?: string;
+  imageAlt?: string;
+};
+
+export type ResolvedProductGridSectionDefinition = Omit<
+  ProductGridSectionDefinition,
+  "products"
+> & {
+  products: StorefrontProductGridItem[];
+};
+
+export function enrichProductGridSection(
+  section: Omit<ProductGridSectionDefinition, "title"> & { title?: string | undefined },
+  validProductIds: ReadonlySet<string>,
+  images: ReadonlyMap<string, { url: string; alt: string | null }>,
+): ResolvedProductGridSectionDefinition {
+  return {
+    id: section.id,
+    type: section.type,
+    ...(section.title === undefined ? {} : { title: section.title }),
+    products: section.products.flatMap((product) => {
+      if (!validProductIds.has(product.id)) return [];
+      const image = images.get(product.id);
+      return [
+        {
+          ...product,
+          ...(image ? { imageUrl: image.url, imageAlt: image.alt?.trim() || product.name } : {}),
+        },
+      ];
+    }),
+  };
+}
+
 export interface TextContentSectionDefinition extends SectionBase {
   type: "text-content";
   title?: string;
@@ -81,7 +115,7 @@ export type PublicStorefrontSectionDefinition =
   | Omit<HeroSectionDefinition, "imageMediaAssetId">
   | Omit<BannerSectionDefinition, "imageMediaAssetId">
   | CategoriesSectionDefinition
-  | ProductGridSectionDefinition
+  | ResolvedProductGridSectionDefinition
   | TextContentSectionDefinition
   | CallToActionSectionDefinition;
 

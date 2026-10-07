@@ -10,6 +10,9 @@ import type {
   VariantAttributeValue,
   ProductVariant,
 } from "@/domain/catalog";
+import { resolveMediaReferences } from "@/data/media.repository";
+import type { StorefrontProductGridItem } from "@/domain/storefront";
+import { isValidHttpUrl } from "@/domain/storefront-theme";
 import type { Database, Tables } from "@/integrations/supabase/types";
 
 type AppClient = SupabaseClient<Database>;
@@ -21,6 +24,16 @@ type VariantRow = Tables<"product_variants">;
 type ImageRow = Tables<"product_images">;
 type ProductAttributeValueRow = Tables<"product_attribute_values">;
 type VariantAttributeValueRow = Tables<"variant_attribute_values">;
+
+export interface ResolvedProductGridImage {
+  url: string;
+  alt: string | null;
+}
+
+export interface ResolvedProductGridSnapshots {
+  validProductIds: Set<string>;
+  images: Map<string, ResolvedProductGridImage>;
+}
 
 export interface CategoryValues {
   name: string;
@@ -219,6 +232,78 @@ export async function readCatalog(client: AppClient, storeId: string) {
     productAttributeValues: productAttributeValuesResult.data.map(toProductAttributeValue),
     variantAttributeValues: variantAttributeValuesResult.data.map(toVariantAttributeValue),
   };
+}
+
+export async function resolveProductGridSnapshots(
+  client: AppClient,
+  storeId: string,
+  products: Pick<StorefrontProductGridItem, "id">[],
+): Promise<ResolvedProductGridSnapshots> {
+  const productIds = [...new Set(products.map(({ id }) => id))];
+  if (productIds.length === 0) {
+    return { validProductIds: new Set(), images: new Map() };
+  }
+
+  const { data: productRows, error: productsError } = await client
+    .from("products")
+    .select("id, store_id")
+    .eq("store_id", storeId)
+    .in("id", productIds);
+  if (productsError) throw productsError;
+
+  const validProductIds = new Set(
+    productRows.filter((product) => product.store_id === storeId).map(({ id }) => id),
+  );
+  if (validProductIds.size === 0) return { validProductIds, images: new Map() };
+
+  const { data: imageRows, error: imagesError } = await client
+    .from("product_images")
+    .select("id, store_id, product_id, media_asset_id, url, alt_text, position, is_primary")
+    .eq("store_id", storeId)
+    .in("product_id", [...validProductIds]);
+  if (imagesError) throw imagesError;
+
+  const imagesByProduct = new Map<string, typeof imageRows>();
+  const mediaAssetIds: string[] = [];
+  for (const image of imageRows) {
+    if (image.store_id !== storeId || !validProductIds.has(image.product_id)) continue;
+    const list = imagesByProduct.get(image.product_id) ?? [];
+    list.push(image);
+    imagesByProduct.set(image.product_id, list);
+    if (image.media_asset_id) mediaAssetIds.push(image.media_asset_id);
+  }
+
+  const mediaReferences = await resolveMediaReferences(client, storeId, mediaAssetIds, {
+    tolerateUnavailable: true,
+  });
+  const resolvedImages = new Map<string, ResolvedProductGridImage>();
+
+  for (const [productId, productImages] of imagesByProduct) {
+    const orderedImages = [...productImages].sort(
+      (left, right) =>
+        Number(right.is_primary) - Number(left.is_primary) ||
+        left.position - right.position ||
+        (left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+    );
+    for (const image of orderedImages) {
+      const media = image.media_asset_id ? mediaReferences.get(image.media_asset_id) : undefined;
+      const url =
+        media && isValidHttpUrl(media.url)
+          ? media.url
+          : !image.media_asset_id && image.url && isValidHttpUrl(image.url)
+            ? image.url
+            : null;
+      if (!url) continue;
+
+      resolvedImages.set(productId, {
+        url,
+        alt: image.alt_text?.trim() || media?.alt?.trim() || null,
+      });
+      break;
+    }
+  }
+
+  return { validProductIds, images: resolvedImages };
 }
 
 export async function saveCatalogAttribute(

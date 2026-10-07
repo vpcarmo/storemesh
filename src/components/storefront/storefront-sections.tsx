@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { StorefrontRichText } from "@/components/storefront/storefront-rich-text";
-import type { Category, Product } from "@/domain/catalog";
-import type { TextContentSectionDefinition } from "@/domain/storefront";
+import type { Category } from "@/domain/catalog";
+import { hideBrokenImage } from "@/lib/image";
+import type { StorefrontProductGridItem, TextContentSectionDefinition } from "@/domain/storefront";
 
 function SectionAction({ action }: { action: { label: string; href: string } | undefined }) {
   if (!action) return null;
@@ -92,7 +93,7 @@ export function StorefrontProductGridSection({
   products,
 }: {
   title?: string;
-  products: Pick<Product, "id" | "name" | "description" | "price">[];
+  products: StorefrontProductGridItem[];
 }) {
   return (
     <section className="storefront-section">
@@ -102,7 +103,18 @@ export function StorefrontProductGridSection({
           <div className="storefront-product-grid">
             {products.map((product) => (
               <article className="storefront-card storefront-product-card" key={product.id}>
-                <div className="storefront-product-media" aria-hidden="true" />
+                {product.imageUrl ? (
+                  <div className="storefront-product-media">
+                    <img
+                      src={product.imageUrl}
+                      alt={product.imageAlt ?? product.name}
+                      onError={hideBrokenImage}
+                      loading="lazy"
+                    />
+                  </div>
+                ) : (
+                  <div className="storefront-product-media" aria-hidden="true" />
+                )}
                 <div>
                   <h3>{product.name}</h3>
                   <p>{product.description}</p>

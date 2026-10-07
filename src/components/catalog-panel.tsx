@@ -86,12 +86,15 @@ export function CatalogPanel({
     queryFn: () => loadMedia({ data: { slug: storeSlug } }),
     enabled: section === "products" && (!requiresStoreSelection || storeSlug !== null),
   });
-  async function run(action: () => Promise<void>, message: string) {
+  async function run(action: () => Promise<void>, message: string, invalidatePreview = false) {
     setPending(true);
     setFeedback(null);
     try {
       await action();
       await client.invalidateQueries({ queryKey });
+      if (invalidatePreview) {
+        await client.invalidateQueries({ queryKey: ["admin-page-preview", storeSlug] });
+      }
       setFeedback(message);
     } catch (e) {
       setFeedback(errorMessage(e));
@@ -541,12 +544,14 @@ export function CatalogPanel({
                       },
                     }).then(() => undefined),
                   "Imagem salva.",
+                  true,
                 )
               }
               onDeleteImage={(id) =>
                 void run(
                   () => removeImage({ data: { slug, id } }).then(() => undefined),
                   "Imagem removida.",
+                  true,
                 )
               }
             />

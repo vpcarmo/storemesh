@@ -1,8 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+import { resolveProductGridSnapshots } from "@/data/catalog.repository";
 import { resolveMediaReferences } from "@/data/media.repository";
-import type { PublicStorefrontSectionDefinition } from "@/domain/storefront";
+import {
+  enrichProductGridSection,
+  type PublicStorefrontSectionDefinition,
+} from "@/domain/storefront";
 import { DEFAULT_STOREFRONT_DESIGN_SETTINGS } from "@/domain/storefront-design.schema";
 import { storefrontSectionsReadSchema } from "@/domain/storefront-sections.schema";
 import {
@@ -40,7 +44,10 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
       settings?.designSettings.background.type === "image"
         ? settings.designSettings.background.mediaAssetId
         : null;
-    const [mediaReferences, footerNavigation] = await Promise.all([
+    const productSnapshots = parsedPageSections.flatMap((section) =>
+      section.type === "product-grid" ? section.products : [],
+    );
+    const [mediaReferences, footerNavigation, productGridSnapshots] = await Promise.all([
       resolveMediaReferences(supabaseAdmin, result.store.id, [
         ...imageMediaIds,
         ...(backgroundMediaId ? [backgroundMediaId] : []),
@@ -51,6 +58,7 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
         result.store.slug,
         settings?.designSettings.footer ?? DEFAULT_STOREFRONT_DESIGN_SETTINGS.footer,
       ),
+      resolveProductGridSnapshots(supabaseAdmin, result.store.id, productSnapshots),
     ]);
     const publicSections = parsedPageSections.flatMap<PublicStorefrontSectionDefinition>(
       (section) => {
@@ -101,17 +109,11 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
             ];
           case "product-grid":
             return [
-              {
-                id: section.id,
-                type: section.type,
-                ...(section.title === undefined ? {} : { title: section.title }),
-                products: section.products.map(({ id, name, description, price }) => ({
-                  id,
-                  name,
-                  description,
-                  price,
-                })),
-              },
+              enrichProductGridSection(
+                section,
+                productGridSnapshots.validProductIds,
+                productGridSnapshots.images,
+              ),
             ];
           case "text-content":
             return [

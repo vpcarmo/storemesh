@@ -218,6 +218,7 @@ export async function resolveMediaReferences(
   client: AppClient,
   storeId: string,
   ids: string[],
+  options: { tolerateUnavailable?: boolean } = {},
 ): Promise<Map<string, { url: string; alt: string | null }>> {
   const uniqueIds = [...new Set(ids)];
   if (!uniqueIds.length) return new Map();
@@ -227,8 +228,28 @@ export async function resolveMediaReferences(
     .eq("store_id", storeId)
     .in("id", uniqueIds);
   if (error) throw error;
-  const resolved = await Promise.all(
+  if (!options.tolerateUnavailable) {
+    const resolved = await Promise.all(
+      data.map(
+        async (row) => [row.id, { url: await imageUrl(client, row), alt: row.alt }] as const,
+      ),
+    );
+    return new Map(resolved);
+  }
+
+  const outcomes = await Promise.allSettled(
     data.map(async (row) => [row.id, { url: await imageUrl(client, row), alt: row.alt }] as const),
   );
-  return new Map(resolved);
+  const resolved = new Map<string, { url: string; alt: string | null }>();
+  outcomes.forEach((outcome, index) => {
+    if (outcome.status === "fulfilled") {
+      resolved.set(...outcome.value);
+    } else {
+      console.error("Could not resolve a product media asset.", {
+        assetId: data[index]?.id,
+        error: outcome.reason,
+      });
+    }
+  });
+  return resolved;
 }
