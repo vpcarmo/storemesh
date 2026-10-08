@@ -202,7 +202,7 @@ export function SetPasswordPanel({ flow }: { flow: "invite" | "recovery" }) {
           name="password"
           type="password"
           autoComplete="new-password"
-          minLength={12}
+          minLength={8}
           required
         />
       </div>
@@ -213,7 +213,7 @@ export function SetPasswordPanel({ flow }: { flow: "invite" | "recovery" }) {
           name="confirm-password"
           type="password"
           autoComplete="new-password"
-          minLength={12}
+          minLength={8}
           required
           aria-invalid={Boolean(passwordError)}
           aria-describedby={passwordError ? "password-error" : undefined}
