@@ -35,6 +35,7 @@ CREATE TABLE public.permission_profiles (
     'settings.manage'
   ]::text[]
   AND private.is_unique_permission_array(permissions)
+  )
 );
 
 CREATE UNIQUE INDEX permission_profiles_name_unique
