@@ -6,11 +6,13 @@ import { getPublishedStorePage } from "@/auth/public-website.functions";
 import { PublicStorefrontPageComposition } from "@/components/storefront/public-storefront-frame";
 import { isValidHttpUrl } from "@/domain/storefront-theme";
 
-export const Route = createFileRoute("/store/$storeSlug/$pageSlug")({
+export const Route = createFileRoute("/store/$storeSlug/")({
   loader: async ({ context, params }) => {
-    const page = await getPublishedStorePage({ data: params });
+    const page = await getPublishedStorePage({
+      data: { storeSlug: params.storeSlug, pageSlug: "home" },
+    });
     if (!page) throw notFound();
-    context.queryClient.setQueryData(["public-page", params.storeSlug, params.pageSlug], page);
+    context.queryClient.setQueryData(["public-page", params.storeSlug, "home"], page);
     return page;
   },
   head: ({ loaderData }) => ({
@@ -26,24 +28,30 @@ export const Route = createFileRoute("/store/$storeSlug/$pageSlug")({
       { name: "description", content: loaderData?.page.seoDescription ?? "" },
     ],
   }),
-  component: PublicPage,
+  component: PublicStoreHome,
 });
-function PublicPage() {
-  const { storeSlug, pageSlug } = Route.useParams();
+
+function PublicStoreHome() {
+  const { storeSlug } = Route.useParams();
   const loaderData = Route.useLoaderData();
   const load = useServerFn(getPublishedStorePage);
   const query = useQuery({
-    queryKey: ["public-page", storeSlug, pageSlug],
-    queryFn: () => load({ data: { storeSlug, pageSlug } }),
+    queryKey: ["public-page", storeSlug, "home"],
+    queryFn: () => load({ data: { storeSlug, pageSlug: "home" } }),
     initialData: loaderData,
   });
   const data = query.data;
   if (!data) return null;
-  const page = {
-    id: data.page.id,
-    kind: "static" as const,
-    title: data.page.title,
-    sections: data.page.sections,
-  };
-  return <PublicStorefrontPageComposition data={data} page={page} />;
+
+  return (
+    <PublicStorefrontPageComposition
+      data={data}
+      page={{
+        id: data.page.id,
+        kind: "static",
+        title: data.page.title,
+        sections: data.page.sections,
+      }}
+    />
+  );
 }

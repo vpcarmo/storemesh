@@ -348,7 +348,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
               {!isPlatformRoute && selectedStore?.status === "active" && publishedHome ? (
                 <a
                   className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-                  href={`/store/${selectedStore.slug}/${publishedHome.slug}`}
+                  href={`/store/${selectedStore.slug}`}
                   target="_blank"
                   rel="noreferrer"
                 >

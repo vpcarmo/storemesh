@@ -5,8 +5,9 @@ import {
   StorefrontHeader,
   StorefrontLayout,
 } from "@/components/storefront/storefront-layout";
+import { StorefrontPage } from "@/components/storefront/storefront-page";
 import { StorefrontThemeProvider } from "@/components/storefront/storefront-theme-provider";
-import type { StorefrontNavigationItem } from "@/domain/storefront";
+import type { StorefrontNavigationItem, StorefrontPageDefinition } from "@/domain/storefront";
 import type { PublicStorefrontSettings } from "@/domain/store-settings";
 import { createStorefrontTheme } from "@/domain/storefront-theme";
 
@@ -25,9 +26,11 @@ export interface PublicStorefrontFrameData {
 export function PublicStorefrontFrame({
   data,
   children,
+  currentPageId,
 }: {
   data: PublicStorefrontFrameData;
   children: ReactNode;
+  currentPageId?: string;
 }) {
   const theme = createStorefrontTheme(data.settings, data.backgroundImageUrl);
   return (
@@ -38,6 +41,7 @@ export function PublicStorefrontFrame({
             storeName={data.settings?.displayName ?? data.store.name}
             logoUrl={theme.assets.logoUrl}
             navigation={data.navigation}
+            {...(currentPageId === undefined ? {} : { currentPageId })}
           />
         }
         footer={
@@ -53,5 +57,19 @@ export function PublicStorefrontFrame({
         {children}
       </StorefrontLayout>
     </StorefrontThemeProvider>
+  );
+}
+
+export function PublicStorefrontPageComposition({
+  data,
+  page,
+}: {
+  data: PublicStorefrontFrameData;
+  page: StorefrontPageDefinition;
+}) {
+  return (
+    <PublicStorefrontFrame data={data} currentPageId={page.id}>
+      <StorefrontPage page={page} />
+    </PublicStorefrontFrame>
   );
 }

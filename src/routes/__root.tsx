@@ -91,6 +91,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         const routeId = String(match.routeId);
         return (
           routeId === "/store/$storeSlug/$pageSlug" ||
+          routeId === "/store/$storeSlug/" ||
           routeId === "/store/$storeSlug/product/$productSlug" ||
           routeId === "/store/$storeSlug/category/$categorySlug"
         );

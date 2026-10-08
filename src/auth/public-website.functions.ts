@@ -80,7 +80,10 @@ async function preparePublicStorefront(
               {
                 id: item.id,
                 label: item.label,
-                href: `/store/${store.slug}/${targetSlug}`,
+                href:
+                  targetSlug === "home"
+                    ? `/store/${store.slug}`
+                    : `/store/${store.slug}/${targetSlug}`,
                 pageId: item.pageId,
               },
             ]
@@ -257,7 +260,10 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
                 {
                   id: item.id,
                   label: item.label,
-                  href: `/store/${result.store.slug}/${targetSlug}`,
+                  href:
+                    targetSlug === "home"
+                      ? `/store/${result.store.slug}`
+                      : `/store/${result.store.slug}/${targetSlug}`,
                   pageId: item.pageId,
                 },
               ]

@@ -38,7 +38,7 @@ function resolveGroup(
       {
         id: page.id,
         label: page.title,
-        href: `/store/${storeSlug}/${page.slug}`,
+        href: page.slug === "home" ? `/store/${storeSlug}` : `/store/${storeSlug}/${page.slug}`,
         pageId: page.id,
       },
     ];
