@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 
 import {
+  deletePlatformUser,
   getPlatformUsers,
   invitePlatformUserByEmail,
   resendPlatformUserInviteLink,
@@ -11,6 +12,17 @@ import {
   savePlatformUser,
 } from "@/auth/platform-users.functions";
 import { getPlatformStores } from "@/auth/platform-stores.functions";
+import { getCurrentUser } from "@/auth/session";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -70,6 +82,7 @@ export function PlatformUsersPanel() {
   const queryClient = useQueryClient();
   const loadUsers = useServerFn(getPlatformUsers);
   const loadStores = useServerFn(getPlatformStores);
+  const removeUser = useServerFn(deletePlatformUser);
   const invite = useServerFn(invitePlatformUserByEmail);
   const resendInvite = useServerFn(resendPlatformUserInviteLink);
   const saveUser = useServerFn(savePlatformUser);
@@ -83,7 +96,12 @@ export function PlatformUsersPanel() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<PlatformManagedUser | null>(null);
   const [editor, setEditor] = useState<UserEditor | null>(null);
+  const [deletionTarget, setDeletionTarget] = useState<PlatformManagedUser | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [deletionFeedback, setDeletionFeedback] = useState<string | null>(null);
+  const deletionInFlight = useRef(false);
 
+  const currentUserQuery = useQuery({ queryKey: ["auth", "user"], queryFn: getCurrentUser });
   const usersQuery = useQuery({ queryKey: usersQueryKey, queryFn: () => loadUsers() });
   const storesQuery = useQuery({ queryKey: storesQueryKey, queryFn: () => loadStores() });
 
@@ -208,6 +226,32 @@ export function PlatformUsersPanel() {
     }
   }
 
+  async function confirmUserDeletion() {
+    if (!deletionTarget || deletionInFlight.current) return;
+    const target = deletionTarget;
+    deletionInFlight.current = true;
+    setDeletingUserId(target.id);
+    setDeletionFeedback(null);
+    try {
+      await removeUser({ data: { userId: target.id } });
+      setDeletionTarget(null);
+      setFeedback("Usuário excluído.");
+      try {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: usersQueryKey }),
+          queryClient.invalidateQueries({ queryKey: storesQueryKey }),
+        ]);
+      } catch {
+        setFeedback("Usuário excluído, mas não foi possível atualizar a lista. Atualize a página.");
+      }
+    } catch (error) {
+      setDeletionFeedback(errorMessage(error));
+    } finally {
+      deletionInFlight.current = false;
+      setDeletingUserId(null);
+    }
+  }
+
   if (usersQuery.isPending || storesQuery.isPending) {
     return <p className="text-sm text-muted-foreground">Carregando usuários da plataforma…</p>;
   }
@@ -219,6 +263,7 @@ export function PlatformUsersPanel() {
   }
 
   const stores = storesQuery.data.stores;
+  const superAdminCount = usersQuery.data.filter((user) => user.isSuperAdmin).length;
 
   return (
     <section className="space-y-5" aria-label="Gestão de usuários da plataforma">
@@ -345,12 +390,34 @@ export function PlatformUsersPanel() {
                 </TableCell>
                 <TableCell>{accessLabel(user.status)}</TableCell>
                 <TableCell>
+                  {currentUserQuery.data &&
+                  currentUserQuery.data.id !== user.id &&
+                  (!user.isSuperAdmin || superAdminCount > 1) ? (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="mr-2"
+                      disabled={
+                        pending ||
+                        invitePending ||
+                        resendingUserId !== null ||
+                        deletingUserId !== null
+                      }
+                      onClick={() => {
+                        setDeletionFeedback(null);
+                        setDeletionTarget(user);
+                      }}
+                    >
+                      Excluir usuário
+                    </Button>
+                  ) : null}
                   {user.status === "invited" ? (
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      disabled={resendingUserId !== null}
+                      disabled={resendingUserId !== null || deletingUserId !== null}
                       onClick={() => void resendPendingInvite(user)}
                     >
                       {resendingUserId === user.id ? "Reenviando…" : "Reenviar convite"}
@@ -360,6 +427,7 @@ export function PlatformUsersPanel() {
                     type="button"
                     variant="outline"
                     size="sm"
+                    disabled={deletingUserId !== null}
                     onClick={() => openEditor(user)}
                   >
                     Gerenciar
@@ -493,6 +561,55 @@ export function PlatformUsersPanel() {
           </DialogContent>
         ) : null}
       </Dialog>
+
+      <AlertDialog
+        open={Boolean(deletionTarget)}
+        onOpenChange={(open) => {
+          if (!open && deletingUserId === null) {
+            setDeletionTarget(null);
+            setDeletionFeedback(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação exclui permanentemente a conta e remove o acesso administrativo deste
+              usuário.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deletionTarget ? (
+            <div className="space-y-2 text-sm">
+              <p className="break-all">
+                <span className="font-medium">E-mail:</span> {deletionTarget.email || "—"}
+              </p>
+              <p className="text-muted-foreground">
+                Lojas, produtos, páginas e demais conteúdos da plataforma não serão excluídos por
+                esta ação.
+              </p>
+            </div>
+          ) : null}
+          {deletionFeedback ? (
+            <p className="text-sm text-destructive" role="alert">
+              {deletionFeedback}
+            </p>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingUserId !== null}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90"
+              disabled={deletingUserId !== null}
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmUserDeletion();
+              }}
+            >
+              {deletingUserId === deletionTarget?.id ? "Excluindo…" : "Excluir usuário"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

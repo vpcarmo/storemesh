@@ -194,7 +194,7 @@ export async function savePlatformUserRecord(
     p_user_id: input.userId,
     p_is_super_admin: input.isSuperAdmin,
     p_store_ids: input.storeIds,
-    p_full_name: input.fullName.trim() || null,
+    p_full_name: input.fullName.trim(),
     p_revoke_access: false,
     p_update_profile: true,
   });
@@ -206,9 +206,24 @@ export async function revokePlatformUserAccess(client: AppClient, userId: string
     p_user_id: userId,
     p_is_super_admin: false,
     p_store_ids: [],
-    p_full_name: null,
+    p_full_name: "",
     p_revoke_access: true,
     p_update_profile: false,
+  });
+  if (error) throw error;
+}
+
+export async function removePlatformUserAdministrativeData(
+  client: AppClient,
+  userId: string,
+): Promise<void> {
+  const { error } = await client.rpc("manage_platform_user_access", {
+    p_user_id: userId,
+    p_is_super_admin: false,
+    p_store_ids: [],
+    p_full_name: "",
+    p_revoke_access: true,
+    p_update_profile: true,
   });
   if (error) throw error;
 }

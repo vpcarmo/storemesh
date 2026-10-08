@@ -7,6 +7,7 @@ import {
   invitePlatformUser,
   readPlatformUsers,
   resendPlatformUserInvite,
+  removePlatformUserAdministrativeData,
   revokePlatformUserAccess,
   savePlatformUserRecord,
   PlatformUserInviteError,
@@ -59,6 +60,9 @@ const saveUserInput = z.object({
 
 const revokeInput = z.object({ userId: z.string().uuid() });
 const resendInviteInput = z.object({ userId: z.string().uuid() });
+const deleteUserInput = z.object({ userId: z.string().uuid() }).strict();
+
+class PlatformUserDeletionPartialError extends Error {}
 
 function authErrorDetails(error: unknown): {
   code: string | null;
@@ -300,5 +304,117 @@ export const revokePlatformUser = createServerFn({ method: "POST" })
         error,
       });
       throw error;
+    }
+  });
+
+export const deletePlatformUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => deleteUserInput.parse(input))
+  .handler(async ({ data, context }) => {
+    await requireSuperAdmin(context.supabase, context.userId);
+    if (data.userId === context.userId) {
+      throw new Error("Você não pode excluir sua própria conta.");
+    }
+
+    try {
+      await removePlatformUserAdministrativeData(context.supabase, data.userId);
+    } catch (error) {
+      const details = authErrorDetails(error);
+      console.error("[Platform users] Could not prepare user deletion.", {
+        actorUserId: context.userId,
+        targetUserId: data.userId,
+        operation: "delete_platform_user",
+        stage: "postgres_revoke",
+        error: details,
+      });
+      if (
+        details.code === "23514" &&
+        details.message?.includes("Cannot remove the last super_admin")
+      ) {
+        throw new Error("Não é possível excluir o último Super Admin da plataforma.");
+      }
+      throw new Error("Não foi possível excluir o usuário.");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const isMissingAuthUser = (error: unknown): boolean => {
+      const details = authErrorDetails(error);
+      return (
+        details.status === 404 || details.code === "user_not_found" || details.code === "not_found"
+      );
+    };
+    const throwPartialFailure = (stage: string, error: unknown): never => {
+      console.error(
+        "[Platform users] Administrative access was revoked but Auth deletion failed.",
+        {
+          actorUserId: context.userId,
+          targetUserId: data.userId,
+          operation: "delete_platform_user",
+          stage,
+          error: authErrorDetails(error),
+        },
+      );
+      throw new PlatformUserDeletionPartialError(
+        "O acesso administrativo foi removido, mas a identidade do Auth não pôde ser excluída. Tente novamente.",
+      );
+    };
+
+    let authUser: Awaited<ReturnType<typeof supabaseAdmin.auth.admin.getUserById>>["data"]["user"] =
+      null;
+    try {
+      const result = await supabaseAdmin.auth.admin.getUserById(data.userId);
+      if (result.error) {
+        if (!isMissingAuthUser(result.error)) throwPartialFailure("auth_lookup", result.error);
+        authUser = null;
+      } else {
+        authUser = result.data.user;
+      }
+    } catch (error) {
+      if (error instanceof PlatformUserDeletionPartialError) {
+        throw error;
+      }
+      throwPartialFailure("auth_lookup", error);
+    }
+
+    if (authUser && authUser.id !== data.userId) {
+      throwPartialFailure(
+        "auth_identity_validation",
+        new Error("Auth returned a different user ID."),
+      );
+    }
+    if (
+      authUser &&
+      !authUser.email?.trim() &&
+      !authUser.phone?.trim() &&
+      (authUser.identities?.length ?? 0) === 0
+    ) {
+      throwPartialFailure(
+        "auth_identity_validation",
+        new Error("Auth user has no valid identity."),
+      );
+    }
+
+    if (authUser) {
+      try {
+        const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
+        if (error && !isMissingAuthUser(error)) throw error;
+      } catch (error) {
+        throwPartialFailure("auth_delete", error);
+      }
+    }
+
+    try {
+      await removePlatformUserAdministrativeData(context.supabase, data.userId);
+    } catch (error) {
+      console.error("[Platform users] Could not finish post-Auth user cleanup.", {
+        actorUserId: context.userId,
+        targetUserId: data.userId,
+        operation: "delete_platform_user",
+        stage: "postgres_post_auth_cleanup",
+        error: authErrorDetails(error),
+      });
+      throw new Error(
+        "O usuário foi removido do Auth, mas não foi possível concluir a limpeza administrativa. Tente novamente.",
+      );
     }
   });
