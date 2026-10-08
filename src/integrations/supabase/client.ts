@@ -28,6 +28,17 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
+function shouldDetectSessionInUrl(_url: URL, params: Record<string, string>): boolean {
+  // @supabase/ssr forces PKCE, while Auth Admin invitation links use implicit
+  // fragment tokens. The invite route hands those tokens to auth.setSession().
+  return (
+    params["type"] !== "invite" &&
+    !params["error"] &&
+    !params["error_code"] &&
+    !params["error_description"]
+  );
+}
+
 function createSupabaseClient() {
   // Use import.meta.env for client-side (Vite build-time replacement)
   // Fall back to process.env for SSR (server-side rendering)
@@ -57,6 +68,7 @@ function createSupabaseClient() {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
+      detectSessionInUrl: shouldDetectSessionInUrl,
     },
   });
 }

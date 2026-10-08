@@ -2,7 +2,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent, type ReactNode } from "react";
 
-import { getCurrentSession, requestPasswordReset, updatePassword } from "@/auth/session";
+import {
+  getCurrentSession,
+  getInviteSession,
+  hasExpiredInviteCallback,
+  requestPasswordReset,
+  updatePassword,
+} from "@/auth/session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -90,9 +96,10 @@ export function ForgotPasswordPanel() {
 export function SetPasswordPanel({ flow }: { flow: "invite" | "recovery" }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [inviteExpired] = useState(() => flow === "invite" && hasExpiredInviteCallback());
   const sessionQuery = useQuery({
     queryKey: ["auth", "callback-session"],
-    queryFn: getCurrentSession,
+    queryFn: flow === "invite" ? getInviteSession : getCurrentSession,
     retry: false,
   });
   const [pending, setPending] = useState(false);
@@ -131,13 +138,50 @@ export function SetPasswordPanel({ flow }: { flow: "invite" | "recovery" }) {
     return <p className="text-sm text-muted-foreground">Validando o link de acesso…</p>;
   }
 
-  if (sessionQuery.isError || !sessionQuery.data) {
+  if (flow === "invite" && inviteExpired) {
     return (
       <div className="space-y-4">
         <p className="text-sm text-destructive" role="alert">
-          {flow === "invite"
-            ? "Este convite é inválido ou expirou. Peça ao Super Admin que envie um novo convite."
-            : "Este link de recuperação é inválido ou expirou. Solicite uma nova recuperação de senha."}
+          Este convite é inválido ou expirou. Solicite um novo convite ao Super Admin.
+        </p>
+        <Link
+          to="/login"
+          className="block w-fit text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
+          Voltar ao login
+        </Link>
+      </div>
+    );
+  }
+
+  if (sessionQuery.isError || !sessionQuery.data) {
+    if (flow === "invite") {
+      return (
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground" role="status">
+            Não foi possível concluir a ativação nesta sessão. Se sua conta já foi confirmada, use
+            “Esqueci minha senha” para definir ou redefinir sua senha e depois entre normalmente.
+          </p>
+          <Link
+            to="/forgot-password"
+            className="block w-fit text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Esqueci minha senha
+          </Link>
+          <Link
+            to="/login"
+            className="block w-fit text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Voltar ao login
+          </Link>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-destructive" role="alert">
+          Este link de recuperação é inválido ou expirou. Solicite uma nova recuperação de senha.
         </p>
         <Link
           to="/login"
