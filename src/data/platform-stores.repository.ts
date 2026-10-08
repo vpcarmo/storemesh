@@ -1,6 +1,7 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 import type { StoreStatus } from "@/domain/access";
+import type { PermissionProfileSummary } from "@/domain/permission-profiles";
 import type { Database, Tables } from "@/integrations/supabase/types";
 
 type AppClient = SupabaseClient<Database>;
@@ -38,6 +39,7 @@ export interface PlatformManagedUser {
   isSuperAdmin: boolean;
   storeIds: string[];
   stores: Pick<StoreRow, "id" | "name" | "slug">[];
+  permissionProfile: PermissionProfileSummary | null;
   status: "active" | "invited" | "no_access";
 }
 
@@ -116,6 +118,7 @@ export async function readPlatformUsers(client: AppClient): Promise<PlatformMana
         const store = storesById.get(storeId);
         return store ? [store] : [];
       }),
+      permissionProfile: null,
       status,
     };
   });

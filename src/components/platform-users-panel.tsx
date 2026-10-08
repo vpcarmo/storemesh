@@ -11,6 +11,10 @@ import {
   revokePlatformUser,
   savePlatformUser,
 } from "@/auth/platform-users.functions";
+import {
+  assignPermissionProfileToUser,
+  getPermissionProfiles,
+} from "@/auth/permission-profiles.functions";
 import { getPlatformStores } from "@/auth/platform-stores.functions";
 import { getCurrentUser } from "@/auth/session";
 import {
@@ -50,6 +54,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { PlatformManagedUser } from "@/data/platform-stores.repository";
+import { PermissionProfilesPanel } from "@/components/permission-profiles-panel";
+import {
+  PERMISSION_AREAS,
+  PERMISSION_PROFILE_QUERY_KEY,
+  effectiveProfilePermission,
+  permissionProfileAreas,
+} from "@/domain/permission-profiles";
 
 const usersQueryKey = ["platform", "users"] as const;
 const storesQueryKey = ["platform", "stores"] as const;
@@ -59,6 +70,7 @@ interface UserEditor {
   fullName: string;
   isSuperAdmin: boolean;
   storeIds: string[];
+  permissionProfileId: string | null;
 }
 
 function errorMessage(error: unknown): string {
@@ -82,14 +94,17 @@ export function PlatformUsersPanel() {
   const queryClient = useQueryClient();
   const loadUsers = useServerFn(getPlatformUsers);
   const loadStores = useServerFn(getPlatformStores);
+  const loadPermissionProfiles = useServerFn(getPermissionProfiles);
   const removeUser = useServerFn(deletePlatformUser);
   const invite = useServerFn(invitePlatformUserByEmail);
   const resendInvite = useServerFn(resendPlatformUserInviteLink);
   const saveUser = useServerFn(savePlatformUser);
+  const saveUserPermissionProfile = useServerFn(assignPermissionProfileToUser);
   const revoke = useServerFn(revokePlatformUser);
   const [email, setEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<InviteRole>("store_admin");
   const [inviteStoreIds, setInviteStoreIds] = useState<string[]>([]);
+  const [invitePermissionProfileId, setInvitePermissionProfileId] = useState<string>("legacy");
   const [invitePending, setInvitePending] = useState(false);
   const [resendingUserId, setResendingUserId] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -104,11 +119,16 @@ export function PlatformUsersPanel() {
   const currentUserQuery = useQuery({ queryKey: ["auth", "user"], queryFn: getCurrentUser });
   const usersQuery = useQuery({ queryKey: usersQueryKey, queryFn: () => loadUsers() });
   const storesQuery = useQuery({ queryKey: storesQueryKey, queryFn: () => loadStores() });
+  const permissionProfilesQuery = useQuery({
+    queryKey: PERMISSION_PROFILE_QUERY_KEY,
+    queryFn: () => loadPermissionProfiles(),
+  });
 
   async function refresh() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: usersQueryKey }),
       queryClient.invalidateQueries({ queryKey: storesQueryKey }),
+      queryClient.invalidateQueries({ queryKey: PERMISSION_PROFILE_QUERY_KEY }),
     ]);
   }
 
@@ -127,6 +147,10 @@ export function PlatformUsersPanel() {
           email: email.trim(),
           role: inviteRole,
           storeIds: inviteRole === "store_admin" ? inviteStoreIds : [],
+          permissionProfileId:
+            inviteRole === "store_admin" && invitePermissionProfileId !== "legacy"
+              ? invitePermissionProfileId
+              : null,
         },
       });
       setEmail("");
@@ -175,6 +199,7 @@ export function PlatformUsersPanel() {
       fullName: user.fullName ?? "",
       isSuperAdmin: user.isSuperAdmin,
       storeIds: [...user.storeIds],
+      permissionProfileId: user.permissionProfile?.id ?? null,
     });
     setFeedback(null);
   }
@@ -184,6 +209,7 @@ export function PlatformUsersPanel() {
     if (!selectedUser || !editor || pending) return;
     setPending(true);
     setFeedback(null);
+    let rolesSaved = false;
     try {
       await saveUser({
         data: {
@@ -193,11 +219,20 @@ export function PlatformUsersPanel() {
           storeIds: editor.storeIds,
         },
       });
+      rolesSaved = true;
+      await saveUserPermissionProfile({
+        data: {
+          userId: selectedUser.id,
+          permissionProfileId:
+            editor.isSuperAdmin || editor.storeIds.length === 0 ? null : editor.permissionProfileId,
+        },
+      });
       await refresh();
       setSelectedUser(null);
       setEditor(null);
       setFeedback("Usuário atualizado.");
     } catch (error) {
+      if (rolesSaved) await refresh();
       setFeedback(errorMessage(error));
     } finally {
       setPending(false);
@@ -218,7 +253,9 @@ export function PlatformUsersPanel() {
       await refresh();
       setSelectedUser(null);
       setEditor(null);
-      setFeedback("Acesso administrativo revogado. O usuário e o perfil foram mantidos.");
+      setFeedback(
+        "Acesso administrativo revogado. O usuário e seus dados pessoais foram mantidos.",
+      );
     } catch (error) {
       setFeedback(errorMessage(error));
     } finally {
@@ -240,6 +277,7 @@ export function PlatformUsersPanel() {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: usersQueryKey }),
           queryClient.invalidateQueries({ queryKey: storesQueryKey }),
+          queryClient.invalidateQueries({ queryKey: PERMISSION_PROFILE_QUERY_KEY }),
         ]);
       } catch {
         setFeedback("Usuário excluído, mas não foi possível atualizar a lista. Atualize a página.");
@@ -252,7 +290,7 @@ export function PlatformUsersPanel() {
     }
   }
 
-  if (usersQuery.isPending || storesQuery.isPending) {
+  if (usersQuery.isPending || storesQuery.isPending || permissionProfilesQuery.isPending) {
     return <p className="text-sm text-muted-foreground">Carregando usuários da plataforma…</p>;
   }
   if (usersQuery.isError) {
@@ -261,8 +299,14 @@ export function PlatformUsersPanel() {
   if (storesQuery.isError) {
     return <p className="text-sm text-destructive">{errorMessage(storesQuery.error)}</p>;
   }
+  if (permissionProfilesQuery.isError) {
+    return (
+      <p className="text-sm text-destructive">{errorMessage(permissionProfilesQuery.error)}</p>
+    );
+  }
 
   const stores = storesQuery.data.stores;
+  const permissionProfiles = permissionProfilesQuery.data;
   const superAdminCount = usersQuery.data.filter((user) => user.isSuperAdmin).length;
 
   return (
@@ -318,35 +362,61 @@ export function PlatformUsersPanel() {
           </Select>
         </div>
         {inviteRole === "store_admin" ? (
-          <fieldset className="space-y-2 md:col-span-2">
-            <legend className="text-sm font-medium">Lojas</legend>
-            {stores.map((store) => (
-              <label key={store.id} className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={inviteStoreIds.includes(store.id)}
-                  onCheckedChange={(checked) =>
-                    setInviteStoreIds((current) =>
-                      checked
-                        ? [...new Set([...current, store.id])]
-                        : current.filter((storeId) => storeId !== store.id),
-                    )
-                  }
-                />
-                <span>
-                  {store.name} <span className="text-muted-foreground">({store.slug})</span>
-                  {store.status === "inactive" ? " — inativa" : ""}
-                </span>
-              </label>
-            ))}
-            {stores.length === 0 ? (
+          <>
+            <fieldset className="space-y-2 md:col-span-2">
+              <legend className="text-sm font-medium">Lojas</legend>
+              {stores.map((store) => (
+                <label key={store.id} className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={inviteStoreIds.includes(store.id)}
+                    onCheckedChange={(checked) =>
+                      setInviteStoreIds((current) =>
+                        checked
+                          ? [...new Set([...current, store.id])]
+                          : current.filter((storeId) => storeId !== store.id),
+                      )
+                    }
+                  />
+                  <span>
+                    {store.name} <span className="text-muted-foreground">({store.slug})</span>
+                    {store.status === "inactive" ? " — inativa" : ""}
+                  </span>
+                </label>
+              ))}
+              {stores.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma loja cadastrada.{" "}
+                  <Link to="/admin/stores" className="underline">
+                    Criar loja
+                  </Link>
+                </p>
+              ) : null}
+            </fieldset>
+            <div className="grid gap-2 md:col-span-2">
+              <Label htmlFor="platform-user-invite-profile">Perfil de acesso</Label>
+              <Select
+                value={invitePermissionProfileId}
+                onValueChange={setInvitePermissionProfileId}
+                disabled={invitePending}
+              >
+                <SelectTrigger id="platform-user-invite-profile">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="legacy">Sem perfil — acesso legado de Store Admin</SelectItem>
+                  {permissionProfiles.map((profile) => (
+                    <SelectItem key={profile.id} value={profile.id}>
+                      {profile.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <p className="text-sm text-muted-foreground">
-                Nenhuma loja cadastrada.{" "}
-                <Link to="/admin/stores" className="underline">
-                  Criar loja
-                </Link>
+                Lojas definem o escopo; o perfil define as capacidades. Sem perfil mantém o acesso
+                legado.
               </p>
-            ) : null}
-          </fieldset>
+            </div>
+          </>
         ) : (
           <p className="text-sm text-muted-foreground md:col-span-2">
             Super Admin recebe acesso global e não pode ser associado a lojas.
@@ -384,7 +454,25 @@ export function PlatformUsersPanel() {
               <TableRow key={user.id}>
                 <TableCell className="font-medium">{user.fullName || "—"}</TableCell>
                 <TableCell>{user.email || "—"}</TableCell>
-                <TableCell>{rolesLabel(user)}</TableCell>
+                <TableCell>
+                  <div>{rolesLabel(user)}</div>
+                  {user.isSuperAdmin ? (
+                    <div className="text-xs text-muted-foreground">Acesso global — Super Admin</div>
+                  ) : user.storeIds.length > 0 ? (
+                    <div className="text-xs text-muted-foreground">
+                      {user.permissionProfile ? (
+                        <>
+                          Perfil de acesso: {user.permissionProfile.name}
+                          {permissionProfileAreas(user.permissionProfile.permissions).length
+                            ? ` — ${permissionProfileAreas(user.permissionProfile.permissions).join(" · ")}`
+                            : " — sem permissões de módulo"}
+                        </>
+                      ) : (
+                        "Sem perfil — acesso legado de Store Admin"
+                      )}
+                    </div>
+                  ) : null}
+                </TableCell>
                 <TableCell>
                   {user.stores.length ? user.stores.map((store) => store.name).join(", ") : "—"}
                 </TableCell>
@@ -489,9 +577,15 @@ export function PlatformUsersPanel() {
                   <Checkbox
                     checked={editor.isSuperAdmin}
                     onCheckedChange={(checked) =>
-                      setEditor((current) =>
-                        current ? { ...current, isSuperAdmin: checked === true } : current,
-                      )
+                      setEditor((current) => {
+                        if (!current) return current;
+                        const isSuperAdmin = checked === true;
+                        return {
+                          ...current,
+                          isSuperAdmin,
+                          permissionProfileId: isSuperAdmin ? null : current.permissionProfileId,
+                        };
+                      })
                     }
                   />
                   Super Admin
@@ -528,6 +622,84 @@ export function PlatformUsersPanel() {
                   ) : null}
                 </div>
               </fieldset>
+
+              {editor.isSuperAdmin ? (
+                <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
+                  Acesso global — Super Admin. Este usuário não depende de perfil de acesso.
+                </p>
+              ) : editor.storeIds.length > 0 ? (
+                <section className="space-y-3 rounded-md border border-border p-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="managed-user-permission-profile">Perfil de acesso</Label>
+                    <Select
+                      value={editor.permissionProfileId ?? "legacy"}
+                      onValueChange={(value) =>
+                        setEditor((current) =>
+                          current
+                            ? {
+                                ...current,
+                                permissionProfileId: value === "legacy" ? null : value,
+                              }
+                            : current,
+                        )
+                      }
+                      disabled={pending}
+                    >
+                      <SelectTrigger id="managed-user-permission-profile">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="legacy">
+                          Sem perfil — acesso legado de Store Admin
+                        </SelectItem>
+                        {permissionProfiles.map((profile) => (
+                          <SelectItem key={profile.id} value={profile.id}>
+                            {profile.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground">
+                      Lojas definem o escopo; o perfil define as capacidades.
+                    </p>
+                  </div>
+                  <div aria-live="polite">
+                    <h3 className="text-sm font-medium">Permissões efetivas</h3>
+                    {editor.permissionProfileId ? (
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        {PERMISSION_AREAS.map((area) => {
+                          const assignedProfile = permissionProfiles.find(
+                            (profile) => profile.id === editor.permissionProfileId,
+                          );
+                          const permissions = assignedProfile?.permissions ?? [];
+                          const canView = effectiveProfilePermission(permissions, area.view);
+                          const canManage = effectiveProfilePermission(permissions, area.manage);
+                          return (
+                            <div
+                              key={area.view}
+                              className="rounded border border-border p-2 text-sm"
+                            >
+                              <p className="font-medium">{area.label}</p>
+                              {canView || canManage ? (
+                                <>
+                                  <p>{canView ? "✓ Visualizar" : "— Visualizar"}</p>
+                                  <p>{canManage ? "✓ Gerenciar" : "— Gerenciar"}</p>
+                                </>
+                              ) : (
+                                <p className="text-muted-foreground">—</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Sem perfil — acesso legado de Store Admin.
+                      </p>
+                    )}
+                  </div>
+                </section>
+              ) : null}
 
               <div className="flex flex-wrap justify-between gap-2 border-t border-border pt-4">
                 <Button
@@ -610,6 +782,7 @@ export function PlatformUsersPanel() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <PermissionProfilesPanel />
     </section>
   );
 }

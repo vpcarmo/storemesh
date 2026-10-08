@@ -12,6 +12,12 @@ import {
   savePlatformUserRecord,
   PlatformUserInviteError,
 } from "@/data/platform-stores.repository";
+import {
+  assignPermissionProfile,
+  readPermissionProfiles,
+  readUserPermissionProfiles,
+  rollbackInvitedPlatformUser,
+} from "@/data/permission-profiles.repository";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const inviteInput = z
@@ -26,6 +32,7 @@ const inviteInput = z
           context.addIssue({ code: "custom", message: "Há lojas duplicadas na seleção." });
         }
       }),
+    permissionProfileId: z.string().uuid().nullable().optional(),
   })
   .superRefine((input, context) => {
     if (input.role === "super_admin" && input.storeIds.length > 0) {
@@ -40,6 +47,13 @@ const inviteInput = z
         code: "custom",
         path: ["storeIds"],
         message: "Selecione pelo menos uma loja para Store Admin.",
+      });
+    }
+    if (input.role === "super_admin" && input.permissionProfileId) {
+      context.addIssue({
+        code: "custom",
+        path: ["permissionProfileId"],
+        message: "Super Admin possui acesso global e não utiliza perfil de acesso.",
       });
     }
   });
@@ -130,7 +144,14 @@ export const getPlatformUsers = createServerFn({ method: "POST" })
     await requireSuperAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     try {
-      return await readPlatformUsers(supabaseAdmin);
+      const [users, profilesByUser] = await Promise.all([
+        readPlatformUsers(supabaseAdmin),
+        readUserPermissionProfiles(supabaseAdmin),
+      ]);
+      return users.map((user) => ({
+        ...user,
+        permissionProfile: profilesByUser.get(user.id) ?? null,
+      }));
     } catch (error) {
       console.error("[Platform users] Could not list platform users.", {
         userId: context.userId,
@@ -148,6 +169,15 @@ export const invitePlatformUserByEmail = createServerFn({ method: "POST" })
     const inviteData = inviteInput.parse(data);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const redirectTo = resolvePlatformInviteRedirect(context.userId);
+
+    if (
+      inviteData.permissionProfileId &&
+      !(await readPermissionProfiles(supabaseAdmin)).some(
+        (profile) => profile.id === inviteData.permissionProfileId,
+      )
+    ) {
+      throw new Error("O perfil de acesso selecionado não existe.");
+    }
 
     if (inviteData.role === "store_admin") {
       const { data: stores, error } = await supabaseAdmin
@@ -228,14 +258,32 @@ export const invitePlatformUserByEmail = createServerFn({ method: "POST" })
         isSuperAdmin: inviteData.role === "super_admin",
         storeIds: inviteData.role === "store_admin" ? inviteData.storeIds : [],
       });
+      if (inviteData.permissionProfileId) {
+        await assignPermissionProfile(supabaseAdmin, {
+          userId: invitedUserId,
+          permissionProfileId: inviteData.permissionProfileId,
+        });
+      }
     } catch (error) {
       console.error("[Platform users] Invitation succeeded but access provisioning failed.", {
         actorUserId: context.userId,
         invitedUserId,
         error,
       });
+      try {
+        await rollbackInvitedPlatformUser(context.supabase, invitedUserId);
+      } catch (rollbackError) {
+        console.error("[Platform users] Could not roll back partial invitation provisioning.", {
+          actorUserId: context.userId,
+          invitedUserId,
+          rollbackError,
+        });
+        throw new Error(
+          "O convite foi criado, mas o provisionamento falhou e a limpeza automática não foi concluída. Revise o usuário em /admin/users.",
+        );
+      }
       throw new Error(
-        "O Supabase Auth aceitou o convite, mas a atribuição de acesso falhou. A conta permanece sem acesso administrativo; corrija o usuário em /admin/users.",
+        "O Supabase Auth aceitou o convite, mas o provisionamento falhou. O acesso parcial foi removido; revise o usuário em /admin/users.",
       );
     }
   });
