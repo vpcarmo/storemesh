@@ -307,6 +307,30 @@ export type Database = {
           },
         ]
       }
+      permission_profiles: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          permissions: string[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          permissions?: string[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          permissions?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_attribute_values: {
         Row: {
           attribute_value_id: string
@@ -650,6 +674,35 @@ export type Database = {
         }
         Relationships: []
       }
+      user_permission_profiles: {
+        Row: {
+          created_at: string
+          permission_profile_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          permission_profile_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          permission_profile_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_permission_profiles_permission_profile_id_fkey"
+            columns: ["permission_profile_id"]
+            isOneToOne: false
+            referencedRelation: "permission_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -737,6 +790,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_store_permission: {
+        Args: { _permission: string; _store_id: string }
+        Returns: boolean
+      }
+      current_permissions: { Args: never; Returns: string[] }
       has_store_access: { Args: { _store_id: string }; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       list_platform_store_users: {
