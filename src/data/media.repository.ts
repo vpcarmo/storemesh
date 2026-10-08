@@ -35,11 +35,12 @@ function toAsset(row: MediaRow, imageUrl: string): MediaAsset {
 async function imageUrl(
   client: AppClient,
   row: Pick<MediaRow, "source_type" | "external_url" | "storage_path">,
+  expiresIn = signedUrlLifetimeSeconds,
 ): Promise<string> {
   if (row.source_type === "external") return row.external_url!;
   const { data, error } = await client.storage
     .from(MEDIA_BUCKET)
-    .createSignedUrl(row.storage_path!, signedUrlLifetimeSeconds);
+    .createSignedUrl(row.storage_path!, expiresIn);
   if (error) throw error;
   return data.signedUrl;
 }
@@ -221,7 +222,7 @@ export async function resolveMediaReferences(
   client: AppClient,
   storeId: string,
   ids: string[],
-  options: { tolerateUnavailable?: boolean } = {},
+  options: { tolerateUnavailable?: boolean; signedUrlLifetimeSeconds?: number } = {},
 ): Promise<Map<string, { url: string; alt: string | null }>> {
   const uniqueIds = [...new Set(ids)];
   if (!uniqueIds.length) return new Map();
@@ -234,14 +235,30 @@ export async function resolveMediaReferences(
   if (!options.tolerateUnavailable) {
     const resolved = await Promise.all(
       data.map(
-        async (row) => [row.id, { url: await imageUrl(client, row), alt: row.alt }] as const,
+        async (row) =>
+          [
+            row.id,
+            {
+              url: await imageUrl(client, row, options.signedUrlLifetimeSeconds),
+              alt: row.alt,
+            },
+          ] as const,
       ),
     );
     return new Map(resolved);
   }
 
   const outcomes = await Promise.allSettled(
-    data.map(async (row) => [row.id, { url: await imageUrl(client, row), alt: row.alt }] as const),
+    data.map(
+      async (row) =>
+        [
+          row.id,
+          {
+            url: await imageUrl(client, row, options.signedUrlLifetimeSeconds),
+            alt: row.alt,
+          },
+        ] as const,
+    ),
   );
   const resolved = new Map<string, { url: string; alt: string | null }>();
   outcomes.forEach((outcome, index) => {

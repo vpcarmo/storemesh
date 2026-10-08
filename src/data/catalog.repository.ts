@@ -249,6 +249,7 @@ export async function resolveProductGridSnapshots(
   storeId: string,
   storeSlug: string,
   products: Pick<StorefrontProductGridItem, "id">[],
+  options: { mediaSignedUrlLifetimeSeconds?: number } = {},
 ): Promise<ResolvedProductGridSnapshots> {
   const productIds = [...new Set(products.map(({ id }) => id))];
   if (productIds.length === 0) {
@@ -275,7 +276,12 @@ export async function resolveProductGridSnapshots(
   );
   if (validProductIds.size === 0) return { validProductIds, images: new Map(), hrefs };
 
-  const images = await resolveProductImages(client, storeId, [...validProductIds]);
+  const images = await resolveProductImages(
+    client,
+    storeId,
+    [...validProductIds],
+    options.mediaSignedUrlLifetimeSeconds,
+  );
   return { validProductIds, images, hrefs };
 }
 
@@ -308,6 +314,7 @@ async function resolveProductImages(
   client: AppClient,
   storeId: string,
   productIds: string[],
+  mediaSignedUrlLifetimeSeconds?: number,
 ): Promise<Map<string, ResolvedProductGridImage>> {
   if (productIds.length === 0) return new Map();
   const { data: imageRows, error: imagesError } = await client
@@ -329,6 +336,9 @@ async function resolveProductImages(
   }
   const mediaReferences = await resolveMediaReferences(client, storeId, mediaAssetIds, {
     tolerateUnavailable: true,
+    ...(mediaSignedUrlLifetimeSeconds === undefined
+      ? {}
+      : { signedUrlLifetimeSeconds: mediaSignedUrlLifetimeSeconds }),
   });
   const resolvedImages = new Map<string, ResolvedProductGridImage>();
   for (const [productId, productImages] of imagesByProduct) {

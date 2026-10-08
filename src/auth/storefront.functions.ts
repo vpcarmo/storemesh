@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { resolveAuthorizedStore } from "@/auth/authorized-store";
+import { requireAuthorizedStore } from "@/auth/authorized-store";
+import { hasStorePermission } from "@/data/access.repository";
 import { readCatalog } from "@/data/catalog.repository";
 import { readStoreSettings } from "@/data/store-settings.repository";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -22,14 +23,17 @@ export const getCurrentStorefrontFoundation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => storefrontInput.parse(input ?? {}))
   .handler(async ({ data, context }) => {
-    const store = await resolveAuthorizedStore(
+    const store = await requireAuthorizedStore(
       context.supabase,
       context.userId,
       emailFromClaims(context.claims),
+      "catalog.view",
       data.slug,
     );
 
-    if (!store) return { store: null, settings: null, categories: [], products: [] };
+    if (!(await hasStorePermission(context.supabase, store.id, "settings.view"))) {
+      throw new Error("Você não tem permissão para executar esta operação.");
+    }
 
     const [settings, catalog] = await Promise.all([
       readStoreSettings(context.supabase, store.id),

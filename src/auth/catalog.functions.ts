@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { resolveAuthorizedStore } from "@/auth/authorized-store";
+import { requireAuthorizedStore } from "@/auth/authorized-store";
 import {
   deleteCatalogAttribute,
   deleteCatalogAttributeValue,
@@ -19,6 +19,7 @@ import {
   saveProductVariantWithAttributeValues,
 } from "@/data/catalog.repository";
 import { normalizeOptionalText } from "@/domain/catalog";
+import type { Permission } from "@/domain/access";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const slugSchema = z
@@ -103,14 +104,13 @@ function emailFromClaims(claims: Record<string, unknown>): string | null {
 }
 
 async function authorizedStore(
-  context: Parameters<typeof resolveAuthorizedStore>[0],
+  context: Parameters<typeof requireAuthorizedStore>[0],
   userId: string,
   claims: Record<string, unknown>,
   slug?: string | null,
+  permission: Permission = "catalog.manage",
 ) {
-  const store = await resolveAuthorizedStore(context, userId, emailFromClaims(claims), slug);
-  if (!store) throw new Error("Nenhuma loja autorizada foi selecionada.");
-  return store;
+  return requireAuthorizedStore(context, userId, emailFromClaims(claims), permission, slug);
 }
 
 export const getCurrentStoreCatalog = createServerFn({ method: "POST" })
@@ -122,6 +122,7 @@ export const getCurrentStoreCatalog = createServerFn({ method: "POST" })
       context.userId,
       context.claims,
       data.slug,
+      "catalog.view",
     );
     return { store, ...(await readCatalog(context.supabase, store.id)) };
   });

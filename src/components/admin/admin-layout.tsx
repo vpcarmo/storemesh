@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Label } from "@/components/ui/label";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { isSuperAdmin } from "@/domain/access";
+import { isSuperAdmin, type Permission } from "@/domain/access";
 
 const sessionQueryKey = ["auth", "user"] as const;
 const accessQueryKey = ["auth", "access-context"] as const;
@@ -34,6 +34,16 @@ function messageFrom(error: unknown): string {
   return error instanceof Error
     ? error.message
     : "Não foi possível carregar a área administrativa.";
+}
+
+function permissionForAdminPath(pathname: string): Permission | null {
+  if (pathname.startsWith("/admin/website") || pathname === "/admin/preview") {
+    return "website.view";
+  }
+  if (pathname.startsWith("/admin/catalog")) return "catalog.view";
+  if (pathname.startsWith("/admin/content/media")) return "media.view";
+  if (pathname.startsWith("/admin/settings")) return "settings.view";
+  return null;
 }
 
 export function AdminLayout({ children }: { children: ReactNode }) {
@@ -65,6 +75,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   const access = accessQuery.data;
   const isSuperAdminUser = access ? isSuperAdmin(access) : false;
+  const routePermission = permissionForAdminPath(pathname);
   const assignedStoreIds = new Set(
     access?.assignments
       .filter((assignment) => assignment.role === "store_admin" && assignment.storeId !== null)
@@ -101,7 +112,12 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const websiteQuery = useQuery({
     queryKey: ["admin", "storefront-home", storeSlug],
     queryFn: () => loadWebsite({ data: { slug: storeSlug } }),
-    enabled: Boolean(storeSlug && selectedStore?.status === "active" && !isPlatformRoute),
+    enabled: Boolean(
+      storeSlug &&
+      selectedStore?.status === "active" &&
+      !isPlatformRoute &&
+      access?.permissions.includes("website.view"),
+    ),
   });
   const publishedHome = websiteQuery.data?.pages.find(
     (page) => page.slug === "home" && page.status === "published",
@@ -152,6 +168,18 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   if (isPlatformRoute && !isSuperAdmin(accessQuery.data)) {
     return <p className="p-8 text-sm text-destructive">Acesso restrito ao super_admin.</p>;
+  }
+
+  if (
+    routePermission &&
+    !accessQuery.data.permissions.includes(routePermission) &&
+    !isSuperAdmin(accessQuery.data)
+  ) {
+    return (
+      <p className="p-8 text-sm text-destructive">
+        Você não tem permissão para acessar este módulo.
+      </p>
+    );
   }
 
   if (!isPlatformRoute && hasStoreAdminRole && assignedStoreIds.size === 0) {

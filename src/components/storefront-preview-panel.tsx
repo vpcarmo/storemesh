@@ -61,6 +61,7 @@ export function StorefrontPreviewPanel({
     },
     enabled: storeSlug !== null && storeSlug !== undefined && !!pageSlug,
     refetchOnMount: "always",
+    refetchInterval: 240_000,
   });
 
   useEffect(() => {

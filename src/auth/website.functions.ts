@@ -1,13 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { resolveAuthorizedStore } from "@/auth/authorized-store";
+import { requireAuthorizedStore } from "@/auth/authorized-store";
 import {
   resolveCategoryGridSnapshots,
   resolveProductGridSnapshots,
 } from "@/data/catalog.repository";
 import { resolveMediaReferences } from "@/data/media.repository";
-import { readStoreSettings } from "@/data/store-settings.repository";
+import { readPublicStorefrontSettings } from "@/data/store-settings.repository";
 import {
   deleteNavigationItem,
   loadStorefrontFooterNavigation,
@@ -26,7 +26,10 @@ import {
 } from "@/domain/storefront";
 import { DEFAULT_STOREFRONT_DESIGN_SETTINGS } from "@/domain/storefront-design.schema";
 import { PAGE_STATUSES } from "@/domain/website";
+import type { Permission } from "@/domain/access";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
+const previewSignedUrlLifetimeSeconds = 300;
 
 const slug = z
   .string()
@@ -65,14 +68,13 @@ function email(claims: Record<string, unknown>) {
   return typeof claims["email"] === "string" ? claims["email"] : null;
 }
 async function authorizedStore(
-  client: Parameters<typeof resolveAuthorizedStore>[0],
+  client: Parameters<typeof requireAuthorizedStore>[0],
   userId: string,
   claims: Record<string, unknown>,
   selectedSlug?: string | null,
+  permission: Permission = "website.manage",
 ) {
-  const store = await resolveAuthorizedStore(client, userId, email(claims), selectedSlug);
-  if (!store) throw new Error("Nenhuma loja autorizada foi selecionada.");
-  return store;
+  return requireAuthorizedStore(client, userId, email(claims), permission, selectedSlug);
 }
 export const getCurrentStoreWebsite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -83,6 +85,7 @@ export const getCurrentStoreWebsite = createServerFn({ method: "POST" })
       context.userId,
       context.claims,
       data.slug,
+      "website.view",
     );
     const [pages, navigation] = await Promise.all([
       readPages(context.supabase, store.id),
@@ -99,12 +102,14 @@ export const getAdminStorePagePreview = createServerFn({ method: "POST" })
       context.userId,
       context.claims,
       data.slug,
+      "website.view",
     );
     const page = await readStorePageForPreview(context.supabase, store.id, data.pageSlug);
     if (!page) return null;
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [settings, navigation, pages] = await Promise.all([
-      readStoreSettings(context.supabase, store.id),
+      readPublicStorefrontSettings(supabaseAdmin, store.id),
       readNavigation(context.supabase, store.id),
       readPages(context.supabase, store.id),
     ]).catch(() => {
@@ -127,14 +132,18 @@ export const getAdminStorePagePreview = createServerFn({ method: "POST" })
         ? settings.designSettings.background.mediaAssetId
         : null;
     const [mediaReferences, productGridSnapshots, categoryGridSnapshots] = await Promise.all([
-      resolveMediaReferences(context.supabase, store.id, [
-        ...imageMediaIds,
-        ...(backgroundMediaId ? [backgroundMediaId] : []),
-      ]).catch(() => {
+      resolveMediaReferences(
+        supabaseAdmin,
+        store.id,
+        [...imageMediaIds, ...(backgroundMediaId ? [backgroundMediaId] : [])],
+        { signedUrlLifetimeSeconds: previewSignedUrlLifetimeSeconds },
+      ).catch(() => {
         throw new Error("Não foi possível carregar as mídias da prévia.");
       }),
-      resolveProductGridSnapshots(context.supabase, store.id, store.slug, productSnapshots),
-      resolveCategoryGridSnapshots(context.supabase, store.id, store.slug, categorySnapshots),
+      resolveProductGridSnapshots(supabaseAdmin, store.id, store.slug, productSnapshots, {
+        mediaSignedUrlLifetimeSeconds: previewSignedUrlLifetimeSeconds,
+      }),
+      resolveCategoryGridSnapshots(supabaseAdmin, store.id, store.slug, categorySnapshots),
     ]);
     if (sectionMediaIds.some((id) => !mediaReferences.has(id)))
       throw new Error("Não foi possível carregar as mídias da prévia.");
@@ -169,7 +178,7 @@ export const getAdminStorePagePreview = createServerFn({ method: "POST" })
         .map((item) => [item.id, item.slug]),
     );
     const footerNavigation = await loadStorefrontFooterNavigation(
-      context.supabase,
+      supabaseAdmin,
       store.id,
       store.slug,
       settings?.designSettings.footer ?? DEFAULT_STOREFRONT_DESIGN_SETTINGS.footer,

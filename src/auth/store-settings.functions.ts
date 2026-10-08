@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { resolveAuthorizedStore } from "@/auth/authorized-store";
+import { requireAuthorizedStore } from "@/auth/authorized-store";
 import { resolveMediaReferences } from "@/data/media.repository";
 import { readStoreSettings, saveStoreSettings } from "@/data/store-settings.repository";
 import { readPublishedFooterPages } from "@/data/website.repository";
@@ -112,14 +112,13 @@ export const getCurrentStoreSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => storeSelectionInput.parse(input ?? {}))
   .handler(async ({ data, context }) => {
-    const store = await resolveAuthorizedStore(
+    const store = await requireAuthorizedStore(
       context.supabase,
       context.userId,
       emailFromClaims(context.claims),
+      "settings.view",
       data.slug,
     );
-
-    if (!store) return { store: null, settings: null };
 
     const [settings, footerPages] = await Promise.all([
       readStoreSettings(context.supabase, store.id),
@@ -132,14 +131,13 @@ export const updateCurrentStoreSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => updateStoreSettingsInput.parse(input))
   .handler(async ({ data, context }) => {
-    const store = await resolveAuthorizedStore(
+    const store = await requireAuthorizedStore(
       context.supabase,
       context.userId,
       emailFromClaims(context.claims),
+      "settings.manage",
       data.slug,
     );
-
-    if (!store) throw new Error("Nenhuma loja autorizada foi selecionada.");
 
     const selectedPageIds = [
       ...new Set([

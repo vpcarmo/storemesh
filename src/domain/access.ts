@@ -1,8 +1,34 @@
 export const APP_ROLES = ["super_admin", "store_admin"] as const;
 export const STORE_STATUSES = ["active", "inactive"] as const;
+export const PERMISSIONS = [
+  "website.view",
+  "website.manage",
+  "catalog.view",
+  "catalog.manage",
+  "media.view",
+  "media.manage",
+  "settings.view",
+  "settings.manage",
+] as const;
 
 export type AppRole = (typeof APP_ROLES)[number];
 export type StoreStatus = (typeof STORE_STATUSES)[number];
+export type Permission = (typeof PERMISSIONS)[number];
+
+export function isPermission(value: string): value is Permission {
+  return PERMISSIONS.some((permission) => permission === value);
+}
+
+export function permissionImplies(granted: readonly Permission[], requested: Permission): boolean {
+  if (granted.includes(requested)) return true;
+
+  const managePermission = requested.replace(".view", ".manage");
+  return (
+    requested.endsWith(".view") &&
+    isPermission(managePermission) &&
+    granted.includes(managePermission)
+  );
+}
 
 export interface StoreAccess {
   id: string;
@@ -22,6 +48,7 @@ export interface AccessContext {
   email: string | null;
   fullName: string | null;
   assignments: RoleAssignment[];
+  permissions: Permission[];
 }
 
 export function isSuperAdmin(context: AccessContext): boolean {
