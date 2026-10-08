@@ -49,11 +49,19 @@ const inviteInput = z
         message: "Selecione pelo menos uma loja para Store Admin.",
       });
     }
-    if (input.role === "super_admin" && input.permissionProfileId) {
+    if (input.role === "super_admin" && input.permissionProfileId !== null) {
       context.addIssue({
         code: "custom",
         path: ["permissionProfileId"],
         message: "Super Admin possui acesso global e não utiliza perfil de acesso.",
+      });
+    }
+    if (input.role === "store_admin" && !input.permissionProfileId) {
+      context.addIssue({
+        code: "custom",
+        path: ["permissionProfileId"],
+        message:
+          "Selecione um perfil de permissões para definir o acesso deste administrador da loja.",
       });
     }
   });
@@ -170,13 +178,17 @@ export const invitePlatformUserByEmail = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const redirectTo = resolvePlatformInviteRedirect(context.userId);
 
-    if (
-      inviteData.permissionProfileId &&
-      !(await readPermissionProfiles(supabaseAdmin)).some(
-        (profile) => profile.id === inviteData.permissionProfileId,
-      )
-    ) {
-      throw new Error("O perfil de acesso selecionado não existe.");
+    if (inviteData.role === "store_admin") {
+      const profiles = await readPermissionProfiles(supabaseAdmin);
+      if (profiles.length === 0) {
+        throw new Error("Crie um perfil de permissões antes de convidar um administrador da loja.");
+      }
+      if (
+        !inviteData.permissionProfileId ||
+        !profiles.some((profile) => profile.id === inviteData.permissionProfileId)
+      ) {
+        throw new Error("O perfil de permissões selecionado não existe.");
+      }
     }
 
     if (inviteData.role === "store_admin") {
@@ -258,7 +270,7 @@ export const invitePlatformUserByEmail = createServerFn({ method: "POST" })
         isSuperAdmin: inviteData.role === "super_admin",
         storeIds: inviteData.role === "store_admin" ? inviteData.storeIds : [],
       });
-      if (inviteData.permissionProfileId) {
+      if (inviteData.role === "store_admin" && inviteData.permissionProfileId) {
         await assignPermissionProfile(supabaseAdmin, {
           userId: invitedUserId,
           permissionProfileId: inviteData.permissionProfileId,

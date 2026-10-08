@@ -104,7 +104,7 @@ export function PlatformUsersPanel() {
   const [email, setEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<InviteRole>("store_admin");
   const [inviteStoreIds, setInviteStoreIds] = useState<string[]>([]);
-  const [invitePermissionProfileId, setInvitePermissionProfileId] = useState<string>("legacy");
+  const [invitePermissionProfileId, setInvitePermissionProfileId] = useState("");
   const [invitePending, setInvitePending] = useState(false);
   const [resendingUserId, setResendingUserId] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -139,6 +139,16 @@ export function PlatformUsersPanel() {
       setFeedback("Selecione pelo menos uma loja para Store Admin.");
       return;
     }
+    if (inviteRole === "store_admin" && permissionProfiles.length === 0) {
+      setFeedback("Crie um perfil de permissões antes de convidar um administrador da loja.");
+      return;
+    }
+    if (inviteRole === "store_admin" && !invitePermissionProfileId) {
+      setFeedback(
+        "Selecione um perfil de permissões para definir o acesso deste administrador da loja.",
+      );
+      return;
+    }
     setInvitePending(true);
     setFeedback(null);
     try {
@@ -147,10 +157,7 @@ export function PlatformUsersPanel() {
           email: email.trim(),
           role: inviteRole,
           storeIds: inviteRole === "store_admin" ? inviteStoreIds : [],
-          permissionProfileId:
-            inviteRole === "store_admin" && invitePermissionProfileId !== "legacy"
-              ? invitePermissionProfileId
-              : null,
+          permissionProfileId: inviteRole === "store_admin" ? invitePermissionProfileId : null,
         },
       });
       setEmail("");
@@ -349,7 +356,10 @@ export function PlatformUsersPanel() {
             value={inviteRole}
             onValueChange={(value: InviteRole) => {
               setInviteRole(value);
-              if (value === "super_admin") setInviteStoreIds([]);
+              if (value === "super_admin") {
+                setInviteStoreIds([]);
+                setInvitePermissionProfileId("");
+              }
             }}
           >
             <SelectTrigger id="platform-user-invite-role">
@@ -393,37 +403,57 @@ export function PlatformUsersPanel() {
               ) : null}
             </fieldset>
             <div className="grid gap-2 md:col-span-2">
-              <Label htmlFor="platform-user-invite-profile">Perfil de acesso</Label>
-              <Select
-                value={invitePermissionProfileId}
-                onValueChange={setInvitePermissionProfileId}
-                disabled={invitePending}
-              >
-                <SelectTrigger id="platform-user-invite-profile">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="legacy">Sem perfil — acesso legado de Store Admin</SelectItem>
-                  {permissionProfiles.map((profile) => (
-                    <SelectItem key={profile.id} value={profile.id}>
-                      {profile.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground">
-                Lojas definem o escopo; o perfil define as capacidades. Sem perfil mantém o acesso
-                legado.
-              </p>
+              <Label htmlFor="platform-user-invite-profile">Perfil de permissões</Label>
+              {permissionProfiles.length === 0 ? (
+                <p className="text-sm text-destructive" role="alert">
+                  Crie um perfil de permissões antes de convidar um administrador da loja.
+                </p>
+              ) : (
+                <>
+                  <Select
+                    value={invitePermissionProfileId}
+                    onValueChange={setInvitePermissionProfileId}
+                    disabled={invitePending}
+                  >
+                    <SelectTrigger id="platform-user-invite-profile">
+                      <SelectValue placeholder="Selecione um perfil de permissões" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {permissionProfiles.map((profile) => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          {profile.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Selecione um perfil de permissões para definir o acesso deste administrador da
+                    loja.
+                  </p>
+                </>
+              )}
             </div>
           </>
         ) : (
-          <p className="text-sm text-muted-foreground md:col-span-2">
-            Super Admin recebe acesso global e não pode ser associado a lojas.
-          </p>
+          <div className="grid gap-2 md:col-span-2">
+            <span className="text-sm font-medium">Perfil de permissões</span>
+            <p className="text-sm text-muted-foreground">
+              Perfil de permissões não se aplica a Super Admin.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Super Admin recebe acesso global e não pode ser associado a lojas.
+            </p>
+          </div>
         )}
         <div className="md:col-span-2">
-          <Button type="submit" disabled={invitePending}>
+          <Button
+            type="submit"
+            disabled={
+              invitePending ||
+              (inviteRole === "store_admin" &&
+                (permissionProfiles.length === 0 || !invitePermissionProfileId))
+            }
+          >
             {invitePending ? "Enviando convite…" : "Enviar convite"}
           </Button>
         </div>
@@ -462,7 +492,7 @@ export function PlatformUsersPanel() {
                     <div className="text-xs text-muted-foreground">
                       {user.permissionProfile ? (
                         <>
-                          Perfil de acesso: {user.permissionProfile.name}
+                          Perfil de permissões: {user.permissionProfile.name}
                           {permissionProfileAreas(user.permissionProfile.permissions).length
                             ? ` — ${permissionProfileAreas(user.permissionProfile.permissions).join(" · ")}`
                             : " — sem permissões de módulo"}
@@ -625,12 +655,12 @@ export function PlatformUsersPanel() {
 
               {editor.isSuperAdmin ? (
                 <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
-                  Acesso global — Super Admin. Este usuário não depende de perfil de acesso.
+                  Acesso global — Super Admin. Este usuário não depende de perfil de permissões.
                 </p>
               ) : editor.storeIds.length > 0 ? (
                 <section className="space-y-3 rounded-md border border-border p-3">
                   <div className="grid gap-2">
-                    <Label htmlFor="managed-user-permission-profile">Perfil de acesso</Label>
+                    <Label htmlFor="managed-user-permission-profile">Perfil de permissões</Label>
                     <Select
                       value={editor.permissionProfileId ?? "legacy"}
                       onValueChange={(value) =>
@@ -660,7 +690,7 @@ export function PlatformUsersPanel() {
                       </SelectContent>
                     </Select>
                     <p className="text-sm text-muted-foreground">
-                      Lojas definem o escopo; o perfil define as capacidades.
+                      Lojas definem o escopo; o perfil de permissões define as capacidades.
                     </p>
                   </div>
                   <div aria-live="polite">
