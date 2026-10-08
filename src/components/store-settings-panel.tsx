@@ -8,6 +8,8 @@ import {
   updateCurrentStoreSettings,
 } from "@/auth/store-settings.functions";
 import { getCurrentStoreMedia } from "@/auth/media.functions";
+import { useAdminStore } from "@/components/admin/admin-store-context";
+import { AdminReadOnlyNotice } from "@/components/admin/admin-read-only-notice";
 import { FormHelp } from "@/components/admin/form-help";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -178,14 +180,17 @@ function FooterPageGroup({
   pages,
   selectedIds,
   onChange,
+  disabled,
 }: {
   idPrefix: string;
   title: string;
   pages: StorefrontFooterPage[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
+  disabled: boolean;
 }) {
   function movePage(index: number, offset: -1 | 1) {
+    if (disabled) return;
     const next = [...selectedIds];
     const target = index + offset;
     const movedPage = next[index];
@@ -207,6 +212,7 @@ function FooterPageGroup({
                 <input
                   id={id}
                   type="checkbox"
+                  disabled={disabled}
                   checked={selectedIds.includes(page.id)}
                   onChange={(event) =>
                     onChange(
@@ -239,6 +245,7 @@ function FooterPageGroup({
                     type="button"
                     size="sm"
                     variant="outline"
+                    disabled={disabled}
                     onClick={() =>
                       onChange(selectedIds.filter((selectedId) => selectedId !== pageId))
                     }
@@ -257,7 +264,7 @@ function FooterPageGroup({
                     size="sm"
                     variant="outline"
                     aria-label={`Mover ${page.title} para cima em ${title}`}
-                    disabled={index === 0}
+                    disabled={disabled || index === 0}
                     onClick={() => movePage(index, -1)}
                   >
                     ↑
@@ -267,7 +274,7 @@ function FooterPageGroup({
                     size="sm"
                     variant="outline"
                     aria-label={`Mover ${page.title} para baixo em ${title}`}
-                    disabled={index === selectedIds.length - 1}
+                    disabled={disabled || index === selectedIds.length - 1}
                     onClick={() => movePage(index, 1)}
                   >
                     ↓
@@ -304,6 +311,7 @@ function ColorField({
   error,
   onChange,
   onRestore,
+  disabled,
 }: {
   name: SettingsField;
   label: string;
@@ -313,6 +321,7 @@ function ColorField({
   error?: string | undefined;
   onChange: (value: string) => void;
   onRestore: () => void;
+  disabled: boolean;
 }) {
   const id = `store-setting-${name}`;
   const colorPickerValue = effectiveColor(value, defaultValue);
@@ -325,12 +334,14 @@ function ColorField({
           aria-label={`Seletor visual: ${label}`}
           className="h-10 w-14 cursor-pointer rounded-md border border-input bg-background p-1"
           type="color"
+          disabled={disabled}
           value={colorPickerValue}
           onChange={(event) => onChange(event.target.value.toUpperCase())}
         />
         <Input
           id={id}
           className="w-32 uppercase"
+          disabled={disabled}
           value={value}
           maxLength={7}
           placeholder={defaultValue}
@@ -347,7 +358,7 @@ function ColorField({
         <span className="text-xs text-muted-foreground">
           Atual: {value.trim() || `${defaultValue} (padrão)`}
         </span>
-        <Button type="button" variant="ghost" size="sm" onClick={onRestore}>
+        <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={onRestore}>
           Restaurar padrão
         </Button>
       </div>
@@ -362,6 +373,8 @@ function ColorField({
 }
 
 export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null }) {
+  const { hasPermission } = useAdminStore();
+  const canManage = hasPermission("settings.manage");
   const queryClient = useQueryClient();
   const loadSettings = useServerFn(getCurrentStoreSettings);
   const saveSettings = useServerFn(updateCurrentStoreSettings);
@@ -388,12 +401,14 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
   }, [settingsQuery.data]);
 
   function updateField<K extends SettingsField>(name: K, value: SettingsForm[K]) {
+    if (!canManage) return;
     setForm((current) => ({ ...current, [name]: value }));
     setErrors((current) => ({ ...current, [name]: undefined }));
     setFeedback(null);
   }
 
   function updateDesignSettings(value: StorefrontDesignSettings) {
+    if (!canManage) return;
     setForm((current) => ({ ...current, designSettings: value }));
     setFeedback(null);
   }
@@ -428,6 +443,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canManage) return;
     const validationErrors = validateForm(form);
     setErrors(validationErrors);
     setFeedback(null);
@@ -508,6 +524,10 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
         <p className="mt-2 text-sm font-medium">{settingsQuery.data.store.name}</p>
       </header>
 
+      <div className="mb-6">
+        <AdminReadOnlyNotice permission="settings.manage" />
+      </div>
+
       <form className="grid gap-6" onSubmit={handleSubmit} noValidate>
         <Card>
           <CardHeader>
@@ -519,6 +539,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               <Label htmlFor="store-display-name">Nome de exibição</Label>
               <Input
                 id="store-display-name"
+                disabled={!canManage}
                 value={form.displayName}
                 onChange={(event) => updateField("displayName", event.target.value)}
                 maxLength={120}
@@ -537,6 +558,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               <Label htmlFor="store-short-description">Descrição curta</Label>
               <Textarea
                 id="store-short-description"
+                disabled={!canManage}
                 value={form.shortDescription}
                 onChange={(event) => updateField("shortDescription", event.target.value)}
                 maxLength={280}
@@ -561,6 +583,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               <Label htmlFor="store-logo-url">Logo da loja</Label>
               <Input
                 id="store-logo-url"
+                disabled={!canManage}
                 value={form.logoUrl}
                 onChange={(event) => updateField("logoUrl", event.target.value)}
                 maxLength={2048}
@@ -592,6 +615,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               <Label htmlFor="store-favicon-url">Favicon</Label>
               <Input
                 id="store-favicon-url"
+                disabled={!canManage}
                 value={form.faviconUrl}
                 onChange={(event) => updateField("faviconUrl", event.target.value)}
                 maxLength={2048}
@@ -627,6 +651,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               <Label htmlFor="store-contact-email">E-mail</Label>
               <Input
                 id="store-contact-email"
+                disabled={!canManage}
                 type="email"
                 value={form.contactEmail}
                 onChange={(event) => updateField("contactEmail", event.target.value)}
@@ -644,6 +669,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               <Label htmlFor="store-contact-phone">Telefone</Label>
               <Input
                 id="store-contact-phone"
+                disabled={!canManage}
                 value={form.phone}
                 onChange={(event) => updateField("phone", event.target.value)}
                 aria-invalid={Boolean(errors.phone)}
@@ -660,6 +686,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               <Label htmlFor="store-contact-whatsapp">WhatsApp</Label>
               <Input
                 id="store-contact-whatsapp"
+                disabled={!canManage}
                 value={form.whatsapp}
                 onChange={(event) => updateField("whatsapp", event.target.value)}
                 aria-invalid={Boolean(errors.whatsapp)}
@@ -676,6 +703,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               <Label htmlFor="store-contact-address">Endereço</Label>
               <Input
                 id="store-contact-address"
+                disabled={!canManage}
                 value={form.addressFormatted}
                 onChange={(event) => updateField("addressFormatted", event.target.value)}
                 maxLength={280}
@@ -708,6 +736,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                   {...color}
                   value={form[color.name]}
                   error={errors[color.name]}
+                  disabled={!canManage}
                   onChange={(value) => updateField(color.name, value)}
                   onRestore={() => updateField(color.name, color.defaultValue)}
                 />
@@ -727,6 +756,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               <Label htmlFor="store-design-typography">Tipografia</Label>
               <select
                 id="store-design-typography"
+                disabled={!canManage}
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                 value={form.designSettings.typographyPreset}
                 onChange={(event) =>
@@ -751,6 +781,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               <Label htmlFor="store-design-density">Densidade</Label>
               <select
                 id="store-design-density"
+                disabled={!canManage}
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                 value={form.designSettings.density}
                 onChange={(event) =>
@@ -771,6 +802,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               <Label htmlFor="store-design-radius">Cantos</Label>
               <select
                 id="store-design-radius"
+                disabled={!canManage}
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                 value={form.designSettings.radius}
                 onChange={(event) =>
@@ -790,6 +822,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               <Label htmlFor="store-design-shadow">Sombras</Label>
               <select
                 id="store-design-shadow"
+                disabled={!canManage}
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                 value={form.designSettings.shadow}
                 onChange={(event) =>
@@ -809,6 +842,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               <Label htmlFor="store-design-container">Largura do conteúdo</Label>
               <select
                 id="store-design-container"
+                disabled={!canManage}
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                 value={form.designSettings.container}
                 onChange={(event) =>
@@ -828,6 +862,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               <Label htmlFor="store-design-background">Fundo</Label>
               <select
                 id="store-design-background"
+                disabled={!canManage}
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                 value={form.designSettings.background.type}
                 onChange={(event) => {
@@ -880,6 +915,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                   help="Cor de fundo principal da vitrine."
                   value={form.backgroundColor}
                   error={errors.backgroundColor}
+                  disabled={!canManage}
                   onChange={(value) => updateField("backgroundColor", value)}
                   onRestore={() =>
                     updateField("backgroundColor", DEFAULT_STOREFRONT_COLORS.background)
@@ -901,6 +937,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                     id="store-design-gradient-start"
                     className="h-10 w-16 cursor-pointer rounded-md border border-input bg-background p-1"
                     type="color"
+                    disabled={!canManage}
                     value={form.designSettings.background.startColor}
                     onChange={(event) =>
                       updateGradientBackground((background) => ({
@@ -916,6 +953,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                     id="store-design-gradient-end"
                     className="h-10 w-16 cursor-pointer rounded-md border border-input bg-background p-1"
                     type="color"
+                    disabled={!canManage}
                     value={form.designSettings.background.endColor}
                     onChange={(event) =>
                       updateGradientBackground((background) => ({
@@ -929,6 +967,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                   <Label htmlFor="store-design-gradient-direction">Direção</Label>
                   <select
                     id="store-design-gradient-direction"
+                    disabled={!canManage}
                     className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                     value={form.designSettings.background.direction}
                     onChange={(event) =>
@@ -956,6 +995,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                   </Label>
                   <select
                     id="store-design-background-media"
+                    disabled={!canManage}
                     className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                     value={form.designSettings.background.mediaAssetId ?? ""}
                     onChange={(event) =>
@@ -990,6 +1030,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                   <Label htmlFor="store-design-background-position">Posição</Label>
                   <select
                     id="store-design-background-position"
+                    disabled={!canManage}
                     className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                     value={form.designSettings.background.position}
                     onChange={(event) =>
@@ -1010,6 +1051,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                   <Label htmlFor="store-design-background-size">Ajuste</Label>
                   <select
                     id="store-design-background-size"
+                    disabled={!canManage}
                     className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                     value={form.designSettings.background.size}
                     onChange={(event) =>
@@ -1027,6 +1069,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                   <Label htmlFor="store-design-background-overlay">Sobreposição</Label>
                   <select
                     id="store-design-background-overlay"
+                    disabled={!canManage}
                     className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                     value={form.designSettings.background.overlay}
                     onChange={(event) =>
@@ -1063,10 +1106,13 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                 <Label htmlFor="store-header-layout">Layout</Label>
                 <select
                   id="store-header-layout"
+                  disabled={!canManage}
                   className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                   value={form.designSettings.header.layout}
                   onChange={(event) =>
-                    updateHeaderSettings({ layout: event.target.value as HeaderSettings["layout"] })
+                    updateHeaderSettings({
+                      layout: event.target.value as HeaderSettings["layout"],
+                    })
                   }
                 >
                   <option value="stacked">Empilhado</option>
@@ -1078,6 +1124,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                 <Label htmlFor="store-header-navigation-alignment">Alinhamento da navegação</Label>
                 <select
                   id="store-header-navigation-alignment"
+                  disabled={!canManage}
                   className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                   value={form.designSettings.header.navigationAlignment}
                   onChange={(event) =>
@@ -1098,6 +1145,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                   <Label htmlFor="store-header-show-name">Exibir nome da loja</Label>
                   <Switch
                     id="store-header-show-name"
+                    disabled={!canManage}
                     checked={form.designSettings.header.showStoreName}
                     onCheckedChange={(showStoreName) => updateHeaderSettings({ showStoreName })}
                   />
@@ -1111,6 +1159,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                 <Label htmlFor="store-header-logo-size">Tamanho da logo</Label>
                 <select
                   id="store-header-logo-size"
+                  disabled={!canManage}
                   className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                   value={form.designSettings.header.logoSize}
                   onChange={(event) =>
@@ -1129,6 +1178,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                 <Label htmlFor="store-header-navigation-gap">Espaçamento da navegação</Label>
                 <select
                   id="store-header-navigation-gap"
+                  disabled={!canManage}
                   className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                   value={form.designSettings.header.navigationGap}
                   onChange={(event) =>
@@ -1153,6 +1203,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                 <Label htmlFor="store-footer-columns">Número de colunas</Label>
                 <select
                   id="store-footer-columns"
+                  disabled={!canManage}
                   className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                   value={form.designSettings.footer.columns}
                   onChange={(event) =>
@@ -1175,6 +1226,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                 <Label htmlFor="store-footer-alignment">Alinhamento</Label>
                 <select
                   id="store-footer-alignment"
+                  disabled={!canManage}
                   className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                   value={form.designSettings.footer.alignment}
                   onChange={(event) =>
@@ -1193,6 +1245,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                   <Label htmlFor="store-footer-show-logo">Exibir logo</Label>
                   <Switch
                     id="store-footer-show-logo"
+                    disabled={!canManage}
                     checked={form.designSettings.footer.showLogo}
                     onCheckedChange={(showLogo) => updateFooterSettings({ showLogo })}
                   />
@@ -1204,6 +1257,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                   <Label htmlFor="store-footer-show-description">Exibir descrição</Label>
                   <Switch
                     id="store-footer-show-description"
+                    disabled={!canManage}
                     checked={form.designSettings.footer.showDescription}
                     onCheckedChange={(showDescription) => updateFooterSettings({ showDescription })}
                   />
@@ -1214,6 +1268,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                 <Label htmlFor="store-footer-spacing">Espaçamento</Label>
                 <select
                   id="store-footer-spacing"
+                  disabled={!canManage}
                   className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                   value={form.designSettings.footer.spacing}
                   onChange={(event) =>
@@ -1234,6 +1289,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                 pages={settingsQuery.data.footerPages}
                 selectedIds={form.designSettings.footer.helpPages}
                 onChange={(helpPages) => updateFooterSettings({ helpPages })}
+                disabled={!canManage}
               />
               <FooterPageGroup
                 idPrefix="store-footer-institutional-page"
@@ -1241,6 +1297,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                 pages={settingsQuery.data.footerPages}
                 selectedIds={form.designSettings.footer.institutionalPages}
                 onChange={(institutionalPages) => updateFooterSettings({ institutionalPages })}
+                disabled={!canManage}
               />
               <fieldset className="grid gap-3">
                 <legend className="text-sm font-medium">SIGA A LOJA</legend>
@@ -1250,6 +1307,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                       <Label htmlFor={`store-social-label-${index}`}>Nome/rótulo</Label>
                       <Input
                         id={`store-social-label-${index}`}
+                        disabled={!canManage}
                         value={link.label}
                         maxLength={60}
                         onChange={(event) =>
@@ -1266,6 +1324,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                       <Label htmlFor={`store-social-url-${index}`}>URL</Label>
                       <Input
                         id={`store-social-url-${index}`}
+                        disabled={!canManage}
                         type="url"
                         value={link.url}
                         maxLength={2048}
@@ -1285,6 +1344,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                       size="sm"
                       variant="outline"
                       className="justify-self-start"
+                      disabled={!canManage}
                       onClick={() =>
                         updateField(
                           "socialLinks",
@@ -1301,6 +1361,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                   size="sm"
                   variant="outline"
                   className="justify-self-start"
+                  disabled={!canManage}
                   onClick={() =>
                     updateField("socialLinks", [...form.socialLinks, { label: "", url: "" }])
                   }
@@ -1318,7 +1379,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
         </Card>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" disabled={!canManage || pending} hidden={!canManage}>
             <Save aria-hidden="true" />
             {pending ? "Salvando…" : "Salvar alterações"}
           </Button>

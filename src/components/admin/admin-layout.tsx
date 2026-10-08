@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Label } from "@/components/ui/label";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { isSuperAdmin, type Permission } from "@/domain/access";
+import { isSuperAdmin, permissionImplies, type Permission } from "@/domain/access";
 
 const sessionQueryKey = ["auth", "user"] as const;
 const accessQueryKey = ["auth", "access-context"] as const;
@@ -75,6 +75,11 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   const access = accessQuery.data;
   const isSuperAdminUser = access ? isSuperAdmin(access) : false;
+  const hasPermission = useCallback(
+    (permission: Permission) =>
+      isSuperAdminUser || permissionImplies(access?.permissions ?? [], permission),
+    [access?.permissions, isSuperAdminUser],
+  );
   const routePermission = permissionForAdminPath(pathname);
   const assignedStoreIds = new Set(
     access?.assignments
@@ -124,8 +129,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   );
 
   const contextValue = useMemo(
-    () => ({ storeSlug, requiresStoreSelection, stores, selectStore }),
-    [storeSlug, requiresStoreSelection, stores, selectStore],
+    () => ({ storeSlug, requiresStoreSelection, stores, selectStore, hasPermission }),
+    [storeSlug, requiresStoreSelection, stores, selectStore, hasPermission],
   );
 
   async function handleSignOut() {

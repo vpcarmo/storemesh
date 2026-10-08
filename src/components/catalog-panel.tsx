@@ -18,6 +18,8 @@ import {
   setCurrentStoreProductAttributeValues,
 } from "@/auth/catalog.functions";
 import { getCurrentStoreMedia } from "@/auth/media.functions";
+import { useAdminStore } from "@/components/admin/admin-store-context";
+import { AdminReadOnlyNotice } from "@/components/admin/admin-read-only-notice";
 import { FormHelp } from "@/components/admin/form-help";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +53,8 @@ export function CatalogPanel({
   /** Abre uma seção existente do catálogo, mantendo Produtos como padrão. */
   section?: CatalogSection;
 }) {
+  const { hasPermission } = useAdminStore();
+  const canManage = hasPermission("catalog.manage");
   // The admin shell is the only owner of the selected store. Keep this alias
   // solely for the existing server-function payloads below.
   const slug = storeSlug;
@@ -87,6 +91,7 @@ export function CatalogPanel({
     enabled: section === "products" && (!requiresStoreSelection || storeSlug !== null),
   });
   async function run(action: () => Promise<void>, message: string, invalidatePreview = false) {
+    if (!canManage) return;
     setPending(true);
     setFeedback(null);
     try {
@@ -125,12 +130,17 @@ export function CatalogPanel({
       <p className="text-sm font-semibold">Catálogo</p>
       <p className="text-sm text-muted-foreground">{catalog.store.name}</p>
       <div className="mt-4">
+        <AdminReadOnlyNotice permission="catalog.manage" />
+      </div>
+      <div className="mt-4">
         <div hidden={section !== "categories"}>
           <form
             key={category?.id ?? "new"}
             className="grid gap-3 pt-4"
+            hidden={!canManage && !category}
             onSubmit={(e) => {
               e.preventDefault();
+              if (!canManage) return;
               const f = new FormData(e.currentTarget);
               void run(async () => {
                 await saveCategory({
@@ -151,6 +161,7 @@ export function CatalogPanel({
               Cadastre uma categoria para identificar e organizar os produtos relacionados.
             </FormHelp>
             <Fields
+              disabled={!canManage}
               fields={[
                 [
                   "Nome",
@@ -176,6 +187,7 @@ export function CatalogPanel({
                 defaultValue={category?.description ?? ""}
                 placeholder="Descrição"
                 maxLength={2000}
+                disabled={!canManage}
               />
               <FormHelp>
                 Resumo da categoria. Pode ser usado quando essa categoria for apresentada em uma
@@ -186,17 +198,21 @@ export function CatalogPanel({
               name="active"
               label="Categoria ativa"
               defaultChecked={category?.isActive ?? true}
+              disabled={!canManage}
               help="Indica se esta categoria está ativa no catálogo. Ativar não cria automaticamente um item no menu."
             />
-            <Button className="w-fit" disabled={pending}>
-              <Save />
-              Salvar categoria
-            </Button>
+            {canManage ? (
+              <Button className="w-fit" disabled={pending}>
+                <Save />
+                Salvar categoria
+              </Button>
+            ) : null}
           </form>
           <List
             items={catalog.categories}
             empty="Nenhuma categoria cadastrada."
             pending={pending}
+            canManage={canManage}
             detail={(x) => x.slug}
             edit={(x) => setCategory(x)}
             toggle={(x) =>
@@ -221,8 +237,10 @@ export function CatalogPanel({
           <form
             key={attribute?.id ?? "new"}
             className="grid gap-3 pt-4"
+            hidden={!canManage && !attribute}
             onSubmit={(e) => {
               e.preventDefault();
+              if (!canManage) return;
               const f = new FormData(e.currentTarget);
               void run(async () => {
                 await saveAttribute({
@@ -247,6 +265,7 @@ export function CatalogPanel({
               esses valores poderão ser usados para montar versões diferentes do produto.
             </FormHelp>
             <Fields
+              disabled={!canManage}
               fields={[
                 [
                   "Nome",
@@ -278,6 +297,7 @@ export function CatalogPanel({
                 name="displayType"
                 defaultValue={attribute?.displayType ?? "text"}
                 className="h-9 rounded-md border bg-background px-3"
+                disabled={!canManage}
               >
                 <option value="text">Texto</option>
                 <option value="swatch">Amostra</option>
@@ -291,18 +311,22 @@ export function CatalogPanel({
               name="filterable"
               label="Usar em filtros"
               defaultChecked={attribute?.isFilterable ?? false}
+              disabled={!canManage}
               help="Indica que este atributo foi preparado para filtros. O filtro público ainda depende de uma interface própria."
             />
             <Check
               name="axis"
               label="Eixo de variante"
               defaultChecked={attribute?.isVariantAxis ?? false}
+              disabled={!canManage}
               help="Use quando os valores deste atributo diferenciarem versões do mesmo produto, como tamanho ou cor."
             />
-            <Button className="w-fit" disabled={pending}>
-              <Save />
-              Salvar atributo
-            </Button>
+            {canManage ? (
+              <Button className="w-fit" disabled={pending}>
+                <Save />
+                Salvar atributo
+              </Button>
+            ) : null}
           </form>
           <div className="mt-5 space-y-3">
             {catalog.attributes.length === 0 ? (
@@ -317,19 +341,37 @@ export function CatalogPanel({
                         {item.code} · {item.displayType} · posição {item.position}
                       </p>
                     </div>
-                    <Actions
-                      onEdit={() => {
-                        setAttribute(item);
-                        setAttributeValue(null);
-                      }}
-                      onDelete={() =>
-                        void run(
-                          () =>
-                            removeAttribute({ data: { slug, id: item.id } }).then(() => undefined),
-                          "Atributo removido.",
-                        )
-                      }
-                    />
+                    {canManage ? (
+                      <Actions
+                        canManage={canManage}
+                        onEdit={() => {
+                          setAttribute(item);
+                          setAttributeValue(null);
+                        }}
+                        onDelete={() =>
+                          void run(
+                            () =>
+                              removeAttribute({ data: { slug, id: item.id } }).then(
+                                () => undefined,
+                              ),
+                            "Atributo removido.",
+                          )
+                        }
+                      />
+                    ) : null}
+                    {!canManage ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setAttribute(item);
+                          setAttributeValue(null);
+                        }}
+                      >
+                        Visualizar
+                      </Button>
+                    ) : null}
                   </div>
                   <AttributeValues
                     attribute={item}
@@ -360,6 +402,7 @@ export function CatalogPanel({
                         "Valor removido.",
                       )
                     }
+                    canManage={canManage}
                   />
                 </div>
               ))
@@ -370,8 +413,10 @@ export function CatalogPanel({
           <form
             key={selectedProduct?.id ?? "new"}
             className="grid gap-3 pt-4"
+            hidden={!canManage && !selectedProduct}
             onSubmit={(e) => {
               e.preventDefault();
+              if (!canManage) return;
               const f = new FormData(e.currentTarget);
               void run(async () => {
                 const saved = await saveProduct({
@@ -395,6 +440,7 @@ export function CatalogPanel({
               também precisa fazer parte da composição dessa página.
             </FormHelp>
             <Fields
+              disabled={!canManage}
               fields={[
                 [
                   "Nome",
@@ -425,6 +471,7 @@ export function CatalogPanel({
               <select
                 className="h-9 rounded-md border bg-background px-3"
                 value={categoryId}
+                disabled={!canManage}
                 onChange={(e) => setCategoryId(e.target.value)}
               >
                 <option value={none}>Sem categoria</option>
@@ -444,6 +491,7 @@ export function CatalogPanel({
                 placeholder="Descrição"
                 maxLength={20000}
                 required
+                disabled={!canManage}
               />
               <FormHelp>Informações descritivas do produto.</FormHelp>
             </label>
@@ -451,17 +499,21 @@ export function CatalogPanel({
               name="active"
               label="Produto ativo"
               defaultChecked={selectedProduct?.isActive ?? true}
+              disabled={!canManage}
               help="Indica se o produto está ativo no catálogo. Isso não publica automaticamente uma página de produto."
             />
-            <Button className="w-fit" disabled={pending}>
-              <Save />
-              Salvar produto
-            </Button>
+            {canManage ? (
+              <Button className="w-fit" disabled={pending}>
+                <Save />
+                Salvar produto
+              </Button>
+            ) : null}
           </form>
           <List
             items={catalog.products}
             empty="Nenhum produto cadastrado."
             pending={pending}
+            canManage={canManage}
             detail={(x) => `${x.slug} · R$ ${x.price.toFixed(2)}`}
             edit={(x) => {
               setProduct(x);
@@ -494,6 +546,7 @@ export function CatalogPanel({
               mediaAssets={mediaData.data ?? []}
               variant={variant}
               pending={pending}
+              canManage={canManage}
               onSetValues={(ids) =>
                 void run(
                   () =>
@@ -564,6 +617,7 @@ export function CatalogPanel({
 }
 function Fields({
   fields,
+  disabled = false,
 }: {
   fields: [
     string,
@@ -573,6 +627,7 @@ function Fields({
     (string | undefined)?,
     (string | undefined)?,
   ][];
+  disabled?: boolean;
 }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -582,6 +637,7 @@ function Fields({
           <Input
             name={name}
             type={type}
+            disabled={disabled}
             defaultValue={value}
             min={type === "number" ? "0" : undefined}
             step={type === "number" ? "0.01" : undefined}
@@ -601,17 +657,25 @@ function Check({
   defaultChecked,
   value,
   help,
+  disabled = false,
 }: {
   name: string;
   label: string;
   defaultChecked: boolean;
   value?: string;
   help?: string;
+  disabled?: boolean;
 }) {
   return (
     <div className="grid gap-1">
       <label className="flex items-center gap-2 text-sm">
-        <input name={name} type="checkbox" value={value} defaultChecked={defaultChecked} />
+        <input
+          name={name}
+          type="checkbox"
+          value={value}
+          defaultChecked={defaultChecked}
+          disabled={disabled}
+        />
         {label}
       </label>
       {help ? <FormHelp>{help}</FormHelp> : null}
@@ -621,7 +685,17 @@ function Check({
 function Empty({ text }: { text: string }) {
   return <p className="mt-4 text-sm text-muted-foreground">{text}</p>;
 }
-function Actions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+function Actions({
+  canManage,
+  onEdit,
+  onDelete,
+}: {
+  canManage: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  if (!canManage) return null;
+
   return (
     <div className="flex gap-1">
       <Button type="button" size="icon" variant="ghost" onClick={onEdit} aria-label="Editar">
@@ -645,6 +719,7 @@ function List<T extends { id: string; name: string; isActive: boolean }>({
   items,
   empty,
   pending,
+  canManage,
   detail,
   edit,
   toggle,
@@ -652,6 +727,7 @@ function List<T extends { id: string; name: string; isActive: boolean }>({
   items: T[];
   empty: string;
   pending: boolean;
+  canManage: boolean;
   detail: (item: T) => string;
   edit: (item: T) => void;
   toggle: (item: T) => void;
@@ -666,19 +742,21 @@ function List<T extends { id: string; name: string; isActive: boolean }>({
             <p className="text-xs text-muted-foreground">{detail(item)}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Switch
-              checked={item.isActive}
-              disabled={pending}
-              onCheckedChange={() => toggle(item)}
-            />
+            {canManage ? (
+              <Switch
+                checked={item.isActive}
+                disabled={pending}
+                onCheckedChange={() => toggle(item)}
+              />
+            ) : null}
             <Button
               type="button"
-              size="icon"
-              variant="ghost"
+              size={canManage ? "icon" : "sm"}
+              variant={canManage ? "ghost" : "outline"}
               onClick={() => edit(item)}
-              aria-label={`Editar ${item.name}`}
+              aria-label={`${canManage ? "Editar" : "Visualizar"} ${item.name}`}
             >
-              <Pencil />
+              {canManage ? <Pencil /> : "Visualizar"}
             </Button>
           </div>
         </li>
@@ -691,6 +769,7 @@ function AttributeValues({
   values,
   editing,
   pending,
+  canManage,
   onEdit,
   onSave,
   onDelete,
@@ -699,6 +778,7 @@ function AttributeValues({
   values: CatalogAttributeValue[];
   editing: CatalogAttributeValue | null;
   pending: boolean;
+  canManage: boolean;
   onEdit: (value: CatalogAttributeValue) => void;
   onSave: (form: FormData) => void;
   onDelete: (id: string) => void;
@@ -710,68 +790,71 @@ function AttributeValues({
         No atributo &quot;Cor&quot;, por exemplo, cada valor representa uma opção como Azul, Preto
         ou Branco.
       </FormHelp>
-      <form
-        key={editing?.id ?? "new"}
-        className="mt-2 grid gap-2 sm:grid-cols-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSave(new FormData(e.currentTarget));
-        }}
-      >
-        <label className="grid gap-1 text-sm">
-          Valor
-          <Input
-            name="value"
-            defaultValue={editing?.value ?? ""}
-            placeholder="Valor"
-            maxLength={160}
-            required
-          />
-          <FormHelp tooltip="Uma opção de um atributo, como Azul para o atributo Cor.">
-            Identificador da opção. Exemplo: azul
-          </FormHelp>
-        </label>
-        <label className="grid gap-1 text-sm">
-          Rótulo
-          <Input
-            name="label"
-            defaultValue={editing?.label ?? ""}
-            placeholder="Rótulo"
-            maxLength={160}
-            required
-          />
-          <FormHelp>Nome legível apresentado para o usuário. Exemplo: Azul</FormHelp>
-        </label>
-        {attribute.displayType === "swatch" ? (
+      {canManage ? (
+        <form
+          key={editing?.id ?? "new"}
+          className="mt-2 grid gap-2 sm:grid-cols-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!canManage) return;
+            onSave(new FormData(e.currentTarget));
+          }}
+        >
           <label className="grid gap-1 text-sm">
-            Amostra
+            Valor
             <Input
-              name="swatch"
-              defaultValue={editing?.swatchValue ?? ""}
-              placeholder="Amostra"
+              name="value"
+              defaultValue={editing?.value ?? ""}
+              placeholder="Valor"
               maxLength={160}
+              required
             />
-            <FormHelp>
-              Informação adicional usada quando o atributo utiliza o tipo &quot;Amostra&quot;.
+            <FormHelp tooltip="Uma opção de um atributo, como Azul para o atributo Cor.">
+              Identificador da opção. Exemplo: azul
             </FormHelp>
           </label>
-        ) : null}
-        <label className="grid gap-1 text-sm">
-          Posição
-          <Input
-            name="position"
-            type="number"
-            min="0"
-            defaultValue={editing?.position ?? 0}
-            required
-          />
-          <FormHelp>Define a ordem dessa opção.</FormHelp>
-        </label>
-        <Button disabled={pending} className="w-fit">
-          <Plus />
-          Salvar valor
-        </Button>
-      </form>
+          <label className="grid gap-1 text-sm">
+            Rótulo
+            <Input
+              name="label"
+              defaultValue={editing?.label ?? ""}
+              placeholder="Rótulo"
+              maxLength={160}
+              required
+            />
+            <FormHelp>Nome legível apresentado para o usuário. Exemplo: Azul</FormHelp>
+          </label>
+          {attribute.displayType === "swatch" ? (
+            <label className="grid gap-1 text-sm">
+              Amostra
+              <Input
+                name="swatch"
+                defaultValue={editing?.swatchValue ?? ""}
+                placeholder="Amostra"
+                maxLength={160}
+              />
+              <FormHelp>
+                Informação adicional usada quando o atributo utiliza o tipo &quot;Amostra&quot;.
+              </FormHelp>
+            </label>
+          ) : null}
+          <label className="grid gap-1 text-sm">
+            Posição
+            <Input
+              name="position"
+              type="number"
+              min="0"
+              defaultValue={editing?.position ?? 0}
+              required
+            />
+            <FormHelp>Define a ordem dessa opção.</FormHelp>
+          </label>
+          <Button disabled={pending} className="w-fit">
+            <Plus />
+            Salvar valor
+          </Button>
+        </form>
+      ) : null}
       {values.length ? (
         <ul className="mt-3 divide-y">
           {values.map((x) => (
@@ -779,7 +862,13 @@ function AttributeValues({
               <span>
                 {x.label} <span className="text-muted-foreground">({x.value})</span>
               </span>
-              <Actions onEdit={() => onEdit(x)} onDelete={() => onDelete(x.id)} />
+              {canManage ? (
+                <Actions
+                  canManage={canManage}
+                  onEdit={() => onEdit(x)}
+                  onDelete={() => onDelete(x.id)}
+                />
+              ) : null}
             </li>
           ))}
         </ul>
@@ -795,6 +884,7 @@ function ProductDetails({
   mediaAssets,
   variant,
   pending,
+  canManage,
   onSetValues,
   onSaveVariant,
   onEditVariant,
@@ -807,6 +897,7 @@ function ProductDetails({
   mediaAssets: MediaAsset[];
   variant: ProductVariant | null;
   pending: boolean;
+  canManage: boolean;
   onSetValues: (ids: string[]) => void;
   onSaveVariant: (
     form: FormData,
@@ -839,39 +930,44 @@ function ProductDetails({
           className="mt-2 grid gap-2"
           onSubmit={(e) => {
             e.preventDefault();
+            if (!canManage) return;
             const f = new FormData(e.currentTarget);
             onSetValues(f.getAll("value").map(String));
           }}
         >
-          <FormHelp variant="callout">
-            Selecione os valores de atributos que realmente estão disponíveis neste produto.
-            Exemplo: para Tamanho, marque P, M e G.
-          </FormHelp>
-          {catalog.attributes.length ? (
-            catalog.attributes.map((attribute) => (
-              <fieldset key={attribute.id} className="rounded border p-2">
-                <legend className="px-1 text-sm">{attribute.name}</legend>
-                {catalog.attributeValues
-                  .filter((value) => value.attributeId === attribute.id)
-                  .map((value) => (
-                    <Check
-                      key={value.id}
-                      name="value"
-                      value={value.id}
-                      label={value.label}
-                      defaultChecked={productValueIds.has(value.id)}
-                    />
-                  ))}
-              </fieldset>
-            ))
-          ) : (
-            <Empty text="Crie atributos e valores para associá-los ao produto." />
-          )}
-          <FormHelp>Associar valores ao produto não cria variantes automaticamente.</FormHelp>
-          <Button className="w-fit" disabled={pending || !catalog.attributes.length}>
-            <Save />
-            Salvar atributos
-          </Button>
+          <fieldset disabled={!canManage} className="contents">
+            <FormHelp variant="callout">
+              Selecione os valores de atributos que realmente estão disponíveis neste produto.
+              Exemplo: para Tamanho, marque P, M e G.
+            </FormHelp>
+            {catalog.attributes.length ? (
+              catalog.attributes.map((attribute) => (
+                <fieldset key={attribute.id} className="rounded border p-2">
+                  <legend className="px-1 text-sm">{attribute.name}</legend>
+                  {catalog.attributeValues
+                    .filter((value) => value.attributeId === attribute.id)
+                    .map((value) => (
+                      <Check
+                        key={value.id}
+                        name="value"
+                        value={value.id}
+                        label={value.label}
+                        defaultChecked={productValueIds.has(value.id)}
+                      />
+                    ))}
+                </fieldset>
+              ))
+            ) : (
+              <Empty text="Crie atributos e valores para associá-los ao produto." />
+            )}
+            <FormHelp>Associar valores ao produto não cria variantes automaticamente.</FormHelp>
+            {canManage ? (
+              <Button className="w-fit" disabled={pending || !catalog.attributes.length}>
+                <Save />
+                Salvar atributos
+              </Button>
+            ) : null}
+          </fieldset>
         </form>
       </div>
       <div>
@@ -887,87 +983,91 @@ function ProductDetails({
         <p className="text-xs text-muted-foreground">
           Exemplo: Produto: Camiseta básica · Variante: Azul / M · SKU: CAM-AZ-M · Preço: 59,90
         </p>
-        <form
-          key={variant?.id ?? "new"}
-          className="mt-2 grid gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const f = new FormData(e.currentTarget);
-            const choices = axes
-              .map((axis) => ({
-                attributeId: axis.id,
-                attributeValueId: String(f.get(`axis-${axis.id}`) ?? ""),
-              }))
-              .filter((x) => x.attributeValueId);
-            onSaveVariant(f, choices);
-          }}
-        >
-          <Fields
-            fields={[
-              [
-                "SKU",
-                "sku",
-                variant?.sku ?? "",
-                undefined,
-                "Identificador da variante, normalmente usado para controle interno. Exemplo: CAM-AZ-M",
-                "Identificador usado para controlar uma variante do produto.",
-              ],
-              [
-                "Preço",
-                "variantPrice",
-                String(variant?.price ?? product.price),
-                "number",
-                "Preço específico desta variante.",
-              ],
-              [
-                "Preço comparativo",
-                "compare",
-                variant?.compareAtPrice?.toString() ?? "",
-                "number",
-                "Outro valor de referência registrado para a variante. Não representa automaticamente uma promoção ou desconto.",
-              ],
-              [
-                "Posição",
-                "variantPosition",
-                String(variant?.position ?? 0),
-                "number",
-                "Define a ordem da variante.",
-              ],
-            ]}
-          />
-          {axes.map((axis) => (
-            <label key={axis.id} className="grid gap-2 text-sm">
-              {axis.name}
-              <select
-                name={`axis-${axis.id}`}
-                defaultValue={variantValues.get(axis.id) ?? ""}
-                className="h-9 rounded-md border bg-background px-3"
-              >
-                <option value="">Sem seleção</option>
-                {catalog.attributeValues
-                  .filter((value) => value.attributeId === axis.id && productValueIds.has(value.id))
-                  .map((value) => (
-                    <option key={value.id} value={value.id}>
-                      {value.label}
-                    </option>
-                  ))}
-              </select>
-              <FormHelp>
-                Escolha valores já associados ao produto para definir esta variante.
-              </FormHelp>
-            </label>
-          ))}
-          <Check
-            name="variantActive"
-            label="Variante ativa"
-            defaultChecked={variant?.isActive ?? true}
-            help="Indica se esta variante está ativa."
-          />
-          <Button className="w-fit" disabled={pending}>
-            <Save />
-            Salvar variante
-          </Button>
-        </form>
+        {canManage ? (
+          <form
+            key={variant?.id ?? "new"}
+            className="mt-2 grid gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const f = new FormData(e.currentTarget);
+              const choices = axes
+                .map((axis) => ({
+                  attributeId: axis.id,
+                  attributeValueId: String(f.get(`axis-${axis.id}`) ?? ""),
+                }))
+                .filter((x) => x.attributeValueId);
+              onSaveVariant(f, choices);
+            }}
+          >
+            <Fields
+              fields={[
+                [
+                  "SKU",
+                  "sku",
+                  variant?.sku ?? "",
+                  undefined,
+                  "Identificador da variante, normalmente usado para controle interno. Exemplo: CAM-AZ-M",
+                  "Identificador usado para controlar uma variante do produto.",
+                ],
+                [
+                  "Preço",
+                  "variantPrice",
+                  String(variant?.price ?? product.price),
+                  "number",
+                  "Preço específico desta variante.",
+                ],
+                [
+                  "Preço comparativo",
+                  "compare",
+                  variant?.compareAtPrice?.toString() ?? "",
+                  "number",
+                  "Outro valor de referência registrado para a variante. Não representa automaticamente uma promoção ou desconto.",
+                ],
+                [
+                  "Posição",
+                  "variantPosition",
+                  String(variant?.position ?? 0),
+                  "number",
+                  "Define a ordem da variante.",
+                ],
+              ]}
+            />
+            {axes.map((axis) => (
+              <label key={axis.id} className="grid gap-2 text-sm">
+                {axis.name}
+                <select
+                  name={`axis-${axis.id}`}
+                  defaultValue={variantValues.get(axis.id) ?? ""}
+                  className="h-9 rounded-md border bg-background px-3"
+                >
+                  <option value="">Sem seleção</option>
+                  {catalog.attributeValues
+                    .filter(
+                      (value) => value.attributeId === axis.id && productValueIds.has(value.id),
+                    )
+                    .map((value) => (
+                      <option key={value.id} value={value.id}>
+                        {value.label}
+                      </option>
+                    ))}
+                </select>
+                <FormHelp>
+                  Escolha valores já associados ao produto para definir esta variante.
+                </FormHelp>
+              </label>
+            ))}
+            <Check
+              name="variantActive"
+              label="Variante ativa"
+              defaultChecked={variant?.isActive ?? true}
+              help="Indica se esta variante está ativa."
+            />
+            <Button className="w-fit" disabled={pending}>
+              <Save />
+              Salvar variante
+            </Button>
+          </form>
+        ) : null}
         {variants.length ? (
           <ul className="mt-3 divide-y">
             {variants.map((x) => (
@@ -975,7 +1075,13 @@ function ProductDetails({
                 <span>
                   {x.sku ?? "Sem SKU"} · R$ {x.price.toFixed(2)}
                 </span>
-                <Actions onEdit={() => onEditVariant(x)} onDelete={() => onDeleteVariant(x.id)} />
+                {canManage ? (
+                  <Actions
+                    canManage={canManage}
+                    onEdit={() => onEditVariant(x)}
+                    onDelete={() => onDeleteVariant(x.id)}
+                  />
+                ) : null}
               </li>
             ))}
           </ul>
@@ -993,102 +1099,106 @@ function ProductDetails({
           Selecionar uma mídia da biblioteca não cria um novo upload; apenas associa a mídia ao
           produto.
         </FormHelp>
-        <form
-          key={editingImage?.id ?? "new-image"}
-          className="mt-2 grid gap-2 sm:grid-cols-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            onSaveImage(new FormData(e.currentTarget), editingImage?.id ?? null);
-            setEditingImage(null);
-          }}
-        >
-          <label className="grid gap-2 text-sm">
-            Mídia da biblioteca
-            <select
-              name="mediaAssetId"
-              defaultValue={editingImage?.mediaAssetId ?? ""}
-              className="h-9 rounded-md border bg-background px-3"
-              onChange={(event) => {
-                if (event.currentTarget.value) {
-                  const url = event.currentTarget.form?.elements.namedItem("url");
-                  if (url instanceof HTMLInputElement) url.value = "";
-                }
-              }}
-            >
-              <option value="">Nenhuma</option>
-              {mediaAssets.map((asset) => (
-                <option key={asset.id} value={asset.id}>
-                  {asset.filename}
-                </option>
-              ))}
-            </select>
-            <FormHelp>
-              Mídia é uma imagem armazenada ou referenciada na Biblioteca de mídia. Selecione uma
-              mídia já cadastrada na Biblioteca.
-            </FormHelp>
-          </label>
-          <label className="grid gap-1 text-sm">
-            URL externa
-            <Input
-              name="url"
-              type="url"
-              placeholder="URL externa https://..."
-              maxLength={2000}
-              defaultValue={editingImage?.url ?? ""}
-              onChange={(event) => {
-                if (event.currentTarget.value) {
-                  const media = event.currentTarget.form?.elements.namedItem("mediaAssetId");
-                  if (media instanceof HTMLSelectElement) media.value = "";
-                }
-              }}
+        {canManage ? (
+          <form
+            key={editingImage?.id ?? "new-image"}
+            className="mt-2 grid gap-2 sm:grid-cols-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              onSaveImage(new FormData(e.currentTarget), editingImage?.id ?? null);
+              setEditingImage(null);
+            }}
+          >
+            <label className="grid gap-2 text-sm">
+              Mídia da biblioteca
+              <select
+                name="mediaAssetId"
+                defaultValue={editingImage?.mediaAssetId ?? ""}
+                className="h-9 rounded-md border bg-background px-3"
+                onChange={(event) => {
+                  if (event.currentTarget.value) {
+                    const url = event.currentTarget.form?.elements.namedItem("url");
+                    if (url instanceof HTMLInputElement) url.value = "";
+                  }
+                }}
+              >
+                <option value="">Nenhuma</option>
+                {mediaAssets.map((asset) => (
+                  <option key={asset.id} value={asset.id}>
+                    {asset.filename}
+                  </option>
+                ))}
+              </select>
+              <FormHelp>
+                Mídia é uma imagem armazenada ou referenciada na Biblioteca de mídia. Selecione uma
+                mídia já cadastrada na Biblioteca.
+              </FormHelp>
+            </label>
+            <label className="grid gap-1 text-sm">
+              URL externa
+              <Input
+                name="url"
+                type="url"
+                placeholder="URL externa https://..."
+                maxLength={2000}
+                defaultValue={editingImage?.url ?? ""}
+                onChange={(event) => {
+                  if (event.currentTarget.value) {
+                    const media = event.currentTarget.form?.elements.namedItem("mediaAssetId");
+                    if (media instanceof HTMLSelectElement) media.value = "";
+                  }
+                }}
+              />
+              <FormHelp>
+                Use o endereço HTTP(S) direto de uma imagem hospedada externamente.
+              </FormHelp>
+            </label>
+            <label className="grid gap-1 text-sm">
+              Alt
+              <Input
+                name="alt"
+                placeholder="Texto alternativo"
+                maxLength={500}
+                defaultValue={editingImage?.altText ?? ""}
+              />
+              <FormHelp tooltip="Descrição textual da imagem para acessibilidade.">
+                Descreva a imagem de forma útil para quem não consegue vê-la. Exemplo: Camiseta azul
+                de manga curta vista de frente
+              </FormHelp>
+            </label>
+            <label className="grid gap-1 text-sm">
+              Posição
+              <Input
+                name="imagePosition"
+                type="number"
+                min="0"
+                defaultValue={String(editingImage?.position ?? 0)}
+                required
+              />
+              <FormHelp>Define a ordem das imagens do produto.</FormHelp>
+            </label>
+            <Check
+              name="primary"
+              label="Imagem principal"
+              defaultChecked={editingImage?.isPrimary ?? images.length === 0}
+              help="Marque a imagem que melhor representa o produto."
             />
-            <FormHelp>Use o endereço HTTP(S) direto de uma imagem hospedada externamente.</FormHelp>
-          </label>
-          <label className="grid gap-1 text-sm">
-            Alt
-            <Input
-              name="alt"
-              placeholder="Texto alternativo"
-              maxLength={500}
-              defaultValue={editingImage?.altText ?? ""}
-            />
-            <FormHelp tooltip="Descrição textual da imagem para acessibilidade.">
-              Descreva a imagem de forma útil para quem não consegue vê-la. Exemplo: Camiseta azul
-              de manga curta vista de frente
-            </FormHelp>
-          </label>
-          <label className="grid gap-1 text-sm">
-            Posição
-            <Input
-              name="imagePosition"
-              type="number"
-              min="0"
-              defaultValue={String(editingImage?.position ?? 0)}
-              required
-            />
-            <FormHelp>Define a ordem das imagens do produto.</FormHelp>
-          </label>
-          <Check
-            name="primary"
-            label="Imagem principal"
-            defaultChecked={editingImage?.isPrimary ?? images.length === 0}
-            help="Marque a imagem que melhor representa o produto."
-          />
-          <Button className="w-fit" disabled={pending}>
-            <Plus />
-            {editingImage ? "Salvar imagem" : "Adicionar imagem"}
-          </Button>
-          {editingImage ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-fit"
-              onClick={() => setEditingImage(null)}
-            >
-              Cancelar
+            <Button className="w-fit" disabled={pending}>
+              <Plus />
+              {editingImage ? "Salvar imagem" : "Adicionar imagem"}
             </Button>
-          ) : null}
-        </form>
+            {editingImage ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-fit"
+                onClick={() => setEditingImage(null)}
+              >
+                Cancelar
+              </Button>
+            ) : null}
+          </form>
+        ) : null}
         {images.length ? (
           <ul className="mt-3 divide-y">
             {images.map((image) => (
@@ -1112,10 +1222,13 @@ function ProductDetails({
                       "Mídia associada"}
                   </span>
                 </div>
-                <Actions
-                  onEdit={() => setEditingImage(image)}
-                  onDelete={() => onDeleteImage(image.id)}
-                />
+                {canManage ? (
+                  <Actions
+                    canManage={canManage}
+                    onEdit={() => setEditingImage(image)}
+                    onDelete={() => onDeleteImage(image.id)}
+                  />
+                ) : null}
               </li>
             ))}
           </ul>

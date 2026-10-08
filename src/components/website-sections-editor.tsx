@@ -101,11 +101,13 @@ export function WebsiteSectionsEditor({
   status,
   sections: initialSections,
   storeSlug,
+  canManage,
 }: {
   pageId: string;
   status: WebsitePage["status"];
   sections: StorefrontSectionDefinition[];
   storeSlug: string | null;
+  canManage: boolean;
 }) {
   const [sections, setSections] = useState<StorefrontSectionDefinition[]>(() =>
     structuredClone(initialSections),
@@ -140,6 +142,7 @@ export function WebsiteSectionsEditor({
   });
 
   function replaceSection(sectionId: string, patch: Partial<StorefrontSectionDefinition>) {
+    if (!canManage) return;
     setSections((current) =>
       current.map((section) =>
         section.id === sectionId
@@ -160,6 +163,7 @@ export function WebsiteSectionsEditor({
     sectionId: string,
     action: { label: string; href: string } | undefined,
   ) {
+    if (!canManage) return;
     setSections((current) =>
       current.map((section) => {
         if (section.id !== sectionId || (section.type !== "hero" && section.type !== "banner"))
@@ -174,6 +178,7 @@ export function WebsiteSectionsEditor({
   }
 
   function addSection(type: StorefrontSectionDefinition["type"]) {
+    if (!canManage) return;
     const section = newSection(type);
     setSections((current) => [...current, section]);
     setExpandedIds((current) => [...current, section.id]);
@@ -183,6 +188,7 @@ export function WebsiteSectionsEditor({
   }
 
   function moveSection(index: number, direction: -1 | 1) {
+    if (!canManage) return;
     const destination = index + direction;
     if (destination < 0 || destination >= sections.length) return;
     setSections((current) => {
@@ -194,7 +200,7 @@ export function WebsiteSectionsEditor({
   }
 
   function saveRemoval() {
-    if (!removeTarget) return;
+    if (!canManage || !removeTarget) return;
     setSections((current) => current.filter((section) => section.id !== removeTarget));
     setExpandedIds((current) => current.filter((id) => id !== removeTarget));
     setSectionErrors((current) => {
@@ -207,6 +213,7 @@ export function WebsiteSectionsEditor({
   }
 
   async function submitSections() {
+    if (!canManage) return;
     setError(null);
     setFeedback(null);
     const parsed = parseStorefrontSectionsForSave(sections, initialSections);
@@ -246,7 +253,11 @@ export function WebsiteSectionsEditor({
     ) => (
       <Label>
         {label}
-        <Input value={value} onChange={(event) => onChange(event.target.value)} />
+        <Input
+          value={value}
+          disabled={!canManage}
+          onChange={(event) => onChange(event.target.value)}
+        />
         {help ? <FormHelp>{help}</FormHelp> : null}
       </Label>
     );
@@ -256,7 +267,11 @@ export function WebsiteSectionsEditor({
     ) => (
       <Label>
         Descrição
-        <Textarea value={value ?? ""} onChange={(event) => onChange(event.target.value)} />
+        <Textarea
+          value={value ?? ""}
+          disabled={!canManage}
+          onChange={(event) => onChange(event.target.value)}
+        />
       </Label>
     );
     const actionFields = (
@@ -270,6 +285,7 @@ export function WebsiteSectionsEditor({
             <input
               type="checkbox"
               checked={!!action}
+              disabled={!canManage}
               onChange={(event) =>
                 onChange(event.target.checked ? { label: "", href: "" } : undefined)
               }
@@ -325,7 +341,15 @@ export function WebsiteSectionsEditor({
                   : "Nenhuma mídia selecionada."}
               </p>
             )}
-            <Button type="button" variant="outline" onClick={() => setMediaTarget(section.id)}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!canManage}
+              title={
+                !canManage ? "Seu perfil permite apenas visualizar estas informações." : undefined
+              }
+              onClick={() => setMediaTarget(section.id)}
+            >
               <ImagePlus aria-hidden="true" /> Selecionar mídia
             </Button>
             {imageMediaAssetId ? (
@@ -334,6 +358,7 @@ export function WebsiteSectionsEditor({
                 variant="ghost"
                 size="sm"
                 aria-label="Remover mídia selecionada"
+                disabled={!canManage}
                 onClick={() => replaceSection(section.id, { imageMediaAssetId: null })}
               >
                 <X aria-hidden="true" /> Remover mídia
@@ -403,6 +428,7 @@ export function WebsiteSectionsEditor({
               <label key={category.id} className="flex items-start gap-2 text-sm">
                 <input
                   type="checkbox"
+                  disabled={!canManage}
                   checked={section.categories.some((item) => item.id === category.id)}
                   onChange={(event) => {
                     const categories = event.target.checked
@@ -453,6 +479,7 @@ export function WebsiteSectionsEditor({
               <label key={product.id} className="flex items-start gap-2 text-sm">
                 <input
                   type="checkbox"
+                  disabled={!canManage}
                   checked={section.products.some((item) => item.id === product.id)}
                   onChange={(event) => {
                     const products = event.target.checked
@@ -494,7 +521,7 @@ export function WebsiteSectionsEditor({
                     replaceSection(section.id, { contentFormat });
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger disabled={!canManage}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -520,6 +547,7 @@ export function WebsiteSectionsEditor({
               <Textarea
                 maxLength={STOREFRONT_TEXT_CONTENT_MAX_LENGTH}
                 value={section.content}
+                disabled={!canManage}
                 onChange={(event) => replaceSection(section.id, { content: event.target.value })}
               />
             </Label>
@@ -582,42 +610,50 @@ export function WebsiteSectionsEditor({
                 </span>
               </AccordionTrigger>
               <div className="flex shrink-0 items-center gap-1">
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  aria-label="Mover para cima"
-                  title="Mover para cima"
-                  disabled={index === 0}
-                  onClick={() => moveSection(index, -1)}
-                >
-                  <ArrowUp aria-hidden="true" />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  aria-label="Mover para baixo"
-                  title="Mover para baixo"
-                  disabled={index === sections.length - 1}
-                  onClick={() => moveSection(index, 1)}
-                >
-                  <ArrowDown aria-hidden="true" />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  aria-label="Remover seção"
-                  title="Remover seção"
-                  onClick={() => setRemoveTarget(section.id)}
-                >
-                  <Trash2 aria-hidden="true" />
-                </Button>
+                {canManage ? (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Mover para cima"
+                    title="Mover para cima"
+                    disabled={index === 0}
+                    onClick={() => moveSection(index, -1)}
+                  >
+                    <ArrowUp aria-hidden="true" />
+                  </Button>
+                ) : null}
+                {canManage ? (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Mover para baixo"
+                    title="Mover para baixo"
+                    disabled={index === sections.length - 1}
+                    onClick={() => moveSection(index, 1)}
+                  >
+                    <ArrowDown aria-hidden="true" />
+                  </Button>
+                ) : null}
+                {canManage ? (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Remover seção"
+                    title="Remover seção"
+                    onClick={() => setRemoveTarget(section.id)}
+                  >
+                    <Trash2 aria-hidden="true" />
+                  </Button>
+                ) : null}
               </div>
             </div>
             <AccordionContent className="grid gap-4 pt-2">
-              {sectionEditor(section)}
+              <fieldset disabled={!canManage} className="contents">
+                {sectionEditor(section)}
+              </fieldset>
               {sectionErrors[section.id] ? (
                 <p className="text-sm text-destructive" role="alert">
                   {sectionErrors[section.id]}
@@ -627,18 +663,20 @@ export function WebsiteSectionsEditor({
           </AccordionItem>
         ))}
       </Accordion>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setShowAddOptions((shown) => !shown)}
-        >
-          <Plus aria-hidden="true" /> Adicionar seção
-        </Button>
-        <Button type="button" disabled={pending} onClick={submitSections}>
-          <Save aria-hidden="true" /> {pending ? "Salvando…" : "Salvar seções"}
-        </Button>
-      </div>
+      {canManage ? (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowAddOptions((shown) => !shown)}
+          >
+            <Plus aria-hidden="true" /> Adicionar seção
+          </Button>
+          <Button type="button" disabled={pending} onClick={submitSections}>
+            <Save aria-hidden="true" /> {pending ? "Salvando…" : "Salvar seções"}
+          </Button>
+        </div>
+      ) : null}
       {showAddOptions ? (
         <div className="flex flex-wrap gap-2 rounded-md border p-3" aria-label="Tipos de seção">
           {sectionChoices.map(([type, label]) => (

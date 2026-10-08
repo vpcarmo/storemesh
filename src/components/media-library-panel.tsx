@@ -12,6 +12,7 @@ import {
   updateCurrentStoreMedia,
 } from "@/auth/media.functions";
 import { useAdminStore } from "@/components/admin/admin-store-context";
+import { AdminReadOnlyNotice } from "@/components/admin/admin-read-only-notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,7 +49,8 @@ function formatSize(size: number | null) {
 }
 
 export function MediaLibraryPanel() {
-  const { storeSlug, requiresStoreSelection } = useAdminStore();
+  const { storeSlug, requiresStoreSelection, hasPermission } = useAdminStore();
+  const canManage = hasPermission("media.manage");
   const queryClient = useQueryClient();
   const listMedia = useServerFn(getCurrentStoreMedia);
   const startUpload = useServerFn(startCurrentStoreMediaUpload);
@@ -73,7 +75,7 @@ export function MediaLibraryPanel() {
   }
 
   async function handleUpload(file: File | undefined) {
-    if (!file) return;
+    if (!canManage || !file) return;
     if (!file.type.startsWith("image/")) {
       setFeedback("Selecione um arquivo de imagem.");
       return;
@@ -112,6 +114,7 @@ export function MediaLibraryPanel() {
   }
 
   function run(action: () => Promise<unknown>, message: string, invalidatePreview = false) {
+    if (!canManage) return;
     setPending(true);
     setFeedback(null);
     void action()
@@ -122,6 +125,7 @@ export function MediaLibraryPanel() {
 
   function addExternal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canManage) return;
     const form = new FormData(event.currentTarget);
     run(
       () =>
@@ -155,7 +159,10 @@ export function MediaLibraryPanel() {
             imagem para a biblioteca não a associa automaticamente a um produto ou página.
           </p>
         </div>
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground hover:opacity-90">
+        <label
+          hidden={!canManage}
+          className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground hover:opacity-90"
+        >
           <Upload aria-hidden="true" className="size-4" />
           Enviar mídia
           <input
@@ -171,12 +178,20 @@ export function MediaLibraryPanel() {
         </label>
       </header>
 
-      <FormHelp variant="callout">
-        Envie uma imagem para armazená-la na biblioteca desta loja. Depois do upload, a mídia pode
-        ser utilizada em cadastros compatíveis.
-      </FormHelp>
+      <AdminReadOnlyNotice permission="media.manage" />
 
-      <form className="grid gap-3 border-b pb-5 sm:grid-cols-[1fr_1fr_auto]" onSubmit={addExternal}>
+      {canManage ? (
+        <FormHelp variant="callout">
+          Envie uma imagem para armazená-la na biblioteca desta loja. Depois do upload, a mídia pode
+          ser utilizada em cadastros compatíveis.
+        </FormHelp>
+      ) : null}
+
+      <form
+        className="grid gap-3 border-b pb-5 sm:grid-cols-[1fr_1fr_auto]"
+        hidden={!canManage}
+        onSubmit={addExternal}
+      >
         <Label className="grid gap-2 text-sm">
           URL externa
           <Input
@@ -237,7 +252,7 @@ export function MediaLibraryPanel() {
                 <p className="text-xs text-muted-foreground">
                   Origem: {asset.sourceType === "upload" ? "Upload" : "Externa"}
                 </p>
-                <div className="flex gap-2 border-t pt-2">
+                <div className="flex gap-2 border-t pt-2" hidden={!canManage}>
                   <Button
                     type="button"
                     variant="ghost"

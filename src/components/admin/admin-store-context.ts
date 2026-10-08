@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 
-import type { StoreAccess } from "@/domain/access";
+import type { Permission, StoreAccess } from "@/domain/access";
 
 export interface AdminStoreContextValue {
   /** Slug informado ao backend; null deixa a resolução para a loja atribuída. */
@@ -9,6 +9,7 @@ export interface AdminStoreContextValue {
   requiresStoreSelection: boolean;
   stores: StoreAccess[];
   selectStore: (slug: string | null) => void;
+  hasPermission: (permission: Permission) => boolean;
 }
 
 export const AdminStoreContext = createContext<AdminStoreContextValue | null>(null);

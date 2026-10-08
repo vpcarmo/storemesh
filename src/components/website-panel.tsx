@@ -9,6 +9,8 @@ import {
   saveCurrentStoreNavigationItem,
   saveCurrentStorePage,
 } from "@/auth/website.functions";
+import { useAdminStore } from "@/components/admin/admin-store-context";
+import { AdminReadOnlyNotice } from "@/components/admin/admin-read-only-notice";
 import { FormHelp } from "@/components/admin/form-help";
 import { WebsiteSectionsEditor } from "@/components/website-sections-editor";
 import { Button } from "@/components/ui/button";
@@ -41,6 +43,8 @@ export function WebsitePanel({
   storeSlug: string | null;
   requiresStoreSelection: boolean;
 }) {
+  const { hasPermission } = useAdminStore();
+  const canManage = hasPermission("website.manage");
   const load = useServerFn(getCurrentStoreWebsite);
   const client = useQueryClient();
   const query = useQuery({
@@ -73,7 +77,7 @@ export function WebsitePanel({
     return <p className="text-sm text-destructive">{message(query.error)}</p>;
   const submitPage = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!page) return;
+    if (!page || !canManage) return;
     setError(null);
     try {
       await savePage({
@@ -96,7 +100,7 @@ export function WebsitePanel({
   };
   const submitNav = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!nav) return;
+    if (!nav || !canManage) return;
     setError(null);
     try {
       await saveNav({
@@ -127,19 +131,22 @@ export function WebsitePanel({
               : "Links exibidos na navegação pública."}
           </p>
         </div>
-        <Button
-          onClick={() => {
-            if (section === "pages") {
-              setPage(emptyPage);
-              setPreviewSlug(null);
-            } else {
-              setNav({ ...emptyNav, position: query.data.navigation.length });
-            }
-          }}
-        >
-          + {section === "pages" ? "Nova página" : "Novo item"}
-        </Button>
+        {canManage ? (
+          <Button
+            onClick={() => {
+              if (section === "pages") {
+                setPage(emptyPage);
+                setPreviewSlug(null);
+              } else {
+                setNav({ ...emptyNav, position: query.data.navigation.length });
+              }
+            }}
+          >
+            + {section === "pages" ? "Nova página" : "Novo item"}
+          </Button>
+        ) : null}
       </div>
+      <AdminReadOnlyNotice permission="website.manage" />
       {error && <p className="text-sm text-destructive">{error}</p>}
       {section === "pages" ? (
         <>
@@ -183,7 +190,7 @@ export function WebsitePanel({
                               setPreviewSlug(item.slug);
                             }}
                           >
-                            Editar
+                            {canManage ? "Editar" : "Visualizar"}
                           </Button>
                           <Button asChild variant="outline" size="sm">
                             <Link to="/admin/preview" search={{ page: item.slug }}>
@@ -205,73 +212,75 @@ export function WebsitePanel({
                 Os dados da página definem endereço, status e SEO. As seções definem o conteúdo
                 visual.
               </FormHelp>
-              <Label>
-                Título
-                <Input
-                  value={page.title}
-                  onChange={(e) => setPage({ ...page, title: e.target.value })}
-                  required
-                />
-                <FormHelp tooltip="Página é um conteúdo acessível por um endereço próprio.">
-                  Nome principal da página.
-                </FormHelp>
-              </Label>
-              <Label>
-                Slug
-                <Input
-                  value={page.slug}
-                  onChange={(e) => setPage({ ...page, slug: e.target.value })}
-                  required
-                  pattern="[a-z0-9]+(-[a-z0-9]+)*"
-                />
-                <FormHelp tooltip="Slug é o nome técnico usado como identificador amigável no endereço.">
-                  Parte amigável do endereço da página. Exemplo: sobre-nos
-                </FormHelp>
-              </Label>
-              <Label>
-                Status
-                <select
-                  className="mt-1 h-9 w-full rounded-md border bg-background px-3"
-                  value={page.status}
-                  onChange={(e) =>
-                    setPage({ ...page, status: e.target.value as WebsitePage["status"] })
-                  }
-                >
-                  <option value="draft">Rascunho</option>
-                  <option value="published">Publicada</option>
-                  <option value="archived">Arquivada</option>
-                </select>
+              <fieldset disabled={!canManage} className="contents">
+                <Label>
+                  Título
+                  <Input
+                    value={page.title}
+                    onChange={(e) => setPage({ ...page, title: e.target.value })}
+                    required
+                  />
+                  <FormHelp tooltip="Página é um conteúdo acessível por um endereço próprio.">
+                    Nome principal da página.
+                  </FormHelp>
+                </Label>
+                <Label>
+                  Slug
+                  <Input
+                    value={page.slug}
+                    onChange={(e) => setPage({ ...page, slug: e.target.value })}
+                    required
+                    pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                  />
+                  <FormHelp tooltip="Slug é o nome técnico usado como identificador amigável no endereço.">
+                    Parte amigável do endereço da página. Exemplo: sobre-nos
+                  </FormHelp>
+                </Label>
+                <Label>
+                  Status
+                  <select
+                    className="mt-1 h-9 w-full rounded-md border bg-background px-3"
+                    value={page.status}
+                    onChange={(e) =>
+                      setPage({ ...page, status: e.target.value as WebsitePage["status"] })
+                    }
+                  >
+                    <option value="draft">Rascunho</option>
+                    <option value="published">Publicada</option>
+                    <option value="archived">Arquivada</option>
+                  </select>
+                  <FormHelp>
+                    Rascunho: página em preparação. Publicada: página disponível publicamente.
+                    Arquivada: página retirada do fluxo público. Apenas páginas publicadas ficam
+                    disponíveis no endereço público.
+                  </FormHelp>
+                </Label>
+                <Label>
+                  SEO title
+                  <Input
+                    value={page.seoTitle ?? ""}
+                    onChange={(e) => setPage({ ...page, seoTitle: e.target.value })}
+                  />
+                  <FormHelp>
+                    Texto usado como título nos metadados da página. Se não for preenchido, o título
+                    da página será usado como alternativa.
+                  </FormHelp>
+                </Label>
+                <Label>
+                  SEO description
+                  <Textarea
+                    value={page.seoDescription ?? ""}
+                    onChange={(e) => setPage({ ...page, seoDescription: e.target.value })}
+                  />
+                  <FormHelp>
+                    Descrição usada nos metadados da página. Não é um editor do conteúdo visual.
+                  </FormHelp>
+                </Label>
                 <FormHelp>
-                  Rascunho: página em preparação. Publicada: página disponível publicamente.
-                  Arquivada: página retirada do fluxo público. Apenas páginas publicadas ficam
-                  disponíveis no endereço público.
+                  Alterar os campos de SEO posteriormente não significa que um Hero já existente
+                  será atualizado automaticamente.
                 </FormHelp>
-              </Label>
-              <Label>
-                SEO title
-                <Input
-                  value={page.seoTitle ?? ""}
-                  onChange={(e) => setPage({ ...page, seoTitle: e.target.value })}
-                />
-                <FormHelp>
-                  Texto usado como título nos metadados da página. Se não for preenchido, o título
-                  da página será usado como alternativa.
-                </FormHelp>
-              </Label>
-              <Label>
-                SEO description
-                <Textarea
-                  value={page.seoDescription ?? ""}
-                  onChange={(e) => setPage({ ...page, seoDescription: e.target.value })}
-                />
-                <FormHelp>
-                  Descrição usada nos metadados da página. Não é um editor do conteúdo visual.
-                </FormHelp>
-              </Label>
-              <FormHelp>
-                Alterar os campos de SEO posteriormente não significa que um Hero já existente será
-                atualizado automaticamente.
-              </FormHelp>
+              </fieldset>
               {page.id && "sections" in page ? (
                 <WebsiteSectionsEditor
                   key={page.id}
@@ -279,10 +288,11 @@ export function WebsitePanel({
                   status={page.status}
                   sections={page.sections}
                   storeSlug={storeSlug}
+                  canManage={canManage}
                 />
               ) : null}
               <div className="flex gap-2">
-                <Button type="submit">Salvar</Button>
+                {canManage ? <Button type="submit">Salvar</Button> : null}
                 <Button
                   type="button"
                   variant="outline"
@@ -291,7 +301,7 @@ export function WebsitePanel({
                     setPreviewSlug(null);
                   }}
                 >
-                  Cancelar
+                  {canManage ? "Cancelar" : "Fechar"}
                 </Button>
                 {page.id && previewSlug ? (
                   <Button asChild type="button" variant="outline">
@@ -328,18 +338,20 @@ export function WebsitePanel({
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => setNav(item)}>
-                    Editar
+                    {canManage ? "Editar" : "Visualizar"}
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={async () => {
-                      await removeNav({ data: { slug: storeSlug, id: item.id } });
-                      await refresh();
-                    }}
-                  >
-                    Excluir
-                  </Button>
+                  {canManage ? (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={async () => {
+                        await removeNav({ data: { slug: storeSlug, id: item.id } });
+                        await refresh();
+                      }}
+                    >
+                      Excluir
+                    </Button>
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -350,71 +362,73 @@ export function WebsitePanel({
               <FormHelp variant="callout">
                 Os itens de navegação definem os links que podem aparecer no menu público da loja.
               </FormHelp>
-              <Label>
-                Rótulo
-                <Input
-                  value={nav.label}
-                  onChange={(e) => setNav({ ...nav, label: e.target.value })}
-                  required
-                />
-                <FormHelp>Texto que o visitante verá no menu. Exemplo: Sobre nós</FormHelp>
-              </Label>
-              <Label>
-                Página interna
-                <select
-                  className="mt-1 h-9 w-full rounded-md border bg-background px-3"
-                  value={nav.pageId ?? ""}
-                  onChange={(e) => setNav({ ...nav, pageId: e.target.value, externalUrl: "" })}
-                >
-                  <option value="">Selecione se for link externo</option>
-                  {query.data.pages.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.title} (/{item.slug})
-                    </option>
-                  ))}
-                </select>
-                <FormHelp>Escolha uma página publicada da própria loja.</FormHelp>
-              </Label>
-              <Label>
-                URL externa
-                <Input
-                  type="url"
-                  value={nav.externalUrl ?? ""}
-                  onChange={(e) => setNav({ ...nav, externalUrl: e.target.value, pageId: "" })}
-                />
-                <FormHelp>
-                  Use quando o destino estiver fora do StoreMesh. Exemplo:
-                  https://instagram.com/exemplo
+              <fieldset disabled={!canManage} className="contents">
+                <Label>
+                  Rótulo
+                  <Input
+                    value={nav.label}
+                    onChange={(e) => setNav({ ...nav, label: e.target.value })}
+                    required
+                  />
+                  <FormHelp>Texto que o visitante verá no menu. Exemplo: Sobre nós</FormHelp>
+                </Label>
+                <Label>
+                  Página interna
+                  <select
+                    className="mt-1 h-9 w-full rounded-md border bg-background px-3"
+                    value={nav.pageId ?? ""}
+                    onChange={(e) => setNav({ ...nav, pageId: e.target.value, externalUrl: "" })}
+                  >
+                    <option value="">Selecione se for link externo</option>
+                    {query.data.pages.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.title} (/{item.slug})
+                      </option>
+                    ))}
+                  </select>
+                  <FormHelp>Escolha uma página publicada da própria loja.</FormHelp>
+                </Label>
+                <Label>
+                  URL externa
+                  <Input
+                    type="url"
+                    value={nav.externalUrl ?? ""}
+                    onChange={(e) => setNav({ ...nav, externalUrl: e.target.value, pageId: "" })}
+                  />
+                  <FormHelp>
+                    Use quando o destino estiver fora do StoreMesh. Exemplo:
+                    https://instagram.com/exemplo
+                  </FormHelp>
+                </Label>
+                <Label>
+                  Posição
+                  <Input
+                    type="number"
+                    min="0"
+                    value={nav.position}
+                    onChange={(e) => setNav({ ...nav, position: Number(e.target.value) })}
+                  />
+                  <FormHelp>Números menores aparecem primeiro no menu.</FormHelp>
+                </Label>
+                <div className="grid gap-1">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={nav.isActive}
+                      onChange={(e) => setNav({ ...nav, isActive: e.target.checked })}
+                    />{" "}
+                    Ativo
+                  </label>
+                  <FormHelp>Itens inativos não aparecem no menu público.</FormHelp>
+                </div>
+                <FormHelp variant="callout">
+                  Cada item deve ter apenas um destino: uma página interna OU uma URL externa.
                 </FormHelp>
-              </Label>
-              <Label>
-                Posição
-                <Input
-                  type="number"
-                  min="0"
-                  value={nav.position}
-                  onChange={(e) => setNav({ ...nav, position: Number(e.target.value) })}
-                />
-                <FormHelp>Números menores aparecem primeiro no menu.</FormHelp>
-              </Label>
-              <div className="grid gap-1">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={nav.isActive}
-                    onChange={(e) => setNav({ ...nav, isActive: e.target.checked })}
-                  />{" "}
-                  Ativo
-                </label>
-                <FormHelp>Itens inativos não aparecem no menu público.</FormHelp>
-              </div>
-              <FormHelp variant="callout">
-                Cada item deve ter apenas um destino: uma página interna OU uma URL externa.
-              </FormHelp>
+              </fieldset>
               <div className="flex gap-2">
-                <Button type="submit">Salvar</Button>
+                {canManage ? <Button type="submit">Salvar</Button> : null}
                 <Button type="button" variant="outline" onClick={() => setNav(null)}>
-                  Cancelar
+                  {canManage ? "Cancelar" : "Fechar"}
                 </Button>
               </div>
             </form>
