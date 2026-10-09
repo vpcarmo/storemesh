@@ -1,3 +1,5 @@
+import type { Permission } from "@/domain/access";
+
 export type AdminPath =
   | "/admin"
   | "/admin/catalog"
@@ -18,64 +20,81 @@ export type AdminPath =
 export interface AdminNavigationItem {
   label: string;
   to?: AdminPath;
+  permission?: Permission;
   comingSoon?: boolean;
 }
 
 export interface AdminNavigationGroup {
   label: string;
   to?: AdminPath;
+  permission?: Permission;
   items?: AdminNavigationItem[];
   comingSoon?: boolean;
   superAdminOnly?: boolean;
 }
 
 export const ADMIN_NAVIGATION: AdminNavigationGroup[] = [
-  { label: "Dashboard", to: "/admin" },
+  { label: "Painel", to: "/admin", permission: "catalog.view" },
   {
     label: "Website",
     to: "/admin/website",
+    permission: "website.view",
     items: [
-      { label: "Páginas", to: "/admin/website/pages" },
-      { label: "Navegação", to: "/admin/website/navigation" },
+      { label: "Páginas e editor", to: "/admin/website/pages", permission: "website.view" },
+      { label: "Navegação", to: "/admin/website/navigation", permission: "website.view" },
+      {
+        label: "Aparência e identidade da loja",
+        to: "/admin/settings",
+        permission: "settings.view",
+      },
     ],
   },
   {
     label: "Catálogo",
     to: "/admin/catalog",
+    permission: "catalog.view",
     items: [
-      { label: "Produtos", to: "/admin/catalog/products" },
-      { label: "Categorias", to: "/admin/catalog/categories" },
-      { label: "Atributos", to: "/admin/catalog/attributes" },
+      { label: "Produtos", to: "/admin/catalog/products", permission: "catalog.view" },
+      { label: "Categorias", to: "/admin/catalog/categories", permission: "catalog.view" },
+      { label: "Atributos", to: "/admin/catalog/attributes", permission: "catalog.view" },
     ],
   },
   {
     label: "Conteúdo",
     to: "/admin/content",
-    items: [{ label: "Mídia", to: "/admin/content/media" }],
+    permission: "media.view",
+    items: [{ label: "Biblioteca de mídia", to: "/admin/content/media", permission: "media.view" }],
   },
-  { label: "Comércio", to: "/admin/commerce" },
-  { label: "Lojas", to: "/admin/stores", superAdminOnly: true },
-  { label: "Usuários", to: "/admin/users", superAdminOnly: true },
-  { label: "Configurações", to: "/admin/settings" },
-  { label: "Preview", to: "/admin/preview" },
+  {
+    label: "Comércio",
+    to: "/admin/commerce",
+  },
+  {
+    label: "Plataforma",
+    superAdminOnly: true,
+    items: [
+      { label: "Lojas", to: "/admin/stores" },
+      { label: "Usuários e permissões", to: "/admin/users" },
+    ],
+  },
 ];
 
 const LABELS: Record<AdminPath, string> = {
-  "/admin": "Dashboard",
+  "/admin": "Painel",
   "/admin/catalog": "Catálogo",
   "/admin/catalog/products": "Produtos",
   "/admin/catalog/categories": "Categorias",
   "/admin/catalog/attributes": "Atributos",
   "/admin/website": "Website",
-  "/admin/website/pages": "Páginas",
+  "/admin/website/pages": "Páginas e editor",
   "/admin/website/navigation": "Navegação",
   "/admin/content": "Conteúdo",
-  "/admin/content/media": "Mídia",
+  "/admin/content/media": "Biblioteca de mídia",
   "/admin/commerce": "Comércio",
   "/admin/stores": "Lojas",
-  "/admin/users": "Usuários",
-  "/admin/settings": "Configurações",
-  "/admin/preview": "Preview",
+  "/admin/users": "Usuários e permissões",
+  "/admin/settings": "Aparência e identidade da loja",
+  "/admin/preview": "Pré-visualização",
 };
 
 function isAdminPath(value: string): value is AdminPath {

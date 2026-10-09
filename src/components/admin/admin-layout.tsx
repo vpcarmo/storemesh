@@ -37,6 +37,7 @@ function messageFrom(error: unknown): string {
 }
 
 function permissionForAdminPath(pathname: string): Permission | null {
+  if (pathname === "/admin") return "catalog.view";
   if (pathname.startsWith("/admin/website") || pathname === "/admin/preview") {
     return "website.view";
   }
@@ -121,7 +122,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       storeSlug &&
       selectedStore?.status === "active" &&
       !isPlatformRoute &&
-      access?.permissions.includes("website.view"),
+      hasPermission("website.view"),
     ),
   });
   const publishedHome = websiteQuery.data?.pages.find(
@@ -175,11 +176,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     return <p className="p-8 text-sm text-destructive">Acesso restrito ao super_admin.</p>;
   }
 
-  if (
-    routePermission &&
-    !accessQuery.data.permissions.includes(routePermission) &&
-    !isSuperAdmin(accessQuery.data)
-  ) {
+  if (routePermission && !hasPermission(routePermission)) {
     return (
       <p className="p-8 text-sm text-destructive">
         Você não tem permissão para acessar este módulo.
@@ -221,6 +218,16 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   const breadcrumbs = adminBreadcrumbs(pathname);
+  const navigation = ADMIN_NAVIGATION.flatMap((group) => {
+    if (group.superAdminOnly && !isSuperAdminUser) return [];
+
+    const items = group.items?.filter((item) => !item.permission || hasPermission(item.permission));
+    const canAccessGroup = !group.permission || hasPermission(group.permission);
+
+    if (!canAccessGroup && !items?.length) return [];
+
+    return [{ ...group, items, canAccessGroup }];
+  });
 
   return (
     <AdminStoreContext.Provider value={contextValue}>
@@ -231,16 +238,14 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         >
           <p className="px-2 text-sm font-semibold">VSMS Solutions Manager</p>
           <nav className="mt-4 space-y-4 text-sm">
-            {ADMIN_NAVIGATION.filter(
-              (group) => !group.superAdminOnly || isSuperAdmin(accessQuery.data),
-            ).map((group) => (
+            {navigation.map((group) => (
               <div key={group.label}>
-                {group.comingSoon || !group.to ? (
+                {group.comingSoon ? (
                   <span className="flex items-center justify-between rounded-md px-2 py-1.5 text-muted-foreground">
                     {group.label}
                     <span className="text-xs">Em breve</span>
                   </span>
-                ) : (
+                ) : group.to && group.canAccessGroup ? (
                   <Link
                     to={group.to}
                     onClick={() => setMenuOpen(false)}
@@ -250,6 +255,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                   >
                     {group.label}
                   </Link>
+                ) : (
+                  <span className="block rounded-md px-2 py-1.5">{group.label}</span>
                 )}
                 {group.items?.length ? (
                   <div className="mt-1 ml-3 space-y-1 border-l border-sidebar-border pl-3">
