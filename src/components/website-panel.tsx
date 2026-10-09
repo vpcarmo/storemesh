@@ -9,8 +9,13 @@ import {
   saveCurrentStoreNavigationItem,
   saveCurrentStorePage,
 } from "@/auth/website.functions";
+import {
+  getCurrentStoreSettings,
+  updateCurrentStoreFooterNavigation,
+} from "@/auth/store-settings.functions";
 import { useAdminStore } from "@/components/admin/admin-store-context";
 import { AdminReadOnlyNotice } from "@/components/admin/admin-read-only-notice";
+import { FooterPageGroup } from "@/components/admin/footer-page-group";
 import { FormHelp } from "@/components/admin/form-help";
 import { WebsiteSectionsEditor } from "@/components/website-sections-editor";
 import { Button } from "@/components/ui/button";
@@ -45,12 +50,19 @@ export function WebsitePanel({
 }) {
   const { hasPermission } = useAdminStore();
   const canManage = hasPermission("website.manage");
+  const canManageFooter = hasPermission("settings.manage");
   const load = useServerFn(getCurrentStoreWebsite);
+  const loadSettings = useServerFn(getCurrentStoreSettings);
   const client = useQueryClient();
   const query = useQuery({
     queryKey: ["website", storeSlug],
     queryFn: () => load({ data: { slug: storeSlug } }),
     enabled: !!storeSlug,
+  });
+  const settingsQuery = useQuery({
+    queryKey: ["store", "current", "settings", storeSlug],
+    queryFn: () => loadSettings({ data: { slug: storeSlug } }),
+    enabled: section === "navigation" && Boolean(storeSlug),
   });
   const [page, setPage] = useState<(typeof emptyPage & { id: string | null }) | WebsitePage | null>(
     null,
@@ -61,6 +73,13 @@ export function WebsitePanel({
   const savePage = useServerFn(saveCurrentStorePage);
   const saveNav = useServerFn(saveCurrentStoreNavigationItem);
   const removeNav = useServerFn(deleteCurrentStoreNavigationItem);
+  const saveFooterNavigation = useServerFn(updateCurrentStoreFooterNavigation);
+  const [footerGroups, setFooterGroups] = useState<{
+    helpPages: string[];
+    institutionalPages: string[];
+  } | null>(null);
+  const [footerError, setFooterError] = useState<string | null>(null);
+  const [footerPending, setFooterPending] = useState(false);
   const refresh = () =>
     Promise.all([
       client.invalidateQueries({ queryKey: ["website", storeSlug] }),
@@ -119,6 +138,32 @@ export function WebsitePanel({
     } catch (e) {
       setError(message(e));
     }
+  };
+  const submitFooterNavigation = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!footerGroups || !canManageFooter) return;
+    setFooterError(null);
+    setFooterPending(true);
+    try {
+      await saveFooterNavigation({ data: { slug: storeSlug, ...footerGroups } });
+      setFooterGroups(null);
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ["store", "current", "settings", storeSlug] }),
+        client.invalidateQueries({
+          queryKey: ["store", "current", "storefront-foundation", storeSlug],
+        }),
+        client.invalidateQueries({ queryKey: ["admin-page-preview", storeSlug] }),
+      ]);
+    } catch (e) {
+      setFooterError(message(e));
+    } finally {
+      setFooterPending(false);
+    }
+  };
+  const savedFooter = settingsQuery.data?.settings?.designSettings.footer;
+  const currentFooterGroups = footerGroups ?? {
+    helpPages: savedFooter?.helpPages ?? [],
+    institutionalPages: savedFooter?.institutionalPages ?? [],
   };
   return (
     <section className="space-y-5" aria-label={section === "pages" ? "Páginas" : "Navegação"}>
@@ -321,41 +366,51 @@ export function WebsitePanel({
         </>
       ) : (
         <>
-          <div className="space-y-2">
-            {query.data.navigation.map((item) => (
-              <div
-                className="flex items-center justify-between rounded-lg border p-3"
-                key={item.id}
-              >
-                <div>
-                  <p className="font-medium">{item.label}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {item.externalUrl ??
-                      query.data.pages.find((page) => page.id === item.pageId)?.slug ??
-                      "Página removida"}{" "}
-                    · posição {item.position} · {item.isActive ? "Ativo" : "Inativo"}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setNav(item)}>
-                    {canManage ? "Editar" : "Visualizar"}
-                  </Button>
-                  {canManage ? (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={async () => {
-                        await removeNav({ data: { slug: storeSlug, id: item.id } });
-                        await refresh();
-                      }}
-                    >
-                      Excluir
+          <section className="grid gap-3" aria-labelledby="website-header-navigation-title">
+            <div>
+              <h2 id="website-header-navigation-title" className="text-base font-semibold">
+                Menu principal (Header)
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Gerencie os destinos e a ordem dos links do menu principal.
+              </p>
+            </div>
+            <div className="space-y-2">
+              {query.data.navigation.map((item) => (
+                <div
+                  className="flex items-center justify-between rounded-lg border p-3"
+                  key={item.id}
+                >
+                  <div>
+                    <p className="font-medium">{item.label}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {item.externalUrl ??
+                        query.data.pages.find((page) => page.id === item.pageId)?.slug ??
+                        "Página removida"}{" "}
+                      · posição {item.position} · {item.isActive ? "Ativo" : "Inativo"}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setNav(item)}>
+                      {canManage ? "Editar" : "Visualizar"}
                     </Button>
-                  ) : null}
+                    {canManage ? (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={async () => {
+                          await removeNav({ data: { slug: storeSlug, id: item.id } });
+                          await refresh();
+                        }}
+                      >
+                        Excluir
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </section>
           {nav && (
             <form onSubmit={submitNav} className="grid gap-3 rounded-lg border p-4">
               <h2 className="font-medium">{nav.id ? "Editar item" : "Novo item"}</h2>
@@ -433,6 +488,59 @@ export function WebsitePanel({
               </div>
             </form>
           )}
+          <section
+            className="grid gap-4 rounded-lg border p-4"
+            aria-labelledby="website-footer-links-title"
+          >
+            <div>
+              <h2 id="website-footer-links-title" className="text-base font-semibold">
+                Links do rodapé (Footer)
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Escolha páginas publicadas para cada grupo e ordene os links. As opções visuais do
+                Footer permanecem em Aparência e identidade.
+              </p>
+            </div>
+            {settingsQuery.isPending ? (
+              <p className="text-sm text-muted-foreground">Carregando grupos do Footer…</p>
+            ) : settingsQuery.isError ? (
+              <p className="text-sm text-destructive">{message(settingsQuery.error)}</p>
+            ) : settingsQuery.data ? (
+              <>
+                {footerError ? <p className="text-sm text-destructive">{footerError}</p> : null}
+                {!canManageFooter ? <AdminReadOnlyNotice permission="settings.manage" /> : null}
+                <form onSubmit={submitFooterNavigation} className="grid gap-5">
+                  <fieldset disabled={!canManageFooter} className="grid gap-5">
+                    <FooterPageGroup
+                      idPrefix="store-footer-help-page"
+                      title="AJUDA"
+                      pages={settingsQuery.data.footerPages}
+                      selectedIds={currentFooterGroups.helpPages}
+                      onChange={(helpPages) =>
+                        setFooterGroups({ ...currentFooterGroups, helpPages })
+                      }
+                      disabled={!canManageFooter}
+                    />
+                    <FooterPageGroup
+                      idPrefix="store-footer-institutional-page"
+                      title="INSTITUCIONAL"
+                      pages={settingsQuery.data.footerPages}
+                      selectedIds={currentFooterGroups.institutionalPages}
+                      onChange={(institutionalPages) =>
+                        setFooterGroups({ ...currentFooterGroups, institutionalPages })
+                      }
+                      disabled={!canManageFooter}
+                    />
+                  </fieldset>
+                  {canManageFooter ? (
+                    <Button type="submit" disabled={!footerGroups || footerPending}>
+                      {footerPending ? "Salvando…" : "Salvar links do Footer"}
+                    </Button>
+                  ) : null}
+                </form>
+              </>
+            ) : null}
+          </section>
         </>
       )}
     </section>

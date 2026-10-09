@@ -1,7 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { PublicStorefrontSettings, StoreSettings } from "@/domain/store-settings";
-import { parseStorefrontDesignSettings } from "@/domain/storefront-design.schema";
+import {
+  DEFAULT_STOREFRONT_DESIGN_SETTINGS,
+  parseStorefrontDesignSettings,
+  type StorefrontDesignSettings,
+} from "@/domain/storefront-design.schema";
 import type { Database, Json, Tables } from "@/integrations/supabase/types";
 
 type AppClient = SupabaseClient<Database>;
@@ -213,6 +217,51 @@ export async function saveStoreSettings(
     .upsert(values, { onConflict: "store_id" })
     .select("*")
     .single();
+
+  if (error) throw error;
+  return toDomain(data);
+}
+
+export async function updateStoreFooterNavigation(
+  client: AppClient,
+  storeId: string,
+  footerNavigation: Pick<StorefrontDesignSettings["footer"], "helpPages" | "institutionalPages">,
+): Promise<StoreSettings> {
+  const designSettingsClient = client as SupabaseClient<DesignSettingsDatabase>;
+  const { data: current, error: readError } = await designSettingsClient
+    .from("store_settings")
+    .select("design_settings")
+    .eq("store_id", storeId)
+    .maybeSingle();
+
+  if (readError) throw readError;
+
+  const currentDesignSettings = parseStorefrontDesignSettings(
+    current?.design_settings ?? DEFAULT_STOREFRONT_DESIGN_SETTINGS,
+  );
+  const designSettings = {
+    ...currentDesignSettings,
+    footer: {
+      ...currentDesignSettings.footer,
+      ...footerNavigation,
+    },
+  };
+
+  const { data, error } = current
+    ? await designSettingsClient
+        .from("store_settings")
+        .update({ design_settings: designSettingsJson(designSettings) })
+        .eq("store_id", storeId)
+        .select("*")
+        .single()
+    : await designSettingsClient
+        .from("store_settings")
+        .upsert(
+          { store_id: storeId, design_settings: designSettingsJson(designSettings) },
+          { onConflict: "store_id" },
+        )
+        .select("*")
+        .single();
 
   if (error) throw error;
   return toDomain(data);

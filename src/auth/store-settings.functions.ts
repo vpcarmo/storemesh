@@ -3,7 +3,11 @@ import { z } from "zod";
 
 import { requireAuthorizedStore } from "@/auth/authorized-store";
 import { resolveMediaReferences } from "@/data/media.repository";
-import { readStoreSettings, saveStoreSettings } from "@/data/store-settings.repository";
+import {
+  readStoreSettings,
+  saveStoreSettings,
+  updateStoreFooterNavigation,
+} from "@/data/store-settings.repository";
 import { readPublishedFooterPages } from "@/data/website.repository";
 import { StorefrontDesignSettingsSchema } from "@/domain/storefront-design.schema";
 import { normalizeDisplayName } from "@/domain/store-settings";
@@ -104,6 +108,13 @@ const updateStoreSettingsInput = storeSelectionInput.extend({
   socialLinks: socialLinksInput,
   designSettings: StorefrontDesignSettingsSchema,
 });
+const footerPageIdsInput = z
+  .array(z.string().uuid())
+  .refine((ids) => new Set(ids).size === ids.length, "Uma página não pode se repetir no grupo.");
+const updateStoreFooterNavigationInput = storeSelectionInput.extend({
+  helpPages: footerPageIdsInput,
+  institutionalPages: footerPageIdsInput,
+});
 
 function emailFromClaims(claims: Record<string, unknown>): string | null {
   return typeof claims["email"] === "string" ? claims["email"] : null;
@@ -140,11 +151,20 @@ export const updateCurrentStoreSettings = createServerFn({ method: "POST" })
       data.slug,
     );
 
+    const currentSettings = await readStoreSettings(context.supabase, store.id);
+    const designSettings = {
+      ...data.designSettings,
+      footer: {
+        ...data.designSettings.footer,
+        helpPages:
+          currentSettings?.designSettings.footer.helpPages ?? data.designSettings.footer.helpPages,
+        institutionalPages:
+          currentSettings?.designSettings.footer.institutionalPages ??
+          data.designSettings.footer.institutionalPages,
+      },
+    };
     const selectedPageIds = [
-      ...new Set([
-        ...data.designSettings.footer.helpPages,
-        ...data.designSettings.footer.institutionalPages,
-      ]),
+      ...new Set([...designSettings.footer.helpPages, ...designSettings.footer.institutionalPages]),
     ];
     const selectedPages = await readPublishedFooterPages(
       context.supabase,
@@ -155,14 +175,11 @@ export const updateCurrentStoreSettings = createServerFn({ method: "POST" })
       throw new Error("Selecione somente páginas publicadas da loja autorizada.");
     }
 
-    if (
-      data.designSettings.background.type === "image" &&
-      data.designSettings.background.mediaAssetId
-    ) {
+    if (designSettings.background.type === "image" && designSettings.background.mediaAssetId) {
       const media = await resolveMediaReferences(context.supabase, store.id, [
-        data.designSettings.background.mediaAssetId,
+        designSettings.background.mediaAssetId,
       ]);
-      if (!media.has(data.designSettings.background.mediaAssetId)) {
+      if (!media.has(designSettings.background.mediaAssetId)) {
         throw new Error("A imagem de fundo não pertence à loja autorizada.");
       }
     }
@@ -182,6 +199,34 @@ export const updateCurrentStoreSettings = createServerFn({ method: "POST" })
       textColor: data.textColor,
       backgroundColor: data.backgroundColor,
       socialLinks: Object.fromEntries(data.socialLinks.map(({ label, url }) => [label, url])),
-      designSettings: data.designSettings,
+      designSettings,
+    });
+  });
+
+export const updateCurrentStoreFooterNavigation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => updateStoreFooterNavigationInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const store = await requireAuthorizedStore(
+      context.supabase,
+      context.userId,
+      emailFromClaims(context.claims),
+      "settings.manage",
+      data.slug,
+    );
+
+    const selectedPageIds = [...new Set([...data.helpPages, ...data.institutionalPages])];
+    const selectedPages = await readPublishedFooterPages(
+      context.supabase,
+      store.id,
+      selectedPageIds,
+    );
+    if (new Set(selectedPages.map((page) => page.id)).size !== selectedPageIds.length) {
+      throw new Error("Selecione somente páginas publicadas da loja autorizada.");
+    }
+
+    return updateStoreFooterNavigation(context.supabase, store.id, {
+      helpPages: data.helpPages,
+      institutionalPages: data.institutionalPages,
     });
   });
