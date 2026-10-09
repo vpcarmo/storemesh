@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 
 import {
+  applyCurrentStorefrontTemplate,
   deleteCurrentStoreNavigationItem,
   getCurrentStoreWebsite,
   saveCurrentStoreNavigationItem,
@@ -15,6 +16,13 @@ import {
 } from "@/auth/store-settings.functions";
 import { useAdminStore } from "@/components/admin/admin-store-context";
 import { AdminReadOnlyNotice } from "@/components/admin/admin-read-only-notice";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { FooterPageGroup } from "@/components/admin/footer-page-group";
 import { FormHelp } from "@/components/admin/form-help";
 import { WebsiteSectionsEditor } from "@/components/website-sections-editor";
@@ -22,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { STOREFRONT_TEMPLATES, type StorefrontTemplateId } from "@/domain/storefront-templates";
 import type { NavigationItem, WebsitePage } from "@/domain/website";
 
 const emptyPage: Pick<
@@ -71,6 +80,7 @@ export function WebsitePanel({
   const [nav, setNav] = useState<typeof emptyNav | NavigationItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const savePage = useServerFn(saveCurrentStorePage);
+  const applyTemplate = useServerFn(applyCurrentStorefrontTemplate);
   const saveNav = useServerFn(saveCurrentStoreNavigationItem);
   const removeNav = useServerFn(deleteCurrentStoreNavigationItem);
   const saveFooterNavigation = useServerFn(updateCurrentStoreFooterNavigation);
@@ -80,11 +90,38 @@ export function WebsitePanel({
   } | null>(null);
   const [footerError, setFooterError] = useState<string | null>(null);
   const [footerPending, setFooterPending] = useState(false);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [templatePending, setTemplatePending] = useState(false);
+  const [templateFeedback, setTemplateFeedback] = useState<string | null>(null);
+  const canApplyTemplate = canManage && hasPermission("settings.manage");
   const refresh = () =>
     Promise.all([
       client.invalidateQueries({ queryKey: ["website", storeSlug] }),
       client.invalidateQueries({ queryKey: ["admin-page-preview", storeSlug] }),
     ]);
+  const chooseTemplate = async (templateId: StorefrontTemplateId) => {
+    if (!storeSlug || !canApplyTemplate || templatePending) return;
+    setError(null);
+    setTemplateFeedback(null);
+    setTemplatePending(true);
+    try {
+      const result = await applyTemplate({ data: { slug: storeSlug, templateId } });
+      setTemplateDialogOpen(false);
+      setPage(result.page);
+      setPreviewSlug(result.page.slug);
+      setTemplateFeedback(
+        result.designPresetApplied
+          ? "Modelo aplicado. A tipografia do preset foi configurada."
+          : "Modelo aplicado. As configurações visuais já existentes foram preservadas.",
+      );
+      await refresh();
+    } catch (e) {
+      setError(message(e));
+      await refresh();
+    } finally {
+      setTemplatePending(false);
+    }
+  };
   if (requiresStoreSelection && !storeSlug)
     return (
       <p className="text-sm text-muted-foreground">
@@ -195,6 +232,75 @@ export function WebsitePanel({
       {error && <p className="text-sm text-destructive">{error}</p>}
       {section === "pages" ? (
         <>
+          <section className="rounded-lg border p-4" aria-labelledby="website-template-title">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 id="website-template-title" className="font-medium">
+                  Modelos iniciais por segmento
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Os modelos só iniciam lojas sem páginas e não inventam dados de catálogo ou
+                  depoimentos.
+                </p>
+              </div>
+              {query.data.pages.length === 0 && canApplyTemplate ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={templatePending || !storeSlug}
+                  onClick={() => setTemplateDialogOpen(true)}
+                >
+                  Escolher modelo
+                </Button>
+              ) : null}
+            </div>
+            {query.data.pages.length > 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                Não disponível: esta loja já possui páginas. O conteúdo existente não será
+                substituído.
+              </p>
+            ) : null}
+            {!canApplyTemplate ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                É necessário ter permissões para gerenciar Website e Configurações.
+              </p>
+            ) : null}
+            {templateFeedback ? (
+              <p className="mt-3 text-sm text-emerald-700" role="status">
+                {templateFeedback}
+              </p>
+            ) : null}
+          </section>
+          <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Escolha um modelo inicial</DialogTitle>
+                <DialogDescription>
+                  A aplicação cria a página inicial publicada somente se a loja continuar sem
+                  páginas. Catálogo e conteúdo institucional não são inventados.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-2">
+                {STOREFRONT_TEMPLATES.map((template) => (
+                  <Button
+                    key={template.id}
+                    type="button"
+                    variant="outline"
+                    className="h-auto justify-start whitespace-normal p-3 text-left"
+                    disabled={templatePending}
+                    onClick={() => void chooseTemplate(template.id)}
+                  >
+                    <span>
+                      <span className="block font-medium">{template.name}</span>
+                      <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                        {template.description}
+                      </span>
+                    </span>
+                  </Button>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
           <div className="overflow-hidden rounded-lg border">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-left">

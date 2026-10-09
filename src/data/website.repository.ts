@@ -9,6 +9,7 @@ import {
 } from "@/domain/website";
 import {
   parseStorefrontSectionsForSave,
+  storefrontSectionsSchema,
   storefrontSectionsReadSchema,
 } from "@/domain/storefront-sections.schema";
 import type { StorefrontDesignSettings } from "@/domain/storefront-design.schema";
@@ -321,6 +322,7 @@ export async function savePage(
   storeId: string,
   id: string | null,
   value: Pick<WebsitePage, "title" | "slug" | "status" | "seoTitle" | "seoDescription">,
+  initialSections?: WebsitePage["sections"],
 ): Promise<WebsitePage> {
   const payload = {
     store_id: storeId,
@@ -332,9 +334,20 @@ export async function savePage(
   };
   const query = id
     ? client.from("pages").update(payload).eq("id", id).eq("store_id", storeId)
-    : client
-        .from("pages")
-        .insert({ ...payload, sections: defaultPageSections(value.title, value.seoDescription) });
+    : (() => {
+        const parsedSections =
+          initialSections === undefined
+            ? {
+                success: true as const,
+                data: defaultPageSections(value.title, value.seoDescription),
+              }
+            : storefrontSectionsSchema.safeParse(initialSections);
+        if (!parsedSections.success) {
+          const firstIssue = parsedSections.error.issues[0];
+          throw new Error(firstIssue?.message ?? "As seções da página são inválidas.");
+        }
+        return client.from("pages").insert({ ...payload, sections: parsedSections.data });
+      })();
   const { data, error } = await query.select("*").single();
   if (error) throw error;
   return pageFromRow(data);

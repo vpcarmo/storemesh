@@ -266,3 +266,56 @@ export async function updateStoreFooterNavigation(
   if (error) throw error;
   return toDomain(data);
 }
+
+export async function applyStorefrontTemplateTypographyPreset(
+  client: AppClient,
+  storeId: string,
+  typographyPreset: StorefrontDesignSettings["typographyPreset"],
+): Promise<boolean> {
+  const designSettingsClient = client as SupabaseClient<DesignSettingsDatabase>;
+  const readDesignSettings = () =>
+    designSettingsClient
+      .from("store_settings")
+      .select("design_settings")
+      .eq("store_id", storeId)
+      .maybeSingle();
+
+  const initial = await readDesignSettings();
+  if (initial.error) throw initial.error;
+  let current = initial.data;
+
+  if (!current) {
+    const { error: insertError } = await designSettingsClient
+      .from("store_settings")
+      .upsert({ store_id: storeId }, { onConflict: "store_id", ignoreDuplicates: true });
+    if (insertError) throw insertError;
+
+    const result = await readDesignSettings();
+    if (result.error) throw result.error;
+    current = result.data;
+  }
+
+  if (!current) throw new Error("Não foi possível carregar as configurações visuais da loja.");
+  if (current.design_settings !== null) return false;
+
+  const nextSettings = {
+    ...DEFAULT_STOREFRONT_DESIGN_SETTINGS,
+    typographyPreset,
+  };
+  const { data: updated, error: updateError } = await designSettingsClient
+    .from("store_settings")
+    .update({ design_settings: designSettingsJson(nextSettings) })
+    .eq("store_id", storeId)
+    .is("design_settings", null)
+    .select("store_id")
+    .maybeSingle();
+  if (updateError) throw updateError;
+  if (updated) return true;
+
+  const latest = await readDesignSettings();
+  if (latest.error) throw latest.error;
+  if (!latest.data || latest.data.design_settings === null) {
+    throw new Error("Não foi possível salvar o preset visual do modelo.");
+  }
+  return false;
+}

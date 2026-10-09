@@ -19,12 +19,14 @@ import {
   updatePageSections,
   updatePageStatus,
 } from "@/data/website.repository";
+import { applyStorefrontTemplateTypographyPreset } from "@/data/store-settings.repository";
 import {
   enrichProductGridSection,
   enrichCategoriesSection,
   type PublicStorefrontSectionDefinition,
 } from "@/domain/storefront";
 import { DEFAULT_STOREFRONT_DESIGN_SETTINGS } from "@/domain/storefront-design.schema";
+import { getStorefrontTemplate, STOREFRONT_TEMPLATE_IDS } from "@/domain/storefront-templates";
 import { PAGE_STATUSES } from "@/domain/website";
 import type { Permission } from "@/domain/access";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -64,6 +66,9 @@ const navigationInput = storeInput
     "Escolha uma página ou uma URL externa.",
   );
 const deleteInput = storeInput.extend({ id: z.string().uuid() });
+const applyTemplateInput = storeInput.extend({
+  templateId: z.enum(STOREFRONT_TEMPLATE_IDS),
+});
 function email(claims: Record<string, unknown>) {
   return typeof claims["email"] === "string" ? claims["email"] : null;
 }
@@ -264,6 +269,63 @@ export const saveCurrentStorePage = createServerFn({ method: "POST" })
       seoTitle: data.seoTitle,
       seoDescription: data.seoDescription,
     });
+  });
+export const applyCurrentStorefrontTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => applyTemplateInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const websiteStore = await authorizedStore(
+      context.supabase,
+      context.userId,
+      context.claims,
+      data.slug,
+      "website.manage",
+    );
+    const settingsStore = await authorizedStore(
+      context.supabase,
+      context.userId,
+      context.claims,
+      data.slug,
+      "settings.manage",
+    );
+    if (websiteStore.id !== settingsStore.id)
+      throw new Error("As permissões selecionadas não pertencem à mesma loja.");
+
+    const pages = await readPages(context.supabase, websiteStore.id);
+    if (pages.length > 0) {
+      throw new Error(
+        "Os modelos iniciais só podem ser aplicados a uma loja sem páginas. O conteúdo existente foi preservado.",
+      );
+    }
+
+    const template = getStorefrontTemplate(data.templateId);
+    const page = await savePage(
+      context.supabase,
+      websiteStore.id,
+      null,
+      {
+        title: "Início",
+        slug: "home",
+        status: "published",
+        seoTitle: null,
+        seoDescription: null,
+      },
+      template.sections(websiteStore.slug),
+    );
+
+    try {
+      const designPresetApplied = await applyStorefrontTemplateTypographyPreset(
+        context.supabase,
+        websiteStore.id,
+        template.typographyPreset,
+      );
+      return { page, designPresetApplied };
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Erro desconhecido.";
+      throw new Error(
+        `A página inicial e suas seções foram salvas, mas não foi possível confirmar a aplicação do preset visual. ${detail}`,
+      );
+    }
   });
 export const saveCurrentStorePageSections = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

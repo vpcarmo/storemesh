@@ -64,7 +64,8 @@ No ambiente que envia convites, configurar `APP_URL` para a origem real da aplic
 - A composição segue `store → store_settings → theme → layout → page → sections`; a identidade visual não possui configuração global paralela.
 - `store_settings` continua sendo a fonte única para logo, favicon, cores e `design_settings`, um JSONB tipado com presets globais enumerados. O domínio converte essas configurações em tokens visuais limitados, com padrões seguros e sem aceitar CSS arbitrário; a cor de fundo das seções é opcional e não altera o fundo dos cards. Referências a mídias são resolvidas no servidor no escopo da loja.
 - Header, navegação, footer e seções recebem somente dados e slots; não consultam o backend e não assumem categorias, páginas ou composição iguais entre lojas.
-- Páginas são definições compostas por seções conhecidas e tipadas. A fundação reconhece Home, Catalog, Category, Product, About, Contact e páginas Static/Policy sem implementar rotas públicas ou persistência de páginas nesta etapa.
+- Páginas são definições compostas por seções conhecidas e tipadas, persistidas pelos repositórios autenticados e renderizadas pelas rotas públicas existentes.
+- Os modelos iniciais por segmento são definições declarativas sobre esses tipos de seção. A aplicação cria a página `home` somente quando a loja não possui páginas, exige permissões de Website e Configurações e preserva configurações visuais já personalizadas.
 - A prévia autenticada usa as funções e os repositórios existentes para carregar configurações e catálogo reais da loja autorizada. Nenhum conteúdo comercial de demonstração é persistido.
 
 ### Administração de catálogo (Stage 8)
