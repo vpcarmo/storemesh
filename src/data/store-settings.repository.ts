@@ -137,6 +137,7 @@ export interface StoreSettingsUpdate {
   faviconUrl: string | null;
   primaryColor: string | null;
   secondaryColor: string | null;
+  accentColor: string | null;
   textColor: string | null;
   backgroundColor: string | null;
   socialLinks: Json;
@@ -184,6 +185,7 @@ export async function saveStoreSettings(
     favicon_url: settings.faviconUrl,
     primary_color: settings.primaryColor,
     secondary_color: settings.secondaryColor,
+    accent_color: settings.accentColor,
     text_color: settings.textColor,
     background_color: settings.backgroundColor,
     social_links: settings.socialLinks,

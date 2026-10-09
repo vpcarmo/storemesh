@@ -44,6 +44,7 @@ type SettingsForm = {
   faviconUrl: string;
   primaryColor: string;
   secondaryColor: string;
+  accentColor: string;
   textColor: string;
   backgroundColor: string;
   socialLinks: SocialLinkForm[];
@@ -70,6 +71,12 @@ const colorFields = [
     label: "Cor secundária",
     defaultValue: DEFAULT_STOREFRONT_COLORS.secondary,
     help: "Usada em áreas e elementos de apoio.",
+  },
+  {
+    name: "accentColor",
+    label: "Cor de destaque",
+    defaultValue: DEFAULT_STOREFRONT_COLORS.primary,
+    help: "Usada apenas no botão CTA. Se ficar vazia, usa a cor primária.",
   },
   {
     name: "textColor",
@@ -113,6 +120,7 @@ function formFromSettings(settings: StoreSettings | null): SettingsForm {
     faviconUrl: settings?.faviconUrl ?? "",
     primaryColor: settings?.primaryColor ?? "",
     secondaryColor: settings?.secondaryColor ?? "",
+    accentColor: settings?.accentColor ?? "",
     textColor: settings?.textColor ?? "",
     backgroundColor: settings?.backgroundColor ?? "",
     socialLinks: socialLinksFromSettings(settings?.socialLinks ?? null),
@@ -464,6 +472,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
           faviconUrl: form.faviconUrl,
           primaryColor: form.primaryColor,
           secondaryColor: form.secondaryColor,
+          accentColor: form.accentColor,
           textColor: form.textColor,
           backgroundColor: form.backgroundColor,
           socialLinks: form.socialLinks,

@@ -7,10 +7,16 @@ import type {
   TextContentSectionDefinition,
 } from "@/domain/storefront";
 
-function SectionAction({ action }: { action: { label: string; href: string } | undefined }) {
+function SectionAction({
+  action,
+  className = "storefront-button",
+}: {
+  action: { label: string; href: string } | undefined;
+  className?: string;
+}) {
   if (!action) return null;
   return (
-    <Button asChild className="storefront-button">
+    <Button asChild className={className}>
       <a href={action.href}>{action.label}</a>
     </Button>
   );
@@ -199,7 +205,7 @@ export function StorefrontCallToActionSection({
         <h2>{title}</h2>
         {description ? <p>{description}</p> : null}
       </div>
-      <SectionAction action={action} />
+      <SectionAction action={action} className="storefront-button storefront-cta-button" />
     </section>
   );
 }

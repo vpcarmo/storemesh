@@ -154,7 +154,7 @@ export function createStorefrontTheme(
       primary,
       primaryForeground: readableForeground(primary),
       secondary: safeColor(settings?.secondaryColor ?? null, DEFAULT_STOREFRONT_COLORS.secondary),
-      accent: safeColor(settings?.accentColor ?? null, DEFAULT_STOREFRONT_COLORS.accent),
+      accent: safeColor(settings?.accentColor ?? null, primary),
       text: safeColor(settings?.textColor ?? null, DEFAULT_STOREFRONT_COLORS.text),
       background: backgroundColor,
     },

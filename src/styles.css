@@ -160,6 +160,14 @@
   &:hover {
     background: color-mix(in oklab, var(--storefront-primary) 88%, black);
   }
+
+  &.storefront-cta-button {
+    background: var(--storefront-accent);
+
+    &:hover {
+      background: color-mix(in oklab, var(--storefront-accent) 88%, black);
+    }
+  }
 }
 
 @layer components {
