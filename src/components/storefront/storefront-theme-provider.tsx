@@ -34,6 +34,18 @@ export function StorefrontThemeProvider({
     "--storefront-font-heading": theme.typography.heading,
     "--storefront-body-scale": theme.typography.bodyScale,
     "--storefront-title-scale": theme.typography.headingScale,
+    ...(theme.typography.bodyLineHeight === null
+      ? {}
+      : { "--storefront-body-line-height": theme.typography.bodyLineHeight }),
+    ...(theme.typography.headingLineHeight === null
+      ? {}
+      : { "--storefront-title-line-height": theme.typography.headingLineHeight }),
+    ...(theme.typography.bodyLetterSpacing === null
+      ? {}
+      : { "--storefront-body-letter-spacing": theme.typography.bodyLetterSpacing }),
+    ...(theme.typography.headingLetterSpacing === null
+      ? {}
+      : { "--storefront-title-letter-spacing": theme.typography.headingLetterSpacing }),
     "--storefront-body-weight": theme.typography.bodyWeight,
     "--storefront-title-weight": theme.typography.headingWeight,
     "--storefront-button-radius": theme.button.radius,

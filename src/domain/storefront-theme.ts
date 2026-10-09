@@ -25,6 +25,10 @@ export interface StorefrontTheme {
     heading: string;
     bodyScale: number;
     headingScale: number;
+    bodyLineHeight: number | null;
+    headingLineHeight: number | null;
+    bodyLetterSpacing: string | null;
+    headingLetterSpacing: string | null;
     bodyWeight: number;
     headingWeight: number;
   };
@@ -139,6 +143,18 @@ export function createStorefrontTheme(
     heading: design.titleFontFamily ? fontFamilyStacks[design.titleFontFamily] : typography.heading,
     bodyScale: { compact: 0.9, standard: 1, expanded: 1.1 }[design.bodyFontScale ?? "standard"],
     headingScale: { compact: 0.9, standard: 1, expanded: 1.1 }[design.titleFontScale ?? "standard"],
+    bodyLineHeight: design.bodyLineHeight
+      ? { compact: 1.45, standard: 1.65, spacious: 1.85 }[design.bodyLineHeight]
+      : null,
+    headingLineHeight: design.titleLineHeight
+      ? { compact: 1.05, standard: 1.15, spacious: 1.3 }[design.titleLineHeight]
+      : null,
+    bodyLetterSpacing: design.bodyLetterSpacing
+      ? { compact: "-0.015em", standard: "0em", expanded: "0.04em" }[design.bodyLetterSpacing]
+      : null,
+    headingLetterSpacing: design.titleLetterSpacing
+      ? { compact: "-0.03em", standard: "0em", expanded: "0.03em" }[design.titleLetterSpacing]
+      : null,
     bodyWeight: { regular: 400, medium: 500, semibold: 600 }[design.bodyFontWeight ?? "regular"],
     headingWeight: { regular: 400, medium: 500, semibold: 600, bold: 700 }[
       design.titleFontWeight ?? "bold"

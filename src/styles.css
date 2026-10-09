@@ -438,7 +438,8 @@
   .storefront-cta h2 {
     font-family: var(--storefront-font-title);
     font-weight: var(--storefront-title-weight, 700);
-    line-height: 1.1;
+    line-height: var(--storefront-title-line-height, 1.1);
+    letter-spacing: var(--storefront-title-letter-spacing, inherit);
   }
 
   .storefront-hero h1 {
@@ -468,9 +469,10 @@
   .storefront-hero p,
   .storefront-section p,
   .storefront-cta p,
-  .storefront-footer p {
+  .storefront-footer p:not(.storefront-footer-title) {
     margin-top: 0.75rem;
-    line-height: 1.65;
+    line-height: var(--storefront-body-line-height, 1.65);
+    letter-spacing: var(--storefront-body-letter-spacing, inherit);
     color: var(--storefront-muted);
   }
 
@@ -484,6 +486,7 @@
   .storefront-product-detail-description {
     font-size: calc(1rem * var(--storefront-body-scale, 1));
     font-weight: var(--storefront-body-weight, 400);
+    letter-spacing: var(--storefront-body-letter-spacing, inherit);
   }
 
   .storefront-rich-text > h2:first-child,
@@ -496,7 +499,8 @@
 
   .storefront-rich-text p {
     margin: 0.75rem 0 0;
-    line-height: 1.65;
+    line-height: var(--storefront-body-line-height, 1.65);
+    letter-spacing: var(--storefront-body-letter-spacing, inherit);
     color: var(--storefront-muted);
   }
 
@@ -509,7 +513,8 @@
     color: var(--storefront-text);
     font-family: var(--storefront-font-title);
     font-weight: var(--storefront-title-weight, 700);
-    line-height: 1.2;
+    line-height: var(--storefront-title-line-height, 1.2);
+    letter-spacing: var(--storefront-title-letter-spacing, inherit);
   }
 
   .storefront-rich-text h2 {
@@ -540,7 +545,8 @@
   .storefront-rich-text ol {
     margin: 0.75rem 0 0;
     padding-inline-start: 1.5rem;
-    line-height: 1.65;
+    line-height: var(--storefront-body-line-height, 1.65);
+    letter-spacing: var(--storefront-body-letter-spacing, inherit);
   }
 
   .storefront-rich-text ul {
@@ -713,7 +719,8 @@
       calc(3rem * var(--storefront-title-scale, 1))
     );
     font-weight: var(--storefront-title-weight, 700);
-    line-height: 1.1;
+    line-height: var(--storefront-title-line-height, 1.1);
+    letter-spacing: var(--storefront-title-letter-spacing, inherit);
     overflow-wrap: anywhere;
   }
 
@@ -829,6 +836,7 @@
 
   .storefront-product-detail-description {
     white-space: pre-wrap;
+    line-height: var(--storefront-body-line-height, inherit);
   }
 
   .storefront-product-attributes {
@@ -1046,6 +1054,8 @@
     margin: 0 0 0.5rem;
     font-size: calc(0.875rem * var(--storefront-title-scale, 1));
     font-weight: var(--storefront-title-weight, 700);
+    line-height: var(--storefront-title-line-height, inherit);
+    letter-spacing: var(--storefront-title-letter-spacing, inherit);
   }
 
   .storefront-footer-copyright {
@@ -1060,6 +1070,9 @@
   }
 
   .storefront-footer-title {
+    margin-top: 0.75rem;
+    color: var(--storefront-muted);
+    line-height: 1.65;
     font-weight: var(--storefront-title-weight, 700);
   }
 

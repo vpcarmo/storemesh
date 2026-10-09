@@ -24,6 +24,8 @@ import {
   STOREFRONT_BODY_FONT_WEIGHTS,
   STOREFRONT_FONT_FAMILIES,
   STOREFRONT_FONT_SCALES,
+  STOREFRONT_LETTER_SPACINGS,
+  STOREFRONT_LINE_HEIGHTS,
   STOREFRONT_TITLE_FONT_WEIGHTS,
   type StorefrontDesignSettings,
 } from "@/domain/storefront-design.schema";
@@ -77,6 +79,16 @@ const fontScaleLabels: Record<(typeof STOREFRONT_FONT_SCALES)[number], string> =
   compact: "Compacta",
   standard: "Padrão",
   expanded: "Ampliada",
+};
+const lineHeightLabels: Record<(typeof STOREFRONT_LINE_HEIGHTS)[number], string> = {
+  compact: "Compacta",
+  standard: "Padrão",
+  spacious: "Espaçada",
+};
+const letterSpacingLabels: Record<(typeof STOREFRONT_LETTER_SPACINGS)[number], string> = {
+  compact: "Mais compacto",
+  standard: "Padrão",
+  expanded: "Mais amplo",
 };
 const titleFontWeightLabels: Record<(typeof STOREFRONT_TITLE_FONT_WEIGHTS)[number], string> = {
   regular: "Regular",
@@ -497,6 +509,10 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
       | "bodyFontFamily"
       | "titleFontScale"
       | "bodyFontScale"
+      | "titleLineHeight"
+      | "bodyLineHeight"
+      | "titleLetterSpacing"
+      | "bodyLetterSpacing"
       | "titleFontWeight"
       | "bodyFontWeight",
   >(field: K, value: StorefrontDesignSettings[K] | "") {
@@ -1002,6 +1018,102 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                 {STOREFRONT_FONT_SCALES.map((scale) => (
                   <option key={scale} value={scale}>
                     {fontScaleLabels[scale]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="store-design-title-line-height">Altura da linha dos títulos</Label>
+              <select
+                id="store-design-title-line-height"
+                disabled={!canManage}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.designSettings.titleLineHeight ?? ""}
+                onChange={(event) =>
+                  updateTypographySetting(
+                    "titleLineHeight",
+                    event.target.value as StorefrontDesignSettings["titleLineHeight"] | "",
+                  )
+                }
+              >
+                <option value="">Padrão atual</option>
+                {STOREFRONT_LINE_HEIGHTS.map((height) => (
+                  <option key={height} value={height}>
+                    {lineHeightLabels[height]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="store-design-body-line-height">Altura da linha do texto</Label>
+              <select
+                id="store-design-body-line-height"
+                disabled={!canManage}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.designSettings.bodyLineHeight ?? ""}
+                onChange={(event) =>
+                  updateTypographySetting(
+                    "bodyLineHeight",
+                    event.target.value as StorefrontDesignSettings["bodyLineHeight"] | "",
+                  )
+                }
+              >
+                <option value="">Padrão atual</option>
+                {STOREFRONT_LINE_HEIGHTS.map((height) => (
+                  <option key={height} value={height}>
+                    {lineHeightLabels[height]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="store-design-title-letter-spacing">
+                Espaçamento entre letras dos títulos
+              </Label>
+              <select
+                id="store-design-title-letter-spacing"
+                disabled={!canManage}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.designSettings.titleLetterSpacing ?? ""}
+                onChange={(event) =>
+                  updateTypographySetting(
+                    "titleLetterSpacing",
+                    event.target.value as StorefrontDesignSettings["titleLetterSpacing"] | "",
+                  )
+                }
+              >
+                <option value="">Padrão atual</option>
+                {STOREFRONT_LETTER_SPACINGS.map((spacing) => (
+                  <option key={spacing} value={spacing}>
+                    {letterSpacingLabels[spacing]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="store-design-body-letter-spacing">
+                Espaçamento entre letras do texto
+              </Label>
+              <select
+                id="store-design-body-letter-spacing"
+                disabled={!canManage}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.designSettings.bodyLetterSpacing ?? ""}
+                onChange={(event) =>
+                  updateTypographySetting(
+                    "bodyLetterSpacing",
+                    event.target.value as StorefrontDesignSettings["bodyLetterSpacing"] | "",
+                  )
+                }
+              >
+                <option value="">Padrão atual</option>
+                {STOREFRONT_LETTER_SPACINGS.map((spacing) => (
+                  <option key={spacing} value={spacing}>
+                    {letterSpacingLabels[spacing]}
                   </option>
                 ))}
               </select>
