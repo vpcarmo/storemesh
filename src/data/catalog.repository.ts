@@ -385,6 +385,121 @@ export interface PublicCatalogCategory {
   description: string | null;
 }
 
+const PUBLIC_CATALOG_READ_BATCH_SIZE = 500;
+
+export async function readPublicCatalogCategories(
+  client: AppClient,
+  storeId: string,
+): Promise<PublicCatalogCategory[]> {
+  const categories: PublicCatalogCategory[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error, count } = await client
+      .from("categories")
+      .select("id, store_id, name, slug, description", { count: "exact" })
+      .eq("store_id", storeId)
+      .eq("is_active", true)
+      .order("name", { ascending: true })
+      .order("id", { ascending: true })
+      .range(offset, offset + PUBLIC_CATALOG_READ_BATCH_SIZE - 1);
+    if (error) throw error;
+    if (count === null) throw new Error("Could not determine the public category count.");
+
+    categories.push(
+      ...data.flatMap((category) =>
+        category.store_id === storeId
+          ? [
+              {
+                id: category.id,
+                name: category.name,
+                slug: category.slug,
+                description: category.description,
+              },
+            ]
+          : [],
+      ),
+    );
+    if (data.length === 0) {
+      if (offset < count) throw new Error("Could not load all public categories.");
+      break;
+    }
+
+    offset += data.length;
+    if (offset >= count) break;
+  }
+
+  return categories;
+}
+
+export async function readPublicCatalogProducts(
+  client: AppClient,
+  storeId: string,
+): Promise<PublicCatalogProduct[]> {
+  const products: PublicCatalogProduct[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error, count } = await client
+      .from("products")
+      .select("id, store_id, category_id, name, slug, description, price", { count: "exact" })
+      .eq("store_id", storeId)
+      .eq("is_active", true)
+      .order("name", { ascending: true })
+      .order("id", { ascending: true })
+      .range(offset, offset + PUBLIC_CATALOG_READ_BATCH_SIZE - 1);
+    if (error) throw error;
+    if (count === null) throw new Error("Could not determine the public product count.");
+
+    products.push(
+      ...data.flatMap((product) =>
+        product.store_id === storeId
+          ? [
+              {
+                id: product.id,
+                name: product.name,
+                slug: product.slug,
+                description: product.description,
+                price: product.price,
+                categoryId: product.category_id,
+                imageUrl: null,
+                imageAlt: product.name,
+              },
+            ]
+          : [],
+      ),
+    );
+    if (data.length === 0) {
+      if (offset < count) throw new Error("Could not load all public products.");
+      break;
+    }
+
+    offset += data.length;
+    if (offset >= count) break;
+  }
+
+  const imageBatches = await Promise.all(
+    Array.from({ length: Math.ceil(products.length / 100) }, (_, batchIndex) => {
+      const batch = products.slice(batchIndex * 100, (batchIndex + 1) * 100);
+      return resolveProductImages(
+        client,
+        storeId,
+        batch.map(({ id }) => id),
+      );
+    }),
+  );
+  const images = new Map(imageBatches.flatMap((batch) => [...batch]));
+
+  return products.map((product) => {
+    const image = images.get(product.id);
+    return {
+      ...product,
+      imageUrl: image?.url ?? null,
+      imageAlt: image?.alt?.trim() || product.name,
+    };
+  });
+}
+
 export async function readPublicProduct(
   client: AppClient,
   storeId: string,

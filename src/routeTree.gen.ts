@@ -34,6 +34,7 @@ import { Route as AdminWebsiteNavigationRouteImport } from './routes/admin.websi
 import { Route as AdminWebsitePagesRouteImport } from './routes/admin.website.pages'
 import { Route as StoreStoreSlugIndexRouteImport } from './routes/store.$storeSlug.index'
 import { Route as StoreStoreSlugPageSlugRouteImport } from './routes/store.$storeSlug.$pageSlug'
+import { Route as StoreStoreSlugCatalogRouteImport } from './routes/store.$storeSlug.catalog'
 import { Route as StoreStoreSlugCategoryCategorySlugRouteImport } from './routes/store.$storeSlug.category.$categorySlug'
 import { Route as StoreStoreSlugProductProductSlugRouteImport } from './routes/store.$storeSlug.product.$productSlug'
 
@@ -162,6 +163,11 @@ const StoreStoreSlugPageSlugRoute = StoreStoreSlugPageSlugRouteImport.update({
   path: '/store/$storeSlug/$pageSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StoreStoreSlugCatalogRoute = StoreStoreSlugCatalogRouteImport.update({
+  id: '/store/$storeSlug/catalog',
+  path: '/store/$storeSlug/catalog',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StoreStoreSlugCategoryCategorySlugRoute =
   StoreStoreSlugCategoryCategorySlugRouteImport.update({
     id: '/store/$storeSlug/category/$categorySlug',
@@ -198,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/admin/website/navigation': typeof AdminWebsiteNavigationRoute
   '/admin/website/pages': typeof AdminWebsitePagesRoute
   '/store/$storeSlug/$pageSlug': typeof StoreStoreSlugPageSlugRoute
+  '/store/$storeSlug/catalog': typeof StoreStoreSlugCatalogRoute
   '/admin/catalog/': typeof AdminCatalogIndexRoute
   '/admin/website/': typeof AdminWebsiteIndexRoute
   '/store/$storeSlug/': typeof StoreStoreSlugIndexRoute
@@ -224,6 +231,7 @@ export interface FileRoutesByTo {
   '/admin/website/navigation': typeof AdminWebsiteNavigationRoute
   '/admin/website/pages': typeof AdminWebsitePagesRoute
   '/store/$storeSlug/$pageSlug': typeof StoreStoreSlugPageSlugRoute
+  '/store/$storeSlug/catalog': typeof StoreStoreSlugCatalogRoute
   '/admin/catalog': typeof AdminCatalogIndexRoute
   '/admin/website': typeof AdminWebsiteIndexRoute
   '/store/$storeSlug': typeof StoreStoreSlugIndexRoute
@@ -254,6 +262,7 @@ export interface FileRoutesById {
   '/admin/website/navigation': typeof AdminWebsiteNavigationRoute
   '/admin/website/pages': typeof AdminWebsitePagesRoute
   '/store/$storeSlug/$pageSlug': typeof StoreStoreSlugPageSlugRoute
+  '/store/$storeSlug/catalog': typeof StoreStoreSlugCatalogRoute
   '/admin/catalog/': typeof AdminCatalogIndexRoute
   '/admin/website/': typeof AdminWebsiteIndexRoute
   '/store/$storeSlug/': typeof StoreStoreSlugIndexRoute
@@ -285,6 +294,7 @@ export interface FileRouteTypes {
     | '/admin/website/navigation'
     | '/admin/website/pages'
     | '/store/$storeSlug/$pageSlug'
+    | '/store/$storeSlug/catalog'
     | '/admin/catalog/'
     | '/admin/website/'
     | '/store/$storeSlug/'
@@ -311,6 +321,7 @@ export interface FileRouteTypes {
     | '/admin/website/navigation'
     | '/admin/website/pages'
     | '/store/$storeSlug/$pageSlug'
+    | '/store/$storeSlug/catalog'
     | '/admin/catalog'
     | '/admin/website'
     | '/store/$storeSlug'
@@ -340,6 +351,7 @@ export interface FileRouteTypes {
     | '/admin/website/navigation'
     | '/admin/website/pages'
     | '/store/$storeSlug/$pageSlug'
+    | '/store/$storeSlug/catalog'
     | '/admin/catalog/'
     | '/admin/website/'
     | '/store/$storeSlug/'
@@ -355,6 +367,7 @@ export interface RootRouteChildren {
   AuthAcceptInviteRoute: typeof AuthAcceptInviteRoute
   AuthResetPasswordRoute: typeof AuthResetPasswordRoute
   StoreStoreSlugPageSlugRoute: typeof StoreStoreSlugPageSlugRoute
+  StoreStoreSlugCatalogRoute: typeof StoreStoreSlugCatalogRoute
   StoreStoreSlugIndexRoute: typeof StoreStoreSlugIndexRoute
   StoreStoreSlugCategoryCategorySlugRoute: typeof StoreStoreSlugCategoryCategorySlugRoute
   StoreStoreSlugProductProductSlugRoute: typeof StoreStoreSlugProductProductSlugRoute
@@ -537,6 +550,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StoreStoreSlugPageSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/store/$storeSlug/catalog': {
+      id: '/store/$storeSlug/catalog'
+      path: '/store/$storeSlug/catalog'
+      fullPath: '/store/$storeSlug/catalog'
+      preLoaderRoute: typeof StoreStoreSlugCatalogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/store/$storeSlug/category/$categorySlug': {
       id: '/store/$storeSlug/category/$categorySlug'
       path: '/store/$storeSlug/category/$categorySlug'
@@ -634,6 +654,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthAcceptInviteRoute: AuthAcceptInviteRoute,
   AuthResetPasswordRoute: AuthResetPasswordRoute,
   StoreStoreSlugPageSlugRoute: StoreStoreSlugPageSlugRoute,
+  StoreStoreSlugCatalogRoute: StoreStoreSlugCatalogRoute,
   StoreStoreSlugIndexRoute: StoreStoreSlugIndexRoute,
   StoreStoreSlugCategoryCategorySlugRoute:
     StoreStoreSlugCategoryCategorySlugRoute,

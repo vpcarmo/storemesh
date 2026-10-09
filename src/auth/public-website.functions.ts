@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import {
+  readPublicCatalogCategories,
+  readPublicCatalogProducts,
   readPublicCategoryPage,
   readPublicProduct,
   resolveCategoryGridSnapshots,
@@ -12,6 +14,7 @@ import {
   enrichCategoriesSection,
   enrichProductGridSection,
   storefrontCategoryHref,
+  storefrontProductHref,
   type PublicStorefrontSectionDefinition,
 } from "@/domain/storefront";
 import { DEFAULT_STOREFRONT_DESIGN_SETTINGS } from "@/domain/storefront-design.schema";
@@ -291,6 +294,32 @@ export const getPublishedProductPage = createServerFn({ method: "GET" })
       product: catalog.product,
       category:
         catalog.category && categoryHref ? { ...catalog.category, href: categoryHref } : null,
+    };
+  });
+
+export const getPublishedCatalogPage = createServerFn({ method: "GET" })
+  .validator((input) => z.object({ storeSlug: slug }).parse(input))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const store = await readActiveStore(supabaseAdmin, data.storeSlug);
+    if (!store) return null;
+
+    const [categories, products, storefront] = await Promise.all([
+      readPublicCatalogCategories(supabaseAdmin, store.id),
+      readPublicCatalogProducts(supabaseAdmin, store.id),
+      preparePublicStorefront(supabaseAdmin, store),
+    ]);
+
+    return {
+      ...storefront,
+      categories: categories.flatMap((category) => {
+        const href = storefrontCategoryHref(store.slug, category.slug);
+        return href ? [{ ...category, href }] : [];
+      }),
+      products: products.map((product) => ({
+        ...product,
+        href: storefrontProductHref(store.slug, product.slug),
+      })),
     };
   });
 
