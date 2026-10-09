@@ -21,6 +21,7 @@ import type { StoreSettings } from "@/domain/store-settings";
 import type { StorefrontFooterPage } from "@/domain/storefront-footer";
 import {
   DEFAULT_STOREFRONT_DESIGN_SETTINGS,
+  STOREFRONT_FONT_FAMILIES,
   type StorefrontDesignSettings,
 } from "@/domain/storefront-design.schema";
 import { hideBrokenImage } from "@/lib/image";
@@ -62,6 +63,13 @@ type GradientBackground = Extract<StorefrontDesignSettings["background"], { type
 type ImageBackground = Extract<StorefrontDesignSettings["background"], { type: "image" }>;
 type HeaderSettings = StorefrontDesignSettings["header"];
 type FooterSettings = StorefrontDesignSettings["footer"];
+
+const fontFamilyLabels: Record<(typeof STOREFRONT_FONT_FAMILIES)[number], string> = {
+  system: "Sistema",
+  arial: "Arial",
+  georgia: "Georgia",
+  verdana: "Verdana",
+};
 
 const colorFields = [
   {
@@ -464,6 +472,19 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
     setFeedback(null);
   }
 
+  function updateTypographyFamily(
+    field: "titleFontFamily" | "bodyFontFamily",
+    value: StorefrontDesignSettings["titleFontFamily"] | "",
+  ) {
+    const designSettings = { ...form.designSettings };
+    if (value === "") {
+      delete designSettings[field];
+    } else {
+      designSettings[field] = value;
+    }
+    updateDesignSettings(designSettings);
+  }
+
   function updateHeaderSettings(value: Partial<HeaderSettings>) {
     updateDesignSettings({
       ...form.designSettings,
@@ -861,6 +882,58 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               <FormHelp>
                 Escolha uma combinação de fontes pré-configurada. Não é necessário configurar CSS ou
                 fontes manualmente.
+              </FormHelp>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="store-design-title-font">Fonte dos títulos</Label>
+              <select
+                id="store-design-title-font"
+                disabled={!canManage}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.designSettings.titleFontFamily ?? ""}
+                onChange={(event) =>
+                  updateTypographyFamily(
+                    "titleFontFamily",
+                    event.target.value as StorefrontDesignSettings["titleFontFamily"] | "",
+                  )
+                }
+              >
+                <option value="">Herdar do preset atual</option>
+                {STOREFRONT_FONT_FAMILIES.map((family) => (
+                  <option key={family} value={family}>
+                    {fontFamilyLabels[family]}
+                  </option>
+                ))}
+              </select>
+              <FormHelp>
+                Se herdada, a fonte dos títulos acompanha o preset tipográfico selecionado.
+              </FormHelp>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="store-design-body-font">Fonte do texto</Label>
+              <select
+                id="store-design-body-font"
+                disabled={!canManage}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.designSettings.bodyFontFamily ?? ""}
+                onChange={(event) =>
+                  updateTypographyFamily(
+                    "bodyFontFamily",
+                    event.target.value as StorefrontDesignSettings["bodyFontFamily"] | "",
+                  )
+                }
+              >
+                <option value="">Herdar do preset atual</option>
+                {STOREFRONT_FONT_FAMILIES.map((family) => (
+                  <option key={family} value={family}>
+                    {fontFamilyLabels[family]}
+                  </option>
+                ))}
+              </select>
+              <FormHelp>
+                Se herdada, a fonte do texto acompanha o preset tipográfico selecionado.
               </FormHelp>
             </div>
 

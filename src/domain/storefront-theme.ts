@@ -3,6 +3,7 @@ import type { StoreSettings } from "@/domain/store-settings";
 import {
   DEFAULT_STOREFRONT_DESIGN_SETTINGS,
   parseStorefrontDesignSettings,
+  STOREFRONT_FONT_FAMILIES,
 } from "@/domain/storefront-design.schema";
 
 export interface StorefrontTheme {
@@ -123,6 +124,16 @@ export function createStorefrontTheme(
       heading: 'Arial, "Helvetica Neue", sans-serif',
     },
   }[design.typographyPreset];
+  const fontFamilyStacks = {
+    system: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    arial: 'Arial, "Helvetica Neue", sans-serif',
+    georgia: 'Georgia, "Times New Roman", serif',
+    verdana: "Verdana, Geneva, sans-serif",
+  } satisfies Record<(typeof STOREFRONT_FONT_FAMILIES)[number], string>;
+  const resolvedTypography = {
+    body: design.bodyFontFamily ? fontFamilyStacks[design.bodyFontFamily] : typography.body,
+    heading: design.titleFontFamily ? fontFamilyStacks[design.titleFontFamily] : typography.heading,
+  };
   const spacing = {
     compact: {
       section: "clamp(2rem, 5vw, 4rem)",
@@ -181,7 +192,7 @@ export function createStorefrontTheme(
       surface: design.surfaceColor ?? null,
       sectionBackground: design.sectionBackgroundColor ?? null,
     },
-    typography,
+    typography: resolvedTypography,
     button: { radius: radius.button, weight: 600 },
     card: { radius: radius.card, borderWidth: "1px" },
     spacing,

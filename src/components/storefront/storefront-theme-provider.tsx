@@ -30,6 +30,7 @@ export function StorefrontThemeProvider({
       : { "--storefront-section-background": theme.colors.sectionBackground }),
     "--storefront-background": theme.background.value,
     "--storefront-font-body": theme.typography.body,
+    "--storefront-font-title": theme.typography.heading,
     "--storefront-font-heading": theme.typography.heading,
     "--storefront-button-radius": theme.button.radius,
     "--storefront-button-weight": theme.button.weight,

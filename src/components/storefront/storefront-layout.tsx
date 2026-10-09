@@ -130,7 +130,7 @@ function StorefrontMobileNavigation({
           <SheetTitle
             style={{
               color: "var(--storefront-text)",
-              fontFamily: "var(--storefront-font-heading)",
+              fontFamily: "var(--storefront-font-title)",
             }}
           >
             Menu

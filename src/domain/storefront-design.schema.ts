@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const storefrontHexColorSchema = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
 
+export const STOREFRONT_FONT_FAMILIES = ["system", "arial", "georgia", "verdana"] as const;
+
 const DEFAULT_HEADER_SETTINGS = {
   layout: "stacked",
   navigationAlignment: "left",
@@ -29,6 +31,8 @@ const footerPageIds = z
 export const StorefrontDesignSettingsSchema = z
   .object({
     typographyPreset: z.enum(["modern", "editorial", "neutral"]),
+    titleFontFamily: z.enum(STOREFRONT_FONT_FAMILIES).optional(),
+    bodyFontFamily: z.enum(STOREFRONT_FONT_FAMILIES).optional(),
     density: z.enum(["compact", "comfortable", "spacious"]),
     radius: z.enum(["sharp", "soft", "rounded"]),
     shadow: z.enum(["none", "subtle", "strong"]),
