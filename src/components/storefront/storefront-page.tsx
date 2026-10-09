@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 import {
   StorefrontBannerSection,
   StorefrontCallToActionSection,
@@ -8,21 +10,41 @@ import {
 } from "@/components/storefront/storefront-sections";
 import type { StorefrontPageDefinition, StorefrontSectionDefinition } from "@/domain/storefront";
 
+type StorefrontSectionStyle = CSSProperties & {
+  "--storefront-section-local-background"?: string;
+};
+
 function StorefrontSection({ section }: { section: StorefrontSectionDefinition }) {
+  const style: StorefrontSectionStyle | undefined = section.backgroundColor
+    ? { "--storefront-section-local-background": section.backgroundColor }
+    : undefined;
+  let content;
   switch (section.type) {
     case "hero":
-      return <StorefrontHeroSection {...section} />;
+      content = <StorefrontHeroSection {...section} />;
+      break;
     case "banner":
-      return <StorefrontBannerSection {...section} />;
+      content = <StorefrontBannerSection {...section} />;
+      break;
     case "categories":
-      return <StorefrontCategoriesSection {...section} />;
+      content = <StorefrontCategoriesSection {...section} />;
+      break;
     case "product-grid":
-      return <StorefrontProductGridSection {...section} />;
+      content = <StorefrontProductGridSection {...section} />;
+      break;
     case "text-content":
-      return <StorefrontTextContentSection {...section} />;
+      content = <StorefrontTextContentSection {...section} />;
+      break;
     case "call-to-action":
-      return <StorefrontCallToActionSection {...section} />;
+      content = <StorefrontCallToActionSection {...section} />;
+      break;
   }
+
+  return (
+    <div className="storefront-section-wrapper" style={style}>
+      {content}
+    </div>
+  );
 }
 
 export function StorefrontPage({ page }: { page: StorefrontPageDefinition }) {

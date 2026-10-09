@@ -389,11 +389,17 @@
   }
 
   .storefront-section {
-    background: var(--storefront-section-background, transparent);
+    background: var(
+      --storefront-section-local-background,
+      var(--storefront-section-background, transparent)
+    );
   }
 
   .storefront-hero {
-    background: var(--storefront-secondary);
+    background: var(
+      --storefront-section-local-background,
+      var(--storefront-section-background, var(--storefront-secondary))
+    );
   }
 
   .storefront-section-inner {
@@ -567,7 +573,10 @@
     justify-content: space-between;
     gap: 1.5rem;
     padding: 1.25rem var(--storefront-content-space);
-    background: var(--storefront-primary);
+    background: var(
+      --storefront-section-local-background,
+      var(--storefront-section-background, var(--storefront-primary))
+    );
     color: var(--storefront-primary-foreground);
   }
 

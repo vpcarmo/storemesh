@@ -160,6 +160,9 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
               {
                 id: section.id,
                 type: section.type,
+                ...(section.backgroundColor === undefined
+                  ? {}
+                  : { backgroundColor: section.backgroundColor }),
                 title: section.title,
                 ...(section.description === undefined ? {} : { description: section.description }),
                 ...(section.action === undefined ? {} : { action: section.action }),
@@ -176,6 +179,9 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
               {
                 id: section.id,
                 type: section.type,
+                ...(section.backgroundColor === undefined
+                  ? {}
+                  : { backgroundColor: section.backgroundColor }),
                 message: section.message,
                 ...(section.action === undefined ? {} : { action: section.action }),
                 imageUrl: media?.url ?? null,
@@ -189,6 +195,9 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
                 {
                   id: section.id,
                   type: section.type,
+                  ...(section.backgroundColor === undefined
+                    ? {}
+                    : { backgroundColor: section.backgroundColor }),
                   ...(section.title === undefined ? {} : { title: section.title }),
                   categories: section.categories,
                 },
@@ -198,7 +207,15 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
           case "product-grid":
             return [
               enrichProductGridSection(
-                section,
+                {
+                  id: section.id,
+                  type: section.type,
+                  ...(section.backgroundColor === undefined
+                    ? {}
+                    : { backgroundColor: section.backgroundColor }),
+                  ...(section.title === undefined ? {} : { title: section.title }),
+                  products: section.products,
+                },
                 productGridSnapshots.validProductIds,
                 productGridSnapshots.images,
                 productGridSnapshots.hrefs,
@@ -209,6 +226,9 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
               {
                 id: section.id,
                 type: section.type,
+                ...(section.backgroundColor === undefined
+                  ? {}
+                  : { backgroundColor: section.backgroundColor }),
                 ...(section.title === undefined ? {} : { title: section.title }),
                 content: section.content,
                 ...(section.contentFormat === undefined
@@ -221,6 +241,9 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
               {
                 id: section.id,
                 type: section.type,
+                ...(section.backgroundColor === undefined
+                  ? {}
+                  : { backgroundColor: section.backgroundColor }),
                 title: section.title,
                 ...(section.description === undefined ? {} : { description: section.description }),
                 action: section.action,

@@ -1,9 +1,15 @@
 import { z } from "zod";
 
+import { storefrontHexColorSchema } from "@/domain/storefront-design.schema";
+
 export const STOREFRONT_TEXT_CONTENT_MAX_LENGTH = 20_000;
 
 const nonBlankString = z.string().refine((value) => value.trim().length > 0, "Campo obrigatório.");
 const optionalDescription = z.string().nullable().optional();
+const sectionBase = {
+  id: nonBlankString,
+  backgroundColor: storefrontHexColorSchema.optional(),
+};
 const safeHref = nonBlankString.refine((value) => {
   const href = value.trim();
   if (
@@ -29,7 +35,7 @@ const actionSchema = z.object({ label: nonBlankString, href: safeHref }).strict(
 
 const heroSectionSchema = z
   .object({
-    id: nonBlankString,
+    ...sectionBase,
     type: z.literal("hero"),
     title: z.string(),
     description: optionalDescription,
@@ -42,7 +48,7 @@ const heroSectionSchema = z
 
 const bannerSectionSchema = z
   .object({
-    id: nonBlankString,
+    ...sectionBase,
     type: z.literal("banner"),
     message: z.string(),
     action: actionSchema.optional(),
@@ -54,7 +60,7 @@ const bannerSectionSchema = z
 
 const categoriesSectionSchema = z
   .object({
-    id: nonBlankString,
+    ...sectionBase,
     type: z.literal("categories"),
     title: z.string().optional(),
     categories: z
@@ -79,7 +85,7 @@ const categoriesSectionSchema = z
 
 const productGridSectionSchema = z
   .object({
-    id: nonBlankString,
+    ...sectionBase,
     type: z.literal("product-grid"),
     title: z.string().optional(),
     products: z
@@ -105,7 +111,7 @@ const productGridSectionSchema = z
 
 const textContentSectionReadSchema = z
   .object({
-    id: nonBlankString,
+    ...sectionBase,
     type: z.literal("text-content"),
     title: z.string().optional(),
     content: z.string(),
@@ -120,7 +126,7 @@ const textContentSectionSchema = textContentSectionReadSchema.extend({
 
 const callToActionSectionSchema = z
   .object({
-    id: nonBlankString,
+    ...sectionBase,
     type: z.literal("call-to-action"),
     title: z.string(),
     description: optionalDescription,

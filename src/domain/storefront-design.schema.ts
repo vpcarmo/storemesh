@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const hexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
+export const storefrontHexColorSchema = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
 
 const DEFAULT_HEADER_SETTINGS = {
   layout: "stacked",
@@ -33,16 +33,16 @@ export const StorefrontDesignSettingsSchema = z
     radius: z.enum(["sharp", "soft", "rounded"]),
     shadow: z.enum(["none", "subtle", "strong"]),
     container: z.enum(["narrow", "standard", "wide"]),
-    linkColor: hexColor.optional(),
-    mutedTextColor: hexColor.optional(),
-    surfaceColor: hexColor.optional(),
-    sectionBackgroundColor: hexColor.optional(),
+    linkColor: storefrontHexColorSchema.optional(),
+    mutedTextColor: storefrontHexColorSchema.optional(),
+    surfaceColor: storefrontHexColorSchema.optional(),
+    sectionBackgroundColor: storefrontHexColorSchema.optional(),
     background: z.discriminatedUnion("type", [
       z.object({ type: z.literal("solid") }),
       z.object({
         type: z.literal("gradient"),
-        startColor: hexColor,
-        endColor: hexColor,
+        startColor: storefrontHexColorSchema,
+        endColor: storefrontHexColorSchema,
         direction: z.enum(["right", "bottom", "bottom-right", "left", "top"]),
       }),
       z.object({

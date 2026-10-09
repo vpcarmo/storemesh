@@ -41,6 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { DEFAULT_STOREFRONT_COLORS, isValidStorefrontHexColor } from "@/domain/storefront-theme";
 import {
   parseStorefrontSectionsForSave,
   STOREFRONT_TEXT_CONTENT_MAX_LENGTH,
@@ -159,6 +160,25 @@ export function WebsiteSectionsEditor({
     setFeedback(null);
   }
 
+  function replaceSectionBackgroundColor(sectionId: string, backgroundColor?: string) {
+    if (!canManage) return;
+    setSections((current) =>
+      current.map((section) => {
+        if (section.id !== sectionId) return section;
+        if (backgroundColor !== undefined) return { ...section, backgroundColor };
+        const { backgroundColor: _backgroundColor, ...withoutBackgroundColor } = section;
+        return withoutBackgroundColor;
+      }),
+    );
+    setSectionErrors((current) => {
+      const next = { ...current };
+      delete next[sectionId];
+      return next;
+    });
+    setError(null);
+    setFeedback(null);
+  }
+
   function replaceOptionalAction(
     sectionId: string,
     action: { label: string; href: string } | undefined,
@@ -245,6 +265,82 @@ export function WebsiteSectionsEditor({
   }
 
   function sectionEditor(section: StorefrontSectionDefinition) {
+    const backgroundColor = section.backgroundColor ?? "";
+    const backgroundColorError =
+      backgroundColor && !isValidStorefrontHexColor(backgroundColor)
+        ? "Use uma cor hexadecimal no formato #RRGGBB."
+        : undefined;
+    const sectionBackgroundField = (
+      <div className="grid gap-2">
+        <Label htmlFor={`section-background-${section.id}`}>Cor de fundo individual</Label>
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            aria-label="Seletor visual: Cor de fundo individual"
+            className="h-10 w-14 cursor-pointer rounded-md border border-input bg-background p-1"
+            type="color"
+            disabled={!canManage}
+            value={
+              isValidStorefrontHexColor(backgroundColor)
+                ? backgroundColor
+                : DEFAULT_STOREFRONT_COLORS.background
+            }
+            onChange={(event) =>
+              replaceSection(section.id, { backgroundColor: event.target.value.toUpperCase() })
+            }
+          />
+          <Input
+            id={`section-background-${section.id}`}
+            className="w-32 uppercase"
+            disabled={!canManage}
+            value={backgroundColor}
+            maxLength={7}
+            placeholder="Herdar"
+            aria-invalid={Boolean(backgroundColorError)}
+            aria-describedby={
+              backgroundColorError ? `section-background-${section.id}-error` : undefined
+            }
+            onChange={(event) =>
+              replaceSectionBackgroundColor(section.id, event.target.value || undefined)
+            }
+          />
+          <span
+            className="size-8 rounded border border-border"
+            style={{
+              backgroundColor: isValidStorefrontHexColor(backgroundColor)
+                ? backgroundColor
+                : "transparent",
+            }}
+            aria-label={
+              isValidStorefrontHexColor(backgroundColor)
+                ? `Amostra da cor de fundo: ${backgroundColor}`
+                : "Amostra da cor de fundo herdada"
+            }
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={!canManage || !backgroundColor}
+            onClick={() => replaceSectionBackgroundColor(section.id)}
+          >
+            Usar cor herdada
+          </Button>
+        </div>
+        {backgroundColorError ? (
+          <p
+            id={`section-background-${section.id}-error`}
+            className="text-sm text-destructive"
+            role="alert"
+          >
+            {backgroundColorError}
+          </p>
+        ) : (
+          <FormHelp>
+            Opcional. Quando vazia, mantém a cor padrão da loja ou o fundo original da seção.
+          </FormHelp>
+        )}
+      </div>
+    );
     const textField = (
       label: string,
       value: string,
@@ -369,210 +465,221 @@ export function WebsiteSectionsEditor({
       );
     };
 
-    switch (section.type) {
-      case "hero":
-        return (
-          <div className="grid gap-4">
-            <FormHelp>
-              Apresentação principal da página. Título, descrição, imagem e botão são opcionais
-              conforme a configuração.
-            </FormHelp>
-            {textField("Título", section.title, (title) => replaceSection(section.id, { title }))}
-            {descriptionField(section.description, (description) =>
-              replaceSection(section.id, { description }),
-            )}
-            {actionFields(
-              section.action,
-              (action) => replaceOptionalAction(section.id, action),
-              false,
-            )}
-            {mediaField(section.imageMediaAssetId)}
-          </div>
-        );
-      case "banner":
-        return (
-          <div className="grid gap-4">
-            <FormHelp>Faixa de destaque com uma mensagem, imagem e ação opcionais.</FormHelp>
-            {textField("Mensagem", section.message, (message) =>
-              replaceSection(section.id, { message }),
-            )}
-            {actionFields(
-              section.action,
-              (action) => replaceOptionalAction(section.id, action),
-              false,
-            )}
-            {mediaField(section.imageMediaAssetId)}
-          </div>
-        );
-      case "categories":
-        return (
-          <div className="grid gap-4">
-            <FormHelp>
-              Selecione categorias desta loja para exibi-las nesta página. Os dados selecionados
-              ficam armazenados na seção.
-            </FormHelp>
-            <FormHelp>
-              Os dados selecionados são armazenados na seção da página e não são atualizados
-              automaticamente quando a categoria muda.
-            </FormHelp>
-            {textField("Título (opcional)", section.title ?? "", (title) =>
-              replaceSection(section.id, { title }),
-            )}
-            {catalogQuery.isPending ? (
-              <p className="text-sm text-muted-foreground">Carregando categorias…</p>
-            ) : null}
-            {catalogQuery.isError ? (
-              <p className="text-sm text-destructive">{errorText(catalogQuery.error)}</p>
-            ) : null}
-            {catalogQuery.data?.categories.map((category) => (
-              <label key={category.id} className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  disabled={!canManage}
-                  checked={section.categories.some((item) => item.id === category.id)}
-                  onChange={(event) => {
-                    const categories = event.target.checked
-                      ? [
-                          ...section.categories,
-                          {
-                            id: category.id,
-                            name: category.name,
-                            description: category.description,
-                          },
-                        ]
-                      : section.categories.filter((item) => item.id !== category.id);
-                    replaceSection(section.id, { categories });
+    const content = (() => {
+      switch (section.type) {
+        case "hero":
+          return (
+            <div className="grid gap-4">
+              <FormHelp>
+                Apresentação principal da página. Título, descrição, imagem e botão são opcionais
+                conforme a configuração.
+              </FormHelp>
+              {textField("Título", section.title, (title) => replaceSection(section.id, { title }))}
+              {descriptionField(section.description, (description) =>
+                replaceSection(section.id, { description }),
+              )}
+              {actionFields(
+                section.action,
+                (action) => replaceOptionalAction(section.id, action),
+                false,
+              )}
+              {mediaField(section.imageMediaAssetId)}
+            </div>
+          );
+        case "banner":
+          return (
+            <div className="grid gap-4">
+              <FormHelp>Faixa de destaque com uma mensagem, imagem e ação opcionais.</FormHelp>
+              {textField("Mensagem", section.message, (message) =>
+                replaceSection(section.id, { message }),
+              )}
+              {actionFields(
+                section.action,
+                (action) => replaceOptionalAction(section.id, action),
+                false,
+              )}
+              {mediaField(section.imageMediaAssetId)}
+            </div>
+          );
+        case "categories":
+          return (
+            <div className="grid gap-4">
+              <FormHelp>
+                Selecione categorias desta loja para exibi-las nesta página. Os dados selecionados
+                ficam armazenados na seção.
+              </FormHelp>
+              <FormHelp>
+                Os dados selecionados são armazenados na seção da página e não são atualizados
+                automaticamente quando a categoria muda.
+              </FormHelp>
+              {textField("Título (opcional)", section.title ?? "", (title) =>
+                replaceSection(section.id, { title }),
+              )}
+              {catalogQuery.isPending ? (
+                <p className="text-sm text-muted-foreground">Carregando categorias…</p>
+              ) : null}
+              {catalogQuery.isError ? (
+                <p className="text-sm text-destructive">{errorText(catalogQuery.error)}</p>
+              ) : null}
+              {catalogQuery.data?.categories.map((category) => (
+                <label key={category.id} className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    disabled={!canManage}
+                    checked={section.categories.some((item) => item.id === category.id)}
+                    onChange={(event) => {
+                      const categories = event.target.checked
+                        ? [
+                            ...section.categories,
+                            {
+                              id: category.id,
+                              name: category.name,
+                              description: category.description,
+                            },
+                          ]
+                        : section.categories.filter((item) => item.id !== category.id);
+                      replaceSection(section.id, { categories });
+                    }}
+                  />
+                  <span>{category.name}</span>
+                </label>
+              ))}
+              {!catalogQuery.isPending && catalogQuery.data?.categories.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Esta loja ainda não possui categorias.
+                </p>
+              ) : null}
+            </div>
+          );
+        case "product-grid":
+          return (
+            <div className="grid gap-4">
+              <FormHelp>
+                Selecione produtos desta loja para exibi-los nesta página. Os dados selecionados
+                ficam armazenados na seção.
+              </FormHelp>
+              <FormHelp>
+                Os produtos são armazenados na seção como um retrato dos dados selecionados.
+                Alterações posteriores no cadastro do produto não atualizam automaticamente esta
+                seção.
+              </FormHelp>
+              {textField("Título (opcional)", section.title ?? "", (title) =>
+                replaceSection(section.id, { title }),
+              )}
+              {catalogQuery.isPending ? (
+                <p className="text-sm text-muted-foreground">Carregando produtos…</p>
+              ) : null}
+              {catalogQuery.isError ? (
+                <p className="text-sm text-destructive">{errorText(catalogQuery.error)}</p>
+              ) : null}
+              {catalogQuery.data?.products.map((product) => (
+                <label key={product.id} className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    disabled={!canManage}
+                    checked={section.products.some((item) => item.id === product.id)}
+                    onChange={(event) => {
+                      const products = event.target.checked
+                        ? [
+                            ...section.products,
+                            {
+                              id: product.id,
+                              name: product.name,
+                              description: product.description,
+                              price: product.price,
+                            },
+                          ]
+                        : section.products.filter((item) => item.id !== product.id);
+                      replaceSection(section.id, { products });
+                    }}
+                  />
+                  <span>
+                    {product.name} · {product.price.toFixed(2)}
+                  </span>
+                </label>
+              ))}
+              {!catalogQuery.isPending && catalogQuery.data?.products.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Esta loja ainda não possui produtos.
+                </p>
+              ) : null}
+            </div>
+          );
+        case "text-content":
+          return (
+            <div className="grid gap-4">
+              {textField("Título (opcional)", section.title ?? "", (title) =>
+                replaceSection(section.id, { title }),
+              )}
+              <Label>
+                Formato
+                <Select
+                  value={section.contentFormat ?? "plain"}
+                  onValueChange={(contentFormat) => {
+                    if (contentFormat === "plain" || contentFormat === "markdown")
+                      replaceSection(section.id, { contentFormat });
                   }}
-                />
-                <span>{category.name}</span>
-              </label>
-            ))}
-            {!catalogQuery.isPending && catalogQuery.data?.categories.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Esta loja ainda não possui categorias.
-              </p>
-            ) : null}
-          </div>
-        );
-      case "product-grid":
-        return (
-          <div className="grid gap-4">
-            <FormHelp>
-              Selecione produtos desta loja para exibi-los nesta página. Os dados selecionados ficam
-              armazenados na seção.
-            </FormHelp>
-            <FormHelp>
-              Os produtos são armazenados na seção como um retrato dos dados selecionados.
-              Alterações posteriores no cadastro do produto não atualizam automaticamente esta
-              seção.
-            </FormHelp>
-            {textField("Título (opcional)", section.title ?? "", (title) =>
-              replaceSection(section.id, { title }),
-            )}
-            {catalogQuery.isPending ? (
-              <p className="text-sm text-muted-foreground">Carregando produtos…</p>
-            ) : null}
-            {catalogQuery.isError ? (
-              <p className="text-sm text-destructive">{errorText(catalogQuery.error)}</p>
-            ) : null}
-            {catalogQuery.data?.products.map((product) => (
-              <label key={product.id} className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
+                >
+                  <SelectTrigger disabled={!canManage}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="plain">Texto simples</SelectItem>
+                    <SelectItem value="markdown">Markdown</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Label>
+              {section.contentFormat === "markdown" ? (
+                <>
+                  <FormHelp>
+                    Use Markdown para títulos, negrito, itálico, listas, citações e links.
+                  </FormHelp>
+                  <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">
+                    {"## Título\n\nTexto com **destaque**.\n\n[Saiba mais](https://exemplo.com)"}
+                  </pre>
+                </>
+              ) : (
+                <FormHelp>Texto simples. Markdown não é interpretado.</FormHelp>
+              )}
+              <Label>
+                Conteúdo
+                <Textarea
+                  maxLength={STOREFRONT_TEXT_CONTENT_MAX_LENGTH}
+                  value={section.content}
                   disabled={!canManage}
-                  checked={section.products.some((item) => item.id === product.id)}
-                  onChange={(event) => {
-                    const products = event.target.checked
-                      ? [
-                          ...section.products,
-                          {
-                            id: product.id,
-                            name: product.name,
-                            description: product.description,
-                            price: product.price,
-                          },
-                        ]
-                      : section.products.filter((item) => item.id !== product.id);
-                    replaceSection(section.id, { products });
-                  }}
+                  onChange={(event) => replaceSection(section.id, { content: event.target.value })}
                 />
-                <span>
-                  {product.name} · {product.price.toFixed(2)}
-                </span>
-              </label>
-            ))}
-            {!catalogQuery.isPending && catalogQuery.data?.products.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Esta loja ainda não possui produtos.</p>
-            ) : null}
-          </div>
-        );
-      case "text-content":
-        return (
-          <div className="grid gap-4">
-            {textField("Título (opcional)", section.title ?? "", (title) =>
-              replaceSection(section.id, { title }),
-            )}
-            <Label>
-              Formato
-              <Select
-                value={section.contentFormat ?? "plain"}
-                onValueChange={(contentFormat) => {
-                  if (contentFormat === "plain" || contentFormat === "markdown")
-                    replaceSection(section.id, { contentFormat });
-                }}
-              >
-                <SelectTrigger disabled={!canManage}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="plain">Texto simples</SelectItem>
-                  <SelectItem value="markdown">Markdown</SelectItem>
-                </SelectContent>
-              </Select>
-            </Label>
-            {section.contentFormat === "markdown" ? (
-              <>
-                <FormHelp>
-                  Use Markdown para títulos, negrito, itálico, listas, citações e links.
-                </FormHelp>
-                <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">
-                  {"## Título\n\nTexto com **destaque**.\n\n[Saiba mais](https://exemplo.com)"}
-                </pre>
-              </>
-            ) : (
-              <FormHelp>Texto simples. Markdown não é interpretado.</FormHelp>
-            )}
-            <Label>
-              Conteúdo
-              <Textarea
-                maxLength={STOREFRONT_TEXT_CONTENT_MAX_LENGTH}
-                value={section.content}
-                disabled={!canManage}
-                onChange={(event) => replaceSection(section.id, { content: event.target.value })}
-              />
-            </Label>
-          </div>
-        );
-      case "call-to-action":
-        return (
-          <div className="grid gap-4">
-            <FormHelp>
-              Use esta seção para destacar uma ação e direcionar o visitante para um destino.
-            </FormHelp>
-            {textField("Título", section.title, (title) => replaceSection(section.id, { title }))}
-            {descriptionField(section.description, (description) =>
-              replaceSection(section.id, { description }),
-            )}
-            {actionFields(
-              section.action,
-              (action) => {
-                if (action) replaceSection(section.id, { action });
-              },
-              true,
-            )}
-          </div>
-        );
-    }
+              </Label>
+            </div>
+          );
+        case "call-to-action":
+          return (
+            <div className="grid gap-4">
+              <FormHelp>
+                Use esta seção para destacar uma ação e direcionar o visitante para um destino.
+              </FormHelp>
+              {textField("Título", section.title, (title) => replaceSection(section.id, { title }))}
+              {descriptionField(section.description, (description) =>
+                replaceSection(section.id, { description }),
+              )}
+              {actionFields(
+                section.action,
+                (action) => {
+                  if (action) replaceSection(section.id, { action });
+                },
+                true,
+              )}
+            </div>
+          );
+      }
+    })();
+
+    return (
+      <div className="grid gap-4">
+        {sectionBackgroundField}
+        {content}
+      </div>
+    );
   }
 
   return (

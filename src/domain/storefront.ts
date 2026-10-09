@@ -24,6 +24,7 @@ export interface StorefrontNavigationItem {
 
 interface SectionBase {
   id: string;
+  backgroundColor?: string;
 }
 
 export interface HeroSectionDefinition extends SectionBase {
@@ -83,6 +84,7 @@ export function enrichProductGridSection(
   return {
     id: section.id,
     type: section.type,
+    ...(section.backgroundColor === undefined ? {} : { backgroundColor: section.backgroundColor }),
     ...(section.title === undefined ? {} : { title: section.title }),
     products: section.products.flatMap((product) => {
       if (!validProductIds.has(product.id)) return [];
