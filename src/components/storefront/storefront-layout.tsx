@@ -120,7 +120,7 @@ function StorefrontMobileNavigation({
         style={{
           ...themeStyle,
           width: "min(88vw, 24rem)",
-          backgroundColor: "var(--storefront-surface)",
+          backgroundColor: "var(--storefront-mobile-surface)",
           color: "var(--storefront-text)",
           fontFamily: "var(--storefront-font-body)",
           boxShadow: "var(--storefront-shadow)",

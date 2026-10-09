@@ -23,7 +23,8 @@ export function StorefrontThemeProvider({
     "--storefront-text": theme.colors.text,
     "--storefront-muted":
       theme.colors.muted ?? "color-mix(in oklab, var(--storefront-text) 72%, transparent)",
-    "--storefront-surface": theme.colors.background,
+    "--storefront-mobile-surface": theme.colors.background,
+    ...(theme.colors.surface === null ? {} : { "--storefront-surface": theme.colors.surface }),
     "--storefront-background": theme.background.value,
     "--storefront-font-body": theme.typography.body,
     "--storefront-font-heading": theme.typography.heading,

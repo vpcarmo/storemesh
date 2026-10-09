@@ -16,6 +16,7 @@ export interface StorefrontTheme {
     text: string;
     muted: string | null;
     background: string;
+    surface: string | null;
   };
   typography: {
     body: string;
@@ -176,6 +177,7 @@ export function createStorefrontTheme(
       text: safeColor(settings?.textColor ?? null, DEFAULT_STOREFRONT_COLORS.text),
       muted: design.mutedTextColor ?? null,
       background: backgroundColor,
+      surface: design.surfaceColor ?? null,
     },
     typography,
     button: { radius: radius.button, weight: 600 },
