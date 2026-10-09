@@ -1,6 +1,11 @@
 import { z } from "zod";
 
 import { storefrontHexColorSchema } from "@/domain/storefront-design.schema";
+import {
+  STOREFRONT_SECTION_CONTENT_ALIGNMENTS,
+  STOREFRONT_SECTION_CONTENT_WIDTHS,
+  STOREFRONT_SECTION_SPACINGS,
+} from "@/domain/storefront";
 
 export const STOREFRONT_TEXT_CONTENT_MAX_LENGTH = 20_000;
 
@@ -9,6 +14,11 @@ const optionalDescription = z.string().nullable().optional();
 const sectionBase = {
   id: nonBlankString,
   backgroundColor: storefrontHexColorSchema.optional(),
+};
+const sectionLayout = {
+  sectionSpacing: z.enum(STOREFRONT_SECTION_SPACINGS).optional(),
+  contentWidth: z.enum(STOREFRONT_SECTION_CONTENT_WIDTHS).optional(),
+  contentAlignment: z.enum(STOREFRONT_SECTION_CONTENT_ALIGNMENTS).optional(),
 };
 const safeHref = nonBlankString.refine((value) => {
   const href = value.trim();
@@ -61,6 +71,7 @@ const bannerSectionSchema = z
 const categoriesSectionSchema = z
   .object({
     ...sectionBase,
+    ...sectionLayout,
     type: z.literal("categories"),
     title: z.string().optional(),
     categories: z
@@ -86,6 +97,7 @@ const categoriesSectionSchema = z
 const productGridSectionSchema = z
   .object({
     ...sectionBase,
+    ...sectionLayout,
     type: z.literal("product-grid"),
     title: z.string().optional(),
     products: z
@@ -112,6 +124,7 @@ const productGridSectionSchema = z
 const textContentSectionReadSchema = z
   .object({
     ...sectionBase,
+    ...sectionLayout,
     type: z.literal("text-content"),
     title: z.string().optional(),
     content: z.string(),

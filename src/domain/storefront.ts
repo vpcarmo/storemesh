@@ -22,6 +22,16 @@ export interface StorefrontNavigationItem {
   pageId?: string | null;
 }
 
+export const STOREFRONT_SECTION_SPACINGS = ["compact", "default", "spacious"] as const;
+export const STOREFRONT_SECTION_CONTENT_WIDTHS = ["narrow", "default", "wide"] as const;
+export const STOREFRONT_SECTION_CONTENT_ALIGNMENTS = ["left", "center", "right"] as const;
+
+export interface SectionLayoutDefinition {
+  sectionSpacing?: (typeof STOREFRONT_SECTION_SPACINGS)[number];
+  contentWidth?: (typeof STOREFRONT_SECTION_CONTENT_WIDTHS)[number];
+  contentAlignment?: (typeof STOREFRONT_SECTION_CONTENT_ALIGNMENTS)[number];
+}
+
 interface SectionBase {
   id: string;
   backgroundColor?: string;
@@ -46,7 +56,7 @@ export interface BannerSectionDefinition extends SectionBase {
   imageAlt?: string | null;
 }
 
-export interface CategoriesSectionDefinition extends SectionBase {
+export interface CategoriesSectionDefinition extends SectionBase, SectionLayoutDefinition {
   type: "categories";
   title?: string;
   categories: Pick<Category, "id" | "name" | "description">[];
@@ -56,7 +66,7 @@ export type StorefrontCategoryItem = Pick<Category, "id" | "name" | "description
   href?: string;
 };
 
-export interface ProductGridSectionDefinition extends SectionBase {
+export interface ProductGridSectionDefinition extends SectionBase, SectionLayoutDefinition {
   type: "product-grid";
   title?: string;
   products: Pick<Product, "id" | "name" | "description" | "price">[];
@@ -85,6 +95,11 @@ export function enrichProductGridSection(
     id: section.id,
     type: section.type,
     ...(section.backgroundColor === undefined ? {} : { backgroundColor: section.backgroundColor }),
+    ...(section.sectionSpacing === undefined ? {} : { sectionSpacing: section.sectionSpacing }),
+    ...(section.contentWidth === undefined ? {} : { contentWidth: section.contentWidth }),
+    ...(section.contentAlignment === undefined
+      ? {}
+      : { contentAlignment: section.contentAlignment }),
     ...(section.title === undefined ? {} : { title: section.title }),
     products: section.products.flatMap((product) => {
       if (!validProductIds.has(product.id)) return [];
@@ -128,7 +143,7 @@ function isStorefrontSlug(value: string): boolean {
   return value.length <= 160 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
 }
 
-export interface TextContentSectionDefinition extends SectionBase {
+export interface TextContentSectionDefinition extends SectionBase, SectionLayoutDefinition {
   type: "text-content";
   title?: string;
   content: string;

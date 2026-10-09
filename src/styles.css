@@ -385,7 +385,8 @@
 
   .storefront-section,
   .storefront-hero {
-    padding: var(--storefront-section-space) var(--storefront-content-space);
+    padding: var(--storefront-section-local-spacing, var(--storefront-section-space))
+      var(--storefront-content-space);
   }
 
   .storefront-section {
@@ -403,8 +404,12 @@
   }
 
   .storefront-section-inner {
-    width: min(100%, var(--storefront-container-width));
+    width: min(
+      100%,
+      var(--storefront-section-local-content-width, var(--storefront-container-width))
+    );
     margin-inline: auto;
+    text-align: var(--storefront-section-local-content-alignment, start);
   }
 
   .storefront-section-image {

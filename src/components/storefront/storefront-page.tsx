@@ -12,12 +12,45 @@ import type { StorefrontPageDefinition, StorefrontSectionDefinition } from "@/do
 
 type StorefrontSectionStyle = CSSProperties & {
   "--storefront-section-local-background"?: string;
+  "--storefront-section-local-spacing"?: string;
+  "--storefront-section-local-content-width"?: string;
+  "--storefront-section-local-content-alignment"?: string;
 };
 
+function getStorefrontSectionStyle(section: StorefrontSectionDefinition) {
+  const style: StorefrontSectionStyle = {};
+  if (section.backgroundColor)
+    style["--storefront-section-local-background"] = section.backgroundColor;
+
+  if (
+    section.type === "categories" ||
+    section.type === "product-grid" ||
+    section.type === "text-content"
+  ) {
+    if (section.sectionSpacing) {
+      style["--storefront-section-local-spacing"] = {
+        compact: "calc(var(--storefront-section-space) * 0.65)",
+        default: "var(--storefront-section-space)",
+        spacious: "calc(var(--storefront-section-space) * 1.4)",
+      }[section.sectionSpacing];
+    }
+    if (section.contentWidth) {
+      style["--storefront-section-local-content-width"] = {
+        narrow: "42rem",
+        default: "var(--storefront-container-width)",
+        wide: "90rem",
+      }[section.contentWidth];
+    }
+    if (section.contentAlignment) {
+      style["--storefront-section-local-content-alignment"] = section.contentAlignment;
+    }
+  }
+
+  return Object.keys(style).length > 0 ? style : undefined;
+}
+
 function StorefrontSection({ section }: { section: StorefrontSectionDefinition }) {
-  const style: StorefrontSectionStyle | undefined = section.backgroundColor
-    ? { "--storefront-section-local-background": section.backgroundColor }
-    : undefined;
+  const style = getStorefrontSectionStyle(section);
   let content;
   switch (section.type) {
     case "hero":

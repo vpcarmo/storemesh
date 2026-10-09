@@ -46,7 +46,12 @@ import {
   parseStorefrontSectionsForSave,
   STOREFRONT_TEXT_CONTENT_MAX_LENGTH,
 } from "@/domain/storefront-sections.schema";
-import type { StorefrontSectionDefinition } from "@/domain/storefront";
+import {
+  STOREFRONT_SECTION_CONTENT_ALIGNMENTS,
+  STOREFRONT_SECTION_CONTENT_WIDTHS,
+  STOREFRONT_SECTION_SPACINGS,
+} from "@/domain/storefront";
+import type { SectionLayoutDefinition, StorefrontSectionDefinition } from "@/domain/storefront";
 import type { WebsitePage } from "@/domain/website";
 
 const sectionChoices = [
@@ -97,6 +102,13 @@ function errorText(error: unknown) {
   return error instanceof Error ? error.message : "Não foi possível salvar as seções.";
 }
 
+function isEnumValue<const T extends readonly string[]>(
+  values: T,
+  value: string,
+): value is T[number] {
+  return values.some((option) => option === value);
+}
+
 export function WebsiteSectionsEditor({
   pageId,
   status,
@@ -142,7 +154,10 @@ export function WebsiteSectionsEditor({
     enabled: !!storeSlug && needsMedia,
   });
 
-  function replaceSection(sectionId: string, patch: Partial<StorefrontSectionDefinition>) {
+  function replaceSection(
+    sectionId: string,
+    patch: Partial<StorefrontSectionDefinition> | Partial<SectionLayoutDefinition>,
+  ) {
     if (!canManage) return;
     setSections((current) =>
       current.map((section) =>
@@ -341,6 +356,70 @@ export function WebsiteSectionsEditor({
         )}
       </div>
     );
+    const sectionLayoutControls =
+      section.type === "categories" ||
+      section.type === "product-grid" ||
+      section.type === "text-content" ? (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Label>
+            Espaçamento
+            <Select
+              value={section.sectionSpacing ?? "default"}
+              onValueChange={(value) => {
+                if (isEnumValue(STOREFRONT_SECTION_SPACINGS, value))
+                  replaceSection(section.id, { sectionSpacing: value });
+              }}
+            >
+              <SelectTrigger disabled={!canManage}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="compact">Compacto</SelectItem>
+                <SelectItem value="default">Padrão</SelectItem>
+                <SelectItem value="spacious">Amplo</SelectItem>
+              </SelectContent>
+            </Select>
+          </Label>
+          <Label>
+            Largura do conteúdo
+            <Select
+              value={section.contentWidth ?? "default"}
+              onValueChange={(value) => {
+                if (isEnumValue(STOREFRONT_SECTION_CONTENT_WIDTHS, value))
+                  replaceSection(section.id, { contentWidth: value });
+              }}
+            >
+              <SelectTrigger disabled={!canManage}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="narrow">Estreita</SelectItem>
+                <SelectItem value="default">Padrão</SelectItem>
+                <SelectItem value="wide">Ampla</SelectItem>
+              </SelectContent>
+            </Select>
+          </Label>
+          <Label>
+            Alinhamento do conteúdo
+            <Select
+              value={section.contentAlignment ?? "left"}
+              onValueChange={(value) => {
+                if (isEnumValue(STOREFRONT_SECTION_CONTENT_ALIGNMENTS, value))
+                  replaceSection(section.id, { contentAlignment: value });
+              }}
+            >
+              <SelectTrigger disabled={!canManage}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="left">Esquerda</SelectItem>
+                <SelectItem value="center">Centro</SelectItem>
+                <SelectItem value="right">Direita</SelectItem>
+              </SelectContent>
+            </Select>
+          </Label>
+        </div>
+      ) : null;
     const textField = (
       label: string,
       value: string,
@@ -676,7 +755,11 @@ export function WebsiteSectionsEditor({
 
     return (
       <div className="grid gap-4">
-        {sectionBackgroundField}
+        <fieldset className="grid gap-3 rounded-md border p-3">
+          <legend className="px-1 text-sm font-medium">Layout da seção</legend>
+          {sectionBackgroundField}
+          {sectionLayoutControls}
+        </fieldset>
         {content}
       </div>
     );
