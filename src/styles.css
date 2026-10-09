@@ -701,6 +701,7 @@
   }
 
   .storefront-product-breadcrumb a:focus-visible,
+  .storefront-category-back:focus-visible,
   .storefront-product-thumbnails button:focus-visible,
   .storefront-product-variant-option:focus-within {
     outline: 2px solid var(--storefront-primary);
@@ -875,6 +876,14 @@
 
   .storefront-category-empty {
     margin-top: var(--storefront-grid-space);
+  }
+
+  .storefront-category-back {
+    display: inline-block;
+    margin-bottom: 1rem;
+    color: var(--storefront-primary);
+    font-size: 0.875rem;
+    text-underline-offset: 0.15em;
   }
 
   .storefront-pagination {

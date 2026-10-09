@@ -34,7 +34,7 @@ const slug = z
   .max(160);
 const catalogPageInput = z.object({
   storeSlug: slug,
-  page: z.number().int().min(1).max(10000),
+  page: z.number().int().min(1).max(10000).catch(1),
 });
 
 async function preparePublicStorefront(
@@ -342,6 +342,6 @@ export const getPublishedCategoryPage = createServerFn({ method: "GET" })
       category: catalog.category,
       products: catalog.products,
       totalProducts: catalog.totalProducts,
-      page: data.page,
+      page: catalog.page,
     };
   });

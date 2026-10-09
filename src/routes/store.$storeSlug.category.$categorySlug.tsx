@@ -1,4 +1,4 @@
-import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { getPublishedCategoryPage } from "@/auth/public-website.functions";
@@ -9,12 +9,20 @@ import { isValidHttpUrl } from "@/domain/storefront-theme";
 
 export const Route = createFileRoute("/store/$storeSlug/category/$categorySlug")({
   validateSearch: z.object({
-    page: z.coerce.number().int().min(1).catch(1),
+    page: z.coerce.number().int().min(1).max(10000).catch(1),
   }),
   loaderDeps: ({ search: { page } }) => ({ page }),
   loader: async ({ params, deps }) => {
     const page = await getPublishedCategoryPage({ data: { ...params, page: deps.page } });
     if (!page) throw notFound();
+    if (page.page !== deps.page) {
+      throw redirect({
+        to: "/store/$storeSlug/category/$categorySlug",
+        params,
+        search: { page: page.page },
+        replace: true,
+      });
+    }
     return page;
   },
   head: ({ loaderData }) => ({
@@ -54,6 +62,22 @@ function PublicCategoryPage() {
     <PublicStorefrontFrame data={data}>
       <section className="storefront-section storefront-category-page">
         <div className="storefront-section-inner">
+          <nav className="storefront-product-breadcrumb" aria-label="Navegação estrutural">
+            <ol>
+              <li>
+                <a href={`/store/${storeSlug}`}>Home</a>
+              </li>
+              <li>
+                <a href={`/store/${storeSlug}/catalog`}>Catálogo</a>
+              </li>
+              <li>
+                <span aria-current="page">{data.category.name}</span>
+              </li>
+            </ol>
+          </nav>
+          <a className="storefront-category-back" href={`/store/${storeSlug}/catalog`}>
+            Voltar ao catálogo
+          </a>
           <h1>{data.category.name}</h1>
           {data.category.description ? <p>{data.category.description}</p> : null}
           {products.length > 0 ? (

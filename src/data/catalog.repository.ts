@@ -799,6 +799,7 @@ export async function readPublicCategoryPage(
   category: PublicCatalogCategory;
   products: (Omit<PublicCatalogProduct, "categoryId"> & { href: string | null })[];
   totalProducts: number;
+  page: number;
 } | null> {
   const { data: category, error: categoryError } = await client
     .from("categories")
@@ -810,14 +811,21 @@ export async function readPublicCategoryPage(
   if (categoryError) throw categoryError;
   if (!category || category.store_id !== storeId) return null;
 
-  const first = (page - 1) * PUBLIC_CATEGORY_PAGE_SIZE;
-  const {
-    data: products,
-    error: productsError,
-    count,
-  } = await client
+  const { count, error: countError } = await client
     .from("products")
-    .select("id, store_id, name, slug, description, price", { count: "exact" })
+    .select("id", { count: "exact", head: true })
+    .eq("store_id", storeId)
+    .eq("category_id", category.id)
+    .eq("is_active", true);
+  if (countError) throw countError;
+  if (count === null) throw new Error("Could not determine the public product count.");
+
+  const totalPages = Math.max(1, Math.ceil(count / PUBLIC_CATEGORY_PAGE_SIZE));
+  const resolvedPage = Math.min(page, totalPages);
+  const first = (resolvedPage - 1) * PUBLIC_CATEGORY_PAGE_SIZE;
+  const { data: products, error: productsError } = await client
+    .from("products")
+    .select("id, store_id, name, slug, description, price")
     .eq("store_id", storeId)
     .eq("category_id", category.id)
     .eq("is_active", true)
@@ -848,7 +856,8 @@ export async function readPublicCategoryPage(
       imageAlt: images.get(product.id)?.alt?.trim() || product.name,
       href: storefrontProductHref(storeSlug, product.slug),
     })),
-    totalProducts: count ?? 0,
+    totalProducts: count,
+    page: resolvedPage,
   };
 }
 
