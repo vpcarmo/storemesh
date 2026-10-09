@@ -45,6 +45,7 @@ type SettingsForm = {
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
+  linkColor: string;
   textColor: string;
   backgroundColor: string;
   mutedTextColor: string;
@@ -77,6 +78,14 @@ const colorFields = [
     name: "accentColor",
     label: "Cor de destaque",
     help: "Usada apenas no botão CTA. Se ficar vazia, usa a cor primária.",
+  },
+  {
+    name: "linkColor",
+    label: "Cor dos links",
+    defaultValue: DEFAULT_STOREFRONT_COLORS.primary,
+    emptyValueLabel: "Automático",
+    placeholder: "Automático",
+    help: "Usada nos links de texto e na navegação. Quando vazia, usa a cor primária.",
   },
   {
     name: "textColor",
@@ -129,6 +138,7 @@ function formFromSettings(settings: StoreSettings | null): SettingsForm {
     primaryColor: settings?.primaryColor ?? "",
     secondaryColor: settings?.secondaryColor ?? "",
     accentColor: settings?.accentColor ?? "",
+    linkColor: settings?.designSettings.linkColor ?? "",
     textColor: settings?.textColor ?? "",
     backgroundColor: settings?.backgroundColor ?? "",
     mutedTextColor: settings?.designSettings.mutedTextColor ?? "",
@@ -491,6 +501,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
           socialLinks: form.socialLinks,
           designSettings: {
             ...form.designSettings,
+            linkColor: form.linkColor.trim() || undefined,
             mutedTextColor: form.mutedTextColor.trim() || undefined,
           },
         },
@@ -762,16 +773,23 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                   defaultValue={
                     color.name === "accentColor"
                       ? effectiveColor(form.primaryColor, DEFAULT_STOREFRONT_COLORS.primary)
-                      : color.name === "mutedTextColor"
-                        ? effectiveColor(form.textColor, DEFAULT_STOREFRONT_COLORS.text)
-                        : color.defaultValue
+                      : color.name === "linkColor"
+                        ? effectiveColor(form.primaryColor, DEFAULT_STOREFRONT_COLORS.primary)
+                        : color.name === "mutedTextColor"
+                          ? effectiveColor(form.textColor, DEFAULT_STOREFRONT_COLORS.text)
+                          : color.defaultValue
                   }
                   value={form[color.name]}
                   error={errors[color.name]}
                   disabled={!canManage}
                   onChange={(value) => updateField(color.name, value)}
                   onRestore={() =>
-                    updateField(color.name, color.name === "accentColor" ? "" : color.defaultValue)
+                    updateField(
+                      color.name,
+                      color.name === "accentColor" || color.name === "linkColor"
+                        ? ""
+                        : color.defaultValue,
+                    )
                   }
                 />
               ))}

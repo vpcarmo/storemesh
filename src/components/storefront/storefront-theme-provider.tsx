@@ -19,6 +19,7 @@ export function StorefrontThemeProvider({
     "--storefront-secondary": theme.colors.secondary,
     "--storefront-accent": theme.colors.accent,
     "--storefront-accent-foreground": theme.colors.accentForeground,
+    "--storefront-link": theme.colors.link,
     "--storefront-text": theme.colors.text,
     "--storefront-muted":
       theme.colors.muted ?? "color-mix(in oklab, var(--storefront-text) 72%, transparent)",

@@ -12,6 +12,7 @@ export interface StorefrontTheme {
     secondary: string;
     accent: string;
     accentForeground: string;
+    link: string;
     text: string;
     muted: string | null;
     background: string;
@@ -171,6 +172,7 @@ export function createStorefrontTheme(
       secondary: safeColor(settings?.secondaryColor ?? null, DEFAULT_STOREFRONT_COLORS.secondary),
       accent,
       accentForeground: highContrastForeground(accent),
+      link: safeColor(design.linkColor ?? null, primary),
       text: safeColor(settings?.textColor ?? null, DEFAULT_STOREFRONT_COLORS.text),
       muted: design.mutedTextColor ?? null,
       background: backgroundColor,

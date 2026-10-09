@@ -33,6 +33,7 @@ export const StorefrontDesignSettingsSchema = z
     radius: z.enum(["sharp", "soft", "rounded"]),
     shadow: z.enum(["none", "subtle", "strong"]),
     container: z.enum(["narrow", "standard", "wide"]),
+    linkColor: hexColor.optional(),
     mutedTextColor: hexColor.optional(),
     background: z.discriminatedUnion("type", [
       z.object({ type: z.literal("solid") }),
