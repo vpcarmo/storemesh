@@ -118,6 +118,9 @@ export async function readStorePageForPreview(
         return {
           id: section.id,
           type: section.type,
+          ...(section.backgroundColor === undefined
+            ? {}
+            : { backgroundColor: section.backgroundColor }),
           title: section.title,
           ...(section.description === undefined ? {} : { description: section.description }),
           ...(section.action === undefined ? {} : { action: section.action }),
@@ -131,6 +134,9 @@ export async function readStorePageForPreview(
         return {
           id: section.id,
           type: section.type,
+          ...(section.backgroundColor === undefined
+            ? {}
+            : { backgroundColor: section.backgroundColor }),
           message: section.message,
           ...(section.action === undefined ? {} : { action: section.action }),
           ...(section.imageMediaAssetId === undefined
@@ -143,6 +149,9 @@ export async function readStorePageForPreview(
         return {
           id: section.id,
           type: section.type,
+          ...(section.backgroundColor === undefined
+            ? {}
+            : { backgroundColor: section.backgroundColor }),
           ...(section.title === undefined ? {} : { title: section.title }),
           categories: section.categories,
         };
@@ -150,6 +159,9 @@ export async function readStorePageForPreview(
         return {
           id: section.id,
           type: section.type,
+          ...(section.backgroundColor === undefined
+            ? {}
+            : { backgroundColor: section.backgroundColor }),
           ...(section.title === undefined ? {} : { title: section.title }),
           products: section.products,
         };
@@ -157,6 +169,9 @@ export async function readStorePageForPreview(
         return {
           id: section.id,
           type: section.type,
+          ...(section.backgroundColor === undefined
+            ? {}
+            : { backgroundColor: section.backgroundColor }),
           ...(section.title === undefined ? {} : { title: section.title }),
           content: section.content,
           ...(section.contentFormat === undefined ? {} : { contentFormat: section.contentFormat }),
@@ -165,6 +180,9 @@ export async function readStorePageForPreview(
         return {
           id: section.id,
           type: section.type,
+          ...(section.backgroundColor === undefined
+            ? {}
+            : { backgroundColor: section.backgroundColor }),
           title: section.title,
           ...(section.description === undefined ? {} : { description: section.description }),
           action: section.action,
