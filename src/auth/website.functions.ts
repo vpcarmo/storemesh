@@ -33,6 +33,32 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const previewSignedUrlLifetimeSeconds = 300;
 
+function normalizeJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(normalizeJsonValue);
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nestedValue]) => [key, normalizeJsonValue(nestedValue)]),
+    );
+  return value;
+}
+
+function matchesInitialTemplatePage(
+  page: Awaited<ReturnType<typeof readPages>>[number],
+  sections: ReturnType<ReturnType<typeof getStorefrontTemplate>["sections"]>,
+) {
+  return (
+    page.title === "Início" &&
+    page.slug === "home" &&
+    page.status === "published" &&
+    page.seoTitle === null &&
+    page.seoDescription === null &&
+    JSON.stringify(normalizeJsonValue(page.sections)) ===
+      JSON.stringify(normalizeJsonValue(sections))
+  );
+}
+
 const slug = z
   .string()
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
@@ -291,27 +317,36 @@ export const applyCurrentStorefrontTemplate = createServerFn({ method: "POST" })
     if (websiteStore.id !== settingsStore.id)
       throw new Error("As permissões selecionadas não pertencem à mesma loja.");
 
+    const template = getStorefrontTemplate(data.templateId);
+    const templateSections = template.sections(websiteStore.slug);
     const pages = await readPages(context.supabase, websiteStore.id);
-    if (pages.length > 0) {
+    const existingPage = pages[0];
+    let page: (typeof pages)[number];
+    if (pages.length === 0) {
+      page = await savePage(
+        context.supabase,
+        websiteStore.id,
+        null,
+        {
+          title: "Início",
+          slug: "home",
+          status: "published",
+          seoTitle: null,
+          seoDescription: null,
+        },
+        templateSections,
+      );
+    } else if (
+      pages.length === 1 &&
+      existingPage &&
+      matchesInitialTemplatePage(existingPage, templateSections)
+    ) {
+      page = existingPage;
+    } else {
       throw new Error(
         "Os modelos iniciais só podem ser aplicados a uma loja sem páginas. O conteúdo existente foi preservado.",
       );
     }
-
-    const template = getStorefrontTemplate(data.templateId);
-    const page = await savePage(
-      context.supabase,
-      websiteStore.id,
-      null,
-      {
-        title: "Início",
-        slug: "home",
-        status: "published",
-        seoTitle: null,
-        seoDescription: null,
-      },
-      template.sections(websiteStore.slug),
-    );
 
     try {
       const designPresetApplied = await applyStorefrontTemplateTypographyPreset(

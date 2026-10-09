@@ -204,6 +204,15 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
                   ...(section.backgroundColor === undefined
                     ? {}
                     : { backgroundColor: section.backgroundColor }),
+                  ...(section.sectionSpacing === undefined
+                    ? {}
+                    : { sectionSpacing: section.sectionSpacing }),
+                  ...(section.contentWidth === undefined
+                    ? {}
+                    : { contentWidth: section.contentWidth }),
+                  ...(section.contentAlignment === undefined
+                    ? {}
+                    : { contentAlignment: section.contentAlignment }),
                   ...(section.title === undefined ? {} : { title: section.title }),
                   categories: section.categories,
                 },
@@ -219,6 +228,15 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
                   ...(section.backgroundColor === undefined
                     ? {}
                     : { backgroundColor: section.backgroundColor }),
+                  ...(section.sectionSpacing === undefined
+                    ? {}
+                    : { sectionSpacing: section.sectionSpacing }),
+                  ...(section.contentWidth === undefined
+                    ? {}
+                    : { contentWidth: section.contentWidth }),
+                  ...(section.contentAlignment === undefined
+                    ? {}
+                    : { contentAlignment: section.contentAlignment }),
                   ...(section.title === undefined ? {} : { title: section.title }),
                   products: section.products,
                 },
@@ -235,6 +253,15 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
                 ...(section.backgroundColor === undefined
                   ? {}
                   : { backgroundColor: section.backgroundColor }),
+                ...(section.sectionSpacing === undefined
+                  ? {}
+                  : { sectionSpacing: section.sectionSpacing }),
+                ...(section.contentWidth === undefined
+                  ? {}
+                  : { contentWidth: section.contentWidth }),
+                ...(section.contentAlignment === undefined
+                  ? {}
+                  : { contentAlignment: section.contentAlignment }),
                 ...(section.title === undefined ? {} : { title: section.title }),
                 content: section.content,
                 ...(section.contentFormat === undefined

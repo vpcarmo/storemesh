@@ -541,11 +541,13 @@ export function WebsitePanel({
                     onChange={(e) => setNav({ ...nav, pageId: e.target.value, externalUrl: "" })}
                   >
                     <option value="">Selecione se for link externo</option>
-                    {query.data.pages.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.title} (/{item.slug})
-                      </option>
-                    ))}
+                    {query.data.pages
+                      .filter((item) => item.status === "published")
+                      .map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.title} (/{item.slug})
+                        </option>
+                      ))}
                   </select>
                   <FormHelp>Escolha uma página publicada da própria loja.</FormHelp>
                 </Label>

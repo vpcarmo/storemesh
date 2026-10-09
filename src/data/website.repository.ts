@@ -86,6 +86,13 @@ function navigationFromRow(row: NavigationRow): NavigationItem {
     updatedAt: row.updated_at,
   };
 }
+function validatePageSectionsForPublication(sections: unknown) {
+  const parsedSections = parseStorefrontSectionsForSave(sections, sections);
+  if (!parsedSections.success) {
+    const firstIssue = parsedSections.error.issues[0];
+    throw new Error(firstIssue?.message ?? "As seções da página são inválidas.");
+  }
+}
 
 export async function readPages(client: AppClient, storeId: string): Promise<WebsitePage[]> {
   const { data, error } = await client
@@ -332,6 +339,18 @@ export async function savePage(
     seo_title: value.seoTitle,
     seo_description: value.seoDescription,
   };
+  if (id && value.status === "published") {
+    const { data: currentPage, error: currentPageError } = await client
+      .from("pages")
+      .select("status, sections")
+      .eq("id", id)
+      .eq("store_id", storeId)
+      .maybeSingle();
+    if (currentPageError) throw currentPageError;
+    if (!currentPage) throw new Error("A página não foi encontrada na loja autorizada.");
+    if (currentPage.status !== "published")
+      validatePageSectionsForPublication(currentPage.sections);
+  }
   const query = id
     ? client.from("pages").update(payload).eq("id", id).eq("store_id", storeId)
     : (() => {
@@ -480,6 +499,18 @@ export async function updatePageStatus(
   id: string,
   status: PageStatus,
 ) {
+  if (status === "published") {
+    const { data: currentPage, error: currentPageError } = await client
+      .from("pages")
+      .select("status, sections")
+      .eq("id", id)
+      .eq("store_id", storeId)
+      .maybeSingle();
+    if (currentPageError) throw currentPageError;
+    if (!currentPage) throw new Error("A página não foi encontrada na loja autorizada.");
+    if (currentPage.status !== "published")
+      validatePageSectionsForPublication(currentPage.sections);
+  }
   const { data, error } = await client
     .from("pages")
     .update({ status })
@@ -532,6 +563,17 @@ export async function saveNavigationItem(
   id: string | null,
   value: Pick<NavigationItem, "label" | "pageId" | "externalUrl" | "position" | "isActive">,
 ) {
+  if (value.pageId) {
+    const { data: page, error: pageError } = await client
+      .from("pages")
+      .select("id")
+      .eq("id", value.pageId)
+      .eq("store_id", storeId)
+      .eq("status", "published")
+      .maybeSingle();
+    if (pageError) throw pageError;
+    if (!page) throw new Error("Escolha uma página publicada da loja autorizada.");
+  }
   const payload = {
     store_id: storeId,
     label: value.label,
