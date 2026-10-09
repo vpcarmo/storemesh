@@ -261,7 +261,7 @@
     min-width: 0;
     gap: 0.75rem;
     font-family: var(--storefront-font-title);
-    font-weight: 700;
+    font-weight: var(--storefront-title-weight, 700);
   }
 
   .storefront-brand-name {
@@ -437,18 +437,26 @@
   .storefront-section h2,
   .storefront-cta h2 {
     font-family: var(--storefront-font-title);
-    font-weight: 700;
+    font-weight: var(--storefront-title-weight, 700);
     line-height: 1.1;
   }
 
   .storefront-hero h1 {
     max-width: 16ch;
-    font-size: clamp(2rem, 7vw, 4.5rem);
+    font-size: clamp(
+      calc(2rem * var(--storefront-title-scale, 1)),
+      calc(7vw * var(--storefront-title-scale, 1)),
+      calc(4.5rem * var(--storefront-title-scale, 1))
+    );
   }
 
   .storefront-section h2 {
     overflow-wrap: anywhere;
-    font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+    font-size: clamp(
+      calc(1.75rem * var(--storefront-title-scale, 1)),
+      calc(3.5vw * var(--storefront-title-scale, 1)),
+      calc(2.5rem * var(--storefront-title-scale, 1))
+    );
     text-wrap: balance;
   }
 
@@ -464,6 +472,18 @@
     margin-top: 0.75rem;
     line-height: 1.65;
     color: var(--storefront-muted);
+  }
+
+  .storefront-hero p,
+  .storefront-section p,
+  .storefront-cta p,
+  .storefront-footer p:not(.storefront-footer-title),
+  .storefront-rich-text p,
+  .storefront-rich-text ul,
+  .storefront-rich-text ol,
+  .storefront-product-detail-description {
+    font-size: calc(1rem * var(--storefront-body-scale, 1));
+    font-weight: var(--storefront-body-weight, 400);
   }
 
   .storefront-rich-text > h2:first-child,
@@ -488,28 +508,32 @@
     margin: 1.5rem 0 0.5rem;
     color: var(--storefront-text);
     font-family: var(--storefront-font-title);
-    font-weight: 700;
+    font-weight: var(--storefront-title-weight, 700);
     line-height: 1.2;
   }
 
   .storefront-rich-text h2 {
-    font-size: clamp(1.5rem, 4vw, 2rem);
+    font-size: clamp(
+      calc(1.5rem * var(--storefront-title-scale, 1)),
+      calc(4vw * var(--storefront-title-scale, 1)),
+      calc(2rem * var(--storefront-title-scale, 1))
+    );
   }
 
   .storefront-rich-text h3 {
-    font-size: 1.5rem;
+    font-size: calc(1.5rem * var(--storefront-title-scale, 1));
   }
 
   .storefront-rich-text h4 {
-    font-size: 1.25rem;
+    font-size: calc(1.25rem * var(--storefront-title-scale, 1));
   }
 
   .storefront-rich-text h5 {
-    font-size: 1.125rem;
+    font-size: calc(1.125rem * var(--storefront-title-scale, 1));
   }
 
   .storefront-rich-text h6 {
-    font-size: 1rem;
+    font-size: calc(1rem * var(--storefront-title-scale, 1));
   }
 
   .storefront-rich-text ul,
@@ -683,8 +707,12 @@
   .storefront-product-page h1,
   .storefront-category-page h1 {
     font-family: var(--storefront-font-title);
-    font-size: clamp(1.75rem, 4vw, 3rem);
-    font-weight: 700;
+    font-size: clamp(
+      calc(1.75rem * var(--storefront-title-scale, 1)),
+      calc(4vw * var(--storefront-title-scale, 1)),
+      calc(3rem * var(--storefront-title-scale, 1))
+    );
+    font-weight: var(--storefront-title-weight, 700);
     line-height: 1.1;
     overflow-wrap: anywhere;
   }
@@ -1016,8 +1044,8 @@
 
   .storefront-footer-group h2 {
     margin: 0 0 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 700;
+    font-size: calc(0.875rem * var(--storefront-title-scale, 1));
+    font-weight: var(--storefront-title-weight, 700);
   }
 
   .storefront-footer-copyright {
@@ -1032,7 +1060,7 @@
   }
 
   .storefront-footer-title {
-    font-weight: 700;
+    font-weight: var(--storefront-title-weight, 700);
   }
 
   .storefront-mobile-sheet {

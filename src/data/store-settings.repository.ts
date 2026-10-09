@@ -40,6 +40,12 @@ function designSettingsJson(settings: StoreSettings["designSettings"]): Json {
           };
   return {
     typographyPreset: settings.typographyPreset,
+    ...(settings.titleFontFamily ? { titleFontFamily: settings.titleFontFamily } : {}),
+    ...(settings.bodyFontFamily ? { bodyFontFamily: settings.bodyFontFamily } : {}),
+    ...(settings.titleFontScale ? { titleFontScale: settings.titleFontScale } : {}),
+    ...(settings.bodyFontScale ? { bodyFontScale: settings.bodyFontScale } : {}),
+    ...(settings.titleFontWeight ? { titleFontWeight: settings.titleFontWeight } : {}),
+    ...(settings.bodyFontWeight ? { bodyFontWeight: settings.bodyFontWeight } : {}),
     density: settings.density,
     radius: settings.radius,
     shadow: settings.shadow,

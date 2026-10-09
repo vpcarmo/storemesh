@@ -3,6 +3,9 @@ import { z } from "zod";
 export const storefrontHexColorSchema = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
 
 export const STOREFRONT_FONT_FAMILIES = ["system", "arial", "georgia", "verdana"] as const;
+export const STOREFRONT_FONT_SCALES = ["compact", "standard", "expanded"] as const;
+export const STOREFRONT_TITLE_FONT_WEIGHTS = ["regular", "medium", "semibold", "bold"] as const;
+export const STOREFRONT_BODY_FONT_WEIGHTS = ["regular", "medium", "semibold"] as const;
 
 const DEFAULT_HEADER_SETTINGS = {
   layout: "stacked",
@@ -33,6 +36,10 @@ export const StorefrontDesignSettingsSchema = z
     typographyPreset: z.enum(["modern", "editorial", "neutral"]),
     titleFontFamily: z.enum(STOREFRONT_FONT_FAMILIES).optional(),
     bodyFontFamily: z.enum(STOREFRONT_FONT_FAMILIES).optional(),
+    titleFontScale: z.enum(STOREFRONT_FONT_SCALES).optional(),
+    bodyFontScale: z.enum(STOREFRONT_FONT_SCALES).optional(),
+    titleFontWeight: z.enum(STOREFRONT_TITLE_FONT_WEIGHTS).optional(),
+    bodyFontWeight: z.enum(STOREFRONT_BODY_FONT_WEIGHTS).optional(),
     density: z.enum(["compact", "comfortable", "spacious"]),
     radius: z.enum(["sharp", "soft", "rounded"]),
     shadow: z.enum(["none", "subtle", "strong"]),

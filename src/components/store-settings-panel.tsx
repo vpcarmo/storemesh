@@ -21,7 +21,10 @@ import type { StoreSettings } from "@/domain/store-settings";
 import type { StorefrontFooterPage } from "@/domain/storefront-footer";
 import {
   DEFAULT_STOREFRONT_DESIGN_SETTINGS,
+  STOREFRONT_BODY_FONT_WEIGHTS,
   STOREFRONT_FONT_FAMILIES,
+  STOREFRONT_FONT_SCALES,
+  STOREFRONT_TITLE_FONT_WEIGHTS,
   type StorefrontDesignSettings,
 } from "@/domain/storefront-design.schema";
 import { hideBrokenImage } from "@/lib/image";
@@ -69,6 +72,22 @@ const fontFamilyLabels: Record<(typeof STOREFRONT_FONT_FAMILIES)[number], string
   arial: "Arial",
   georgia: "Georgia",
   verdana: "Verdana",
+};
+const fontScaleLabels: Record<(typeof STOREFRONT_FONT_SCALES)[number], string> = {
+  compact: "Compacta",
+  standard: "Padrão",
+  expanded: "Ampliada",
+};
+const titleFontWeightLabels: Record<(typeof STOREFRONT_TITLE_FONT_WEIGHTS)[number], string> = {
+  regular: "Regular",
+  medium: "Médio",
+  semibold: "Semibold",
+  bold: "Bold",
+};
+const bodyFontWeightLabels: Record<(typeof STOREFRONT_BODY_FONT_WEIGHTS)[number], string> = {
+  regular: "Regular",
+  medium: "Médio",
+  semibold: "Semibold",
 };
 
 const colorFields = [
@@ -472,10 +491,15 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
     setFeedback(null);
   }
 
-  function updateTypographyFamily(
-    field: "titleFontFamily" | "bodyFontFamily",
-    value: StorefrontDesignSettings["titleFontFamily"] | "",
-  ) {
+  function updateTypographySetting<
+    K extends
+      | "titleFontFamily"
+      | "bodyFontFamily"
+      | "titleFontScale"
+      | "bodyFontScale"
+      | "titleFontWeight"
+      | "bodyFontWeight",
+  >(field: K, value: StorefrontDesignSettings[K] | "") {
     const designSettings = { ...form.designSettings };
     if (value === "") {
       delete designSettings[field];
@@ -893,7 +917,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                 value={form.designSettings.titleFontFamily ?? ""}
                 onChange={(event) =>
-                  updateTypographyFamily(
+                  updateTypographySetting(
                     "titleFontFamily",
                     event.target.value as StorefrontDesignSettings["titleFontFamily"] | "",
                   )
@@ -919,7 +943,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                 value={form.designSettings.bodyFontFamily ?? ""}
                 onChange={(event) =>
-                  updateTypographyFamily(
+                  updateTypographySetting(
                     "bodyFontFamily",
                     event.target.value as StorefrontDesignSettings["bodyFontFamily"] | "",
                   )
@@ -935,6 +959,98 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
               <FormHelp>
                 Se herdada, a fonte do texto acompanha o preset tipográfico selecionado.
               </FormHelp>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="store-design-title-scale">Escala dos títulos</Label>
+              <select
+                id="store-design-title-scale"
+                disabled={!canManage}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.designSettings.titleFontScale ?? ""}
+                onChange={(event) =>
+                  updateTypographySetting(
+                    "titleFontScale",
+                    event.target.value as StorefrontDesignSettings["titleFontScale"] | "",
+                  )
+                }
+              >
+                <option value="">Padrão atual</option>
+                {STOREFRONT_FONT_SCALES.map((scale) => (
+                  <option key={scale} value={scale}>
+                    {fontScaleLabels[scale]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="store-design-body-scale">Escala do texto</Label>
+              <select
+                id="store-design-body-scale"
+                disabled={!canManage}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.designSettings.bodyFontScale ?? ""}
+                onChange={(event) =>
+                  updateTypographySetting(
+                    "bodyFontScale",
+                    event.target.value as StorefrontDesignSettings["bodyFontScale"] | "",
+                  )
+                }
+              >
+                <option value="">Padrão atual</option>
+                {STOREFRONT_FONT_SCALES.map((scale) => (
+                  <option key={scale} value={scale}>
+                    {fontScaleLabels[scale]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="store-design-title-weight">Peso dos títulos</Label>
+              <select
+                id="store-design-title-weight"
+                disabled={!canManage}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.designSettings.titleFontWeight ?? ""}
+                onChange={(event) =>
+                  updateTypographySetting(
+                    "titleFontWeight",
+                    event.target.value as StorefrontDesignSettings["titleFontWeight"] | "",
+                  )
+                }
+              >
+                <option value="">Padrão atual</option>
+                {STOREFRONT_TITLE_FONT_WEIGHTS.map((weight) => (
+                  <option key={weight} value={weight}>
+                    {titleFontWeightLabels[weight]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="store-design-body-weight">Peso do texto</Label>
+              <select
+                id="store-design-body-weight"
+                disabled={!canManage}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.designSettings.bodyFontWeight ?? ""}
+                onChange={(event) =>
+                  updateTypographySetting(
+                    "bodyFontWeight",
+                    event.target.value as StorefrontDesignSettings["bodyFontWeight"] | "",
+                  )
+                }
+              >
+                <option value="">Padrão atual</option>
+                {STOREFRONT_BODY_FONT_WEIGHTS.map((weight) => (
+                  <option key={weight} value={weight}>
+                    {bodyFontWeightLabels[weight]}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="grid gap-2">

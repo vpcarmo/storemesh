@@ -23,6 +23,10 @@ export interface StorefrontTheme {
   typography: {
     body: string;
     heading: string;
+    bodyScale: number;
+    headingScale: number;
+    bodyWeight: number;
+    headingWeight: number;
   };
   button: {
     radius: string;
@@ -133,6 +137,12 @@ export function createStorefrontTheme(
   const resolvedTypography = {
     body: design.bodyFontFamily ? fontFamilyStacks[design.bodyFontFamily] : typography.body,
     heading: design.titleFontFamily ? fontFamilyStacks[design.titleFontFamily] : typography.heading,
+    bodyScale: { compact: 0.9, standard: 1, expanded: 1.1 }[design.bodyFontScale ?? "standard"],
+    headingScale: { compact: 0.9, standard: 1, expanded: 1.1 }[design.titleFontScale ?? "standard"],
+    bodyWeight: { regular: 400, medium: 500, semibold: 600 }[design.bodyFontWeight ?? "regular"],
+    headingWeight: { regular: 400, medium: 500, semibold: 600, bold: 700 }[
+      design.titleFontWeight ?? "bold"
+    ],
   };
   const spacing = {
     compact: {
