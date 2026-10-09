@@ -85,6 +85,20 @@
       "when": 1791306893207,
       "tag": "0013_add_store_design_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791570024572,
+      "tag": "0017_safe_platform_store_deletion",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791571901012,
+      "tag": "0018_recoverable_platform_store_deletion",
+      "breakpoints": true
     }
   ]
 }

@@ -795,8 +795,28 @@ export type Database = {
         Returns: boolean
       }
       current_permissions: { Args: never; Returns: string[] }
+      delete_platform_store: {
+        Args: { p_operation_id: string }
+        Returns: string
+      }
+      begin_platform_store_deletion: {
+        Args: { p_confirmation_slug: string; p_store_id: string }
+        Returns: {
+          cleanup_not_before: string | null
+          operation_id: string
+          phase: string
+        }[]
+      }
       has_store_access: { Args: { _store_id: string }; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
+      list_platform_store_deletions: {
+        Args: never
+        Returns: {
+          cleanup_not_before: string | null
+          phase: string
+          store_id: string
+        }[]
+      }
       list_platform_store_users: {
         Args: never
         Returns: {
@@ -814,6 +834,23 @@ export type Database = {
           p_user_id: string
         }
         Returns: undefined
+      }
+      mark_platform_store_storage_cleaned: {
+        Args: {
+          p_operation_id: string
+          p_store_id: string
+          p_store_slug: string
+        }
+        Returns: undefined
+      }
+      schedule_platform_store_storage_cleanup: {
+        Args: {
+          p_max_upload_url_age_seconds: number
+          p_operation_id: string
+          p_store_id: string
+          p_store_slug: string
+        }
+        Returns: string
       }
       save_platform_store: {
         Args: {

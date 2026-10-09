@@ -1,6 +1,7 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 import type { StoreStatus } from "@/domain/access";
+import { MEDIA_BUCKET } from "@/domain/media";
 import type { PermissionProfileSummary } from "@/domain/permission-profiles";
 import type { Database, Tables } from "@/integrations/supabase/types";
 
@@ -24,6 +25,10 @@ export interface PlatformStore extends Omit<StoreRow, "status" | "created_at"> {
   status: StoreStatus;
   created_at: string;
   administrators: PlatformStoreAdmin[];
+  deletion: {
+    phase: "storage_cleanup" | "storage_cleaned";
+    cleanupNotBefore: string | null;
+  } | null;
 }
 
 export interface PlatformUser {
@@ -42,6 +47,9 @@ export interface PlatformManagedUser {
   permissionProfile: PermissionProfileSummary | null;
   status: "active" | "invited" | "no_access";
 }
+
+export type PlatformStoreDeletionResult =
+  { success: true; storeId: string; slug: string } | { success: false; message: string };
 
 export class PlatformUserInviteError extends Error {}
 
@@ -232,16 +240,18 @@ export async function removePlatformUserAdministrativeData(
 }
 
 export async function readPlatformStores(client: AppClient) {
-  const [storesResult, profilesResult, rolesResult] = await Promise.all([
+  const [storesResult, profilesResult, rolesResult, deletionsResult] = await Promise.all([
     client.from("stores").select("id, name, slug, status, created_at").order("name"),
     client.from("profiles").select("id, full_name").order("full_name"),
     client.from("user_roles").select("user_id, role, store_id"),
+    client.rpc("list_platform_store_deletions"),
   ]);
   const eligibleUsersResult = await client.rpc("list_platform_store_users");
 
   if (storesResult.error) throw storesResult.error;
   if (profilesResult.error) throw profilesResult.error;
   if (rolesResult.error) throw rolesResult.error;
+  if (deletionsResult.error) throw deletionsResult.error;
   if (eligibleUsersResult.error) throw eligibleUsersResult.error;
 
   const profiles = profilesResult.data as ProfileRow[];
@@ -251,6 +261,16 @@ export async function readPlatformStores(client: AppClient) {
     roles.filter((role) => role.role === "super_admin").map((role) => role.user_id),
   );
   const administratorsByStore = new Map<string, PlatformStoreAdmin[]>();
+  const deletionByStore = new Map<string, NonNullable<PlatformStore["deletion"]>>();
+  for (const deletion of deletionsResult.data) {
+    if (deletion.phase !== "storage_cleanup" && deletion.phase !== "storage_cleaned") {
+      throw new Error("A operação de exclusão retornou uma fase desconhecida.");
+    }
+    deletionByStore.set(deletion.store_id, {
+      phase: deletion.phase,
+      cleanupNotBefore: deletion.cleanup_not_before,
+    });
+  }
 
   for (const role of roles) {
     if (role.role !== "store_admin" || !role.store_id) continue;
@@ -274,6 +294,7 @@ export async function readPlatformStores(client: AppClient) {
     stores: (storesResult.data as StoreRow[]).map((store) => ({
       ...store,
       administrators: administratorsByStore.get(store.id) ?? [],
+      deletion: deletionByStore.get(store.id) ?? null,
     })),
     users,
   };
@@ -313,4 +334,133 @@ export async function savePlatformStoreRecord(
 
   if (!data) throw new Error("A operação não retornou a loja salva.");
   return data;
+}
+
+async function listPlatformStoreStoragePaths(
+  adminClient: AppClient,
+  storeId: string,
+): Promise<string[]> {
+  const bucket = adminClient.storage.from(MEDIA_BUCKET);
+  const paths: string[] = [];
+  const pageSize = 100;
+
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await bucket.list(storeId, {
+      limit: pageSize,
+      offset,
+      sortBy: { column: "name", order: "asc" },
+    });
+    if (error) throw error;
+
+    for (const entry of data) {
+      if (entry.id === null || !entry.name || entry.name.includes("/")) {
+        throw new Error("O Storage contém uma pasta ou caminho fora do padrão esperado da loja.");
+      }
+      paths.push(`${storeId}/${entry.name}`);
+    }
+
+    if (data.length < pageSize) return paths;
+  }
+}
+
+async function removePlatformStoreStorage(adminClient: AppClient, storeId: string): Promise<void> {
+  const bucket = adminClient.storage.from(MEDIA_BUCKET);
+  const paths = await listPlatformStoreStoragePaths(adminClient, storeId);
+  const batchSize = 100;
+
+  for (let index = 0; index < paths.length; index += batchSize) {
+    const { error } = await bucket.remove(paths.slice(index, index + batchSize));
+    if (error) throw error;
+  }
+}
+
+export async function deletePlatformStoreRecord(
+  client: AppClient,
+  adminClient: AppClient,
+  storeId: string,
+  confirmationSlug: string,
+  maxUploadUrlAgeSeconds: number,
+): Promise<PlatformStoreDeletionResult> {
+  const { data: store, error: storeError } = await client
+    .from("stores")
+    .select("id, slug")
+    .eq("id", storeId)
+    .maybeSingle();
+  if (storeError) throw storeError;
+  if (!store) throw new Error("A loja selecionada não foi encontrada.");
+  if (store.slug !== confirmationSlug) {
+    throw new Error("O slug da loja mudou. Atualize a listagem e confirme novamente.");
+  }
+
+  const { data: operations, error: prepareError } = await client.rpc(
+    "begin_platform_store_deletion",
+    {
+      p_store_id: storeId,
+      p_confirmation_slug: confirmationSlug,
+    },
+  );
+  if (prepareError) throw prepareError;
+  const operation = operations[0];
+  if (!operation) throw new Error("A solicitação não retornou a operação de exclusão.");
+
+  const { data: cleanupNotBeforeValue, error: scheduleError } = await adminClient.rpc(
+    "schedule_platform_store_storage_cleanup",
+    {
+      p_operation_id: operation.operation_id,
+      p_store_id: storeId,
+      p_store_slug: confirmationSlug,
+      p_max_upload_url_age_seconds: maxUploadUrlAgeSeconds,
+    },
+  );
+  if (scheduleError) throw scheduleError;
+  if (!cleanupNotBeforeValue) {
+    throw new Error("O prazo de segurança do Storage não foi persistido.");
+  }
+
+  const cleanupNotBefore = new Date(cleanupNotBeforeValue);
+  if (!Number.isFinite(cleanupNotBefore.getTime())) {
+    throw new Error("O prazo de segurança do Storage retornou um valor inválido.");
+  }
+  if (cleanupNotBefore.getTime() > Date.now()) {
+    return {
+      success: false,
+      message: `A loja permanece inativa enquanto URLs de upload emitidas anteriormente expiram. Tente novamente após ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(cleanupNotBefore)}.`,
+    };
+  }
+
+  let stage: "storage" | "database" = "storage";
+  try {
+    await removePlatformStoreStorage(adminClient, storeId);
+
+    const { error: attestError } = await adminClient.rpc("mark_platform_store_storage_cleaned", {
+      p_operation_id: operation.operation_id,
+      p_store_id: storeId,
+      p_store_slug: confirmationSlug,
+    });
+    if (attestError) throw attestError;
+
+    stage = "database";
+
+    const { data, error } = await client.rpc("delete_platform_store", {
+      p_operation_id: operation.operation_id,
+    });
+    if (error) throw error;
+    if (data !== storeId) throw new Error("A exclusão não confirmou a remoção da loja.");
+
+    return { success: true, storeId, slug: confirmationSlug };
+  } catch (error) {
+    console.error("[Platform stores] Store deletion did not complete.", {
+      storeId,
+      stage,
+      code: error instanceof Error && "code" in error ? error.code : undefined,
+      message: error instanceof Error ? error.message : "Unknown deletion error",
+    });
+    return {
+      success: false,
+      message:
+        stage === "storage"
+          ? "A loja foi mantida inativa, mas a limpeza dos arquivos não foi concluída. Alguns arquivos podem já ter sido removidos. A tentativa pode ser repetida com segurança."
+          : "A limpeza do Storage foi concluída, mas a remoção relacional não pôde ser confirmada. A loja foi mantida inativa; os dados do banco foram preservados pela transação se ela falhou. Verifique o estado e tente novamente.",
+    };
+  }
 }

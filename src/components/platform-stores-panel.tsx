@@ -1,12 +1,26 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Plus, Save, X } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { LoaderCircle, Plus, Save, Trash2, X } from "lucide-react";
+import { useRef, useState, type FormEvent } from "react";
 
-import { getPlatformStores, savePlatformStore } from "@/auth/platform-stores.functions";
+import {
+  deletePlatformStore,
+  getPlatformStores,
+  savePlatformStore,
+} from "@/auth/platform-stores.functions";
+import { useAdminStore } from "@/components/admin/admin-store-context";
 import { FormHelp } from "@/components/admin/form-help";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { StoreStatus } from "@/domain/access";
@@ -24,7 +38,7 @@ interface StoreForm {
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Não foi possível salvar a loja.";
+  return error instanceof Error ? error.message : "Não foi possível concluir a operação da loja.";
 }
 
 function storeDate(date: string) {
@@ -35,10 +49,16 @@ export function PlatformStoresPanel() {
   const queryClient = useQueryClient();
   const loadStores = useServerFn(getPlatformStores);
   const saveStore = useServerFn(savePlatformStore);
+  const deleteStore = useServerFn(deletePlatformStore);
+  const { storeSlug, selectStore } = useAdminStore();
   const [form, setForm] = useState<StoreForm | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PlatformStore | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const deletionLock = useRef(false);
   const query = useQuery({ queryKey: platformStoresQueryKey, queryFn: () => loadStores() });
 
   function startCreate() {
@@ -57,6 +77,100 @@ export function PlatformStoresPanel() {
       status: store.status,
       storeAdminUserIds: store.administrators.map((administrator) => administrator.userId),
     });
+  }
+
+  function startDelete(store: PlatformStore) {
+    if (pending) return;
+    setFeedback(null);
+    setForm(null);
+    setDeleteError(null);
+    setDeleteConfirmation("");
+    setDeleteTarget(store);
+  }
+
+  async function confirmStoreDeletion() {
+    if (
+      !deleteTarget ||
+      pending ||
+      deletionLock.current ||
+      deleteConfirmation !== deleteTarget.slug
+    ) {
+      return;
+    }
+
+    deletionLock.current = true;
+    setPending(true);
+    setDeleteError(null);
+    try {
+      const result = await deleteStore({
+        data: {
+          storeId: deleteTarget.id,
+          confirmationSlug: deleteConfirmation,
+        },
+      });
+      if (!result.success) {
+        if (query.data) {
+          queryClient.setQueryData(platformStoresQueryKey, {
+            ...query.data,
+            stores: query.data.stores.map((store) =>
+              store.id === deleteTarget.id ? { ...store, status: "inactive" } : store,
+            ),
+          });
+        }
+        void queryClient.invalidateQueries({ queryKey: platformStoresQueryKey });
+        void queryClient.invalidateQueries({ queryKey: ["auth", "authorized-stores"] });
+        void queryClient.invalidateQueries({ queryKey: ["auth", "access-context"] });
+        setDeleteError(result.message);
+        return;
+      }
+
+      if (query.data) {
+        queryClient.setQueryData(platformStoresQueryKey, {
+          ...query.data,
+          stores: query.data.stores.filter((store) => store.id !== result.storeId),
+        });
+      }
+
+      for (const queryKey of [
+        ["website", result.slug],
+        ["admin-page-preview", result.slug],
+        ["admin", "storefront-home", result.slug],
+        ["store", "current", "catalog", result.slug],
+        ["store", "current", "settings", result.slug],
+        ["store", "current", "storefront-foundation", result.slug],
+        ["store", "current", "media", result.slug],
+        ["public-page", result.slug],
+      ]) {
+        queryClient.removeQueries({ queryKey });
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: platformStoresQueryKey }),
+        queryClient.invalidateQueries({ queryKey: ["platform", "users"] }),
+        queryClient.invalidateQueries({ queryKey: ["auth", "authorized-stores"] }),
+        queryClient.invalidateQueries({ queryKey: ["auth", "access-context"] }),
+      ]);
+
+      if (
+        storeSlug === result.slug ||
+        window.localStorage.getItem("storemesh.admin.store-slug") === result.slug
+      ) {
+        selectStore(null);
+      }
+      setDeleteTarget(null);
+      setDeleteConfirmation("");
+      setFeedback(`A loja “${deleteTarget.name}” foi excluída definitivamente.`);
+    } catch (error) {
+      void queryClient.invalidateQueries({ queryKey: platformStoresQueryKey });
+      void queryClient.invalidateQueries({ queryKey: ["auth", "authorized-stores"] });
+      void queryClient.invalidateQueries({ queryKey: ["auth", "access-context"] });
+      setDeleteError(
+        `Não foi possível confirmar a exclusão. A loja pode ter ficado inativa e os arquivos podem já ter sido parcialmente removidos. Verifique a listagem e tente novamente. ${errorMessage(error)}`,
+      );
+    } finally {
+      deletionLock.current = false;
+      setPending(false);
+    }
   }
 
   function updateForm<Key extends keyof StoreForm>(key: Key, value: StoreForm[Key]) {
@@ -302,7 +416,19 @@ export function PlatformStoresPanel() {
                 <tr key={store.id} className="border-t border-border">
                   <td className="p-3 font-medium">{store.name}</td>
                   <td className="p-3">{store.slug}</td>
-                  <td className="p-3">{store.status === "active" ? "Ativa" : "Inativa"}</td>
+                  <td className="p-3">
+                    {store.status === "active" ? "Ativa" : "Inativa"}
+                    {store.deletion ? (
+                      <p className="mt-1 text-xs text-amber-700">
+                        Exclusão pendente:{" "}
+                        {store.deletion.phase === "storage_cleanup"
+                          ? store.deletion.cleanupNotBefore
+                            ? `aguardando expiração de uploads até ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(store.deletion.cleanupNotBefore))}`
+                            : "aguardando configuração segura do prazo de upload"
+                          : "limpeza do Storage pronta para retomar"}
+                      </p>
+                    ) : null}
+                  </td>
                   <td className="p-3">{storeDate(store.created_at)}</td>
                   <td className="p-3">
                     {store.administrators.length
@@ -312,14 +438,27 @@ export function PlatformStoresPanel() {
                       : "Não atribuído"}
                   </td>
                   <td className="p-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => startEdit(store)}
-                    >
-                      Editar
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => startEdit(store)}
+                        disabled={pending || store.deletion !== null}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => startDelete(store)}
+                        disabled={pending}
+                      >
+                        <Trash2 aria-hidden="true" />
+                        {store.deletion ? "Retomar exclusão" : "Excluir loja"}
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -331,6 +470,100 @@ export function PlatformStoresPanel() {
           Nenhuma loja cadastrada. Crie uma loja para iniciar a plataforma.
         </p>
       )}
+
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (pending) return;
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteConfirmation("");
+            setDeleteError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir loja definitivamente?</DialogTitle>
+            <DialogDescription>
+              Esta ação não pode ser desfeita. Confirme a loja e digite o slug exato para continuar.
+            </DialogDescription>
+          </DialogHeader>
+
+          {deleteTarget ? (
+            <div className="space-y-4">
+              <div className="rounded-md border border-border p-3 text-sm">
+                <p className="font-semibold">{deleteTarget.name}</p>
+                <p className="text-muted-foreground">Slug: {deleteTarget.slug}</p>
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                Configurações (incluindo design), páginas e navegação, categorias, produtos,
+                variantes, atributos, imagens, mídia e vínculos de acesso desta loja serão removidos
+                conforme as dependências do banco. URLs externas perderão suas referências no
+                StoreMesh, mas não serão apagadas de serviços de terceiros. Arquivos privados
+                armazenados podem ser excluídos definitivamente.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Contas de usuário, profiles, roles de outras lojas e associações globais de
+                permission profiles serão preservados.
+              </p>
+
+              <div className="grid gap-2">
+                <Label htmlFor="platform-store-delete-confirmation">
+                  Digite exatamente o slug <span className="font-mono">{deleteTarget.slug}</span>
+                </Label>
+                <Input
+                  id="platform-store-delete-confirmation"
+                  autoComplete="off"
+                  value={deleteConfirmation}
+                  onChange={(event) => setDeleteConfirmation(event.target.value)}
+                  disabled={pending}
+                  aria-describedby="platform-store-delete-confirmation-help"
+                />
+                <p
+                  id="platform-store-delete-confirmation-help"
+                  className="text-xs text-muted-foreground"
+                >
+                  A exclusão só poderá ser confirmada quando o texto corresponder exatamente ao
+                  slug.
+                </p>
+              </div>
+
+              {deleteError ? (
+                <Alert variant="destructive">
+                  <AlertTitle>Exclusão não concluída</AlertTitle>
+                  <AlertDescription>{deleteError}</AlertDescription>
+                </Alert>
+              ) : null}
+            </div>
+          ) : null}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setDeleteTarget(null);
+                setDeleteConfirmation("");
+                setDeleteError(null);
+              }}
+              disabled={pending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmStoreDeletion}
+              disabled={pending || !deleteTarget || deleteConfirmation !== deleteTarget.slug}
+            >
+              {pending ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : null}
+              {pending ? "Excluindo…" : "Excluir definitivamente"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
