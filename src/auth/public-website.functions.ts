@@ -5,7 +5,7 @@ import {
   readPublicCatalogCategories,
   readPublicCatalogProducts,
   readPublicCategoryPage,
-  readPublicProduct,
+  readPublicProductDetails,
   resolveCategoryGridSnapshots,
   resolveProductGridSnapshots,
 } from "@/data/catalog.repository";
@@ -282,7 +282,7 @@ export const getPublishedProductPage = createServerFn({ method: "GET" })
     const store = await readActiveStore(supabaseAdmin, data.storeSlug);
     if (!store) return null;
     const [catalog, storefront] = await Promise.all([
-      readPublicProduct(supabaseAdmin, store.id, data.productSlug),
+      readPublicProductDetails(supabaseAdmin, store.id, data.productSlug),
       preparePublicStorefront(supabaseAdmin, store),
     ]);
     if (!catalog) return null;
@@ -292,6 +292,9 @@ export const getPublishedProductPage = createServerFn({ method: "GET" })
     return {
       ...storefront,
       product: catalog.product,
+      images: catalog.images,
+      attributes: catalog.attributes,
+      variants: catalog.variants,
       category:
         catalog.category && categoryHref ? { ...catalog.category, href: categoryHref } : null,
     };

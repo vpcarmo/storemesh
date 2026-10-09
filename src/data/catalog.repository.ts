@@ -35,6 +35,43 @@ export interface ResolvedProductGridImage {
   alt: string | null;
 }
 
+export interface ResolvedPublicProductImage extends ResolvedProductGridImage {
+  id: string;
+  position: number;
+}
+
+export interface PublicProductAttribute {
+  id: string;
+  name: string;
+  code: string;
+  displayType: CatalogAttribute["displayType"];
+  value: string;
+  label: string;
+  swatchValue: string | null;
+  position: number;
+  valuePosition: number;
+}
+
+export interface PublicProductVariant {
+  id: string;
+  sku: string | null;
+  price: number;
+  compareAtPrice: number | null;
+  position: number;
+  attributes: PublicProductAttribute[];
+}
+
+export interface PublicProductDetails {
+  product: Pick<
+    PublicCatalogProduct,
+    "id" | "name" | "slug" | "description" | "price" | "categoryId"
+  >;
+  images: ResolvedPublicProductImage[];
+  attributes: PublicProductAttribute[];
+  variants: PublicProductVariant[];
+  category: PublicCatalogCategory | null;
+}
+
 export interface ResolvedProductGridSnapshots {
   validProductIds: Set<string>;
   images: Map<string, ResolvedProductGridImage>;
@@ -316,6 +353,25 @@ async function resolveProductImages(
   productIds: string[],
   mediaSignedUrlLifetimeSeconds?: number,
 ): Promise<Map<string, ResolvedProductGridImage>> {
+  const galleries = await resolveProductImageGalleries(
+    client,
+    storeId,
+    productIds,
+    mediaSignedUrlLifetimeSeconds,
+  );
+  return new Map(
+    [...galleries].flatMap(([productId, images]) =>
+      images[0] ? [[productId, images[0]] as const] : [],
+    ),
+  );
+}
+
+async function resolveProductImageGalleries(
+  client: AppClient,
+  storeId: string,
+  productIds: string[],
+  mediaSignedUrlLifetimeSeconds?: number,
+): Promise<Map<string, ResolvedPublicProductImage[]>> {
   if (productIds.length === 0) return new Map();
   const { data: imageRows, error: imagesError } = await client
     .from("product_images")
@@ -340,7 +396,7 @@ async function resolveProductImages(
       ? {}
       : { signedUrlLifetimeSeconds: mediaSignedUrlLifetimeSeconds }),
   });
-  const resolvedImages = new Map<string, ResolvedProductGridImage>();
+  const resolvedImages = new Map<string, ResolvedPublicProductImage[]>();
   for (const [productId, productImages] of imagesByProduct) {
     const orderedImages = [...productImages].sort(
       (left, right) =>
@@ -357,11 +413,14 @@ async function resolveProductImages(
             ? image.url
             : null;
       if (!url) continue;
-      resolvedImages.set(productId, {
+      const images = resolvedImages.get(productId) ?? [];
+      images.push({
+        id: image.id,
         url,
         alt: image.alt_text?.trim() || media?.alt?.trim() || null,
+        position: image.position,
       });
-      break;
+      resolvedImages.set(productId, images);
     }
   }
   return resolvedImages;
@@ -548,6 +607,183 @@ export async function readPublicProduct(
             name: categoryRow.name,
             slug: categoryRow.slug,
             description: categoryRow.description,
+          }
+        : null,
+  };
+}
+
+export async function readPublicProductDetails(
+  client: AppClient,
+  storeId: string,
+  productSlug: string,
+): Promise<PublicProductDetails | null> {
+  const { data: product, error } = await client
+    .from("products")
+    .select("id, store_id, category_id, name, slug, description, price")
+    .eq("store_id", storeId)
+    .eq("slug", productSlug)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (error) throw error;
+  if (!product || product.store_id !== storeId) return null;
+
+  const [imagesByProduct, categoryResult, variantsResult, productAttributeValuesResult] =
+    await Promise.all([
+      resolveProductImageGalleries(client, storeId, [product.id]),
+      product.category_id
+        ? client
+            .from("categories")
+            .select("id, store_id, name, slug, description")
+            .eq("store_id", storeId)
+            .eq("id", product.category_id)
+            .eq("is_active", true)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      client
+        .from("product_variants")
+        .select("id, store_id, product_id, sku, price, compare_at_price, position")
+        .eq("store_id", storeId)
+        .eq("product_id", product.id)
+        .eq("is_active", true)
+        .order("position", { ascending: true })
+        .order("id", { ascending: true }),
+      client
+        .from("product_attribute_values")
+        .select("product_id, attribute_value_id, store_id")
+        .eq("store_id", storeId)
+        .eq("product_id", product.id),
+    ]);
+  if (categoryResult.error) throw categoryResult.error;
+  if (variantsResult.error) throw variantsResult.error;
+  if (productAttributeValuesResult.error) throw productAttributeValuesResult.error;
+
+  const variants = variantsResult.data.filter(
+    (variant) => variant.store_id === storeId && variant.product_id === product.id,
+  );
+  const variantIds = variants.map(({ id }) => id);
+  const { data: variantAttributeValues, error: variantAttributeValuesError } =
+    variantIds.length > 0
+      ? await client
+          .from("variant_attribute_values")
+          .select("variant_id, attribute_id, attribute_value_id, store_id")
+          .eq("store_id", storeId)
+          .in("variant_id", variantIds)
+      : { data: [], error: null };
+  if (variantAttributeValuesError) throw variantAttributeValuesError;
+
+  const validVariantIds = new Set(variantIds);
+  const validProductAttributeValues = productAttributeValuesResult.data.filter(
+    (row) => row.store_id === storeId && row.product_id === product.id,
+  );
+  const validVariantAttributeValues = variantAttributeValues.filter(
+    (row) => row.store_id === storeId && validVariantIds.has(row.variant_id),
+  );
+  const attributeValueIds = [
+    ...new Set([
+      ...validProductAttributeValues.map(({ attribute_value_id }) => attribute_value_id),
+      ...validVariantAttributeValues.map(({ attribute_value_id }) => attribute_value_id),
+    ]),
+  ];
+  const { data: attributeValues, error: attributeValuesError } =
+    attributeValueIds.length > 0
+      ? await client
+          .from("catalog_attribute_values")
+          .select("id, store_id, attribute_id, value, label, swatch_value, position")
+          .eq("store_id", storeId)
+          .in("id", attributeValueIds)
+      : { data: [], error: null };
+  if (attributeValuesError) throw attributeValuesError;
+
+  const attributeIds = [...new Set(attributeValues.map(({ attribute_id }) => attribute_id))];
+  const { data: attributes, error: attributesError } =
+    attributeIds.length > 0
+      ? await client
+          .from("catalog_attributes")
+          .select("id, store_id, name, code, display_type, position")
+          .eq("store_id", storeId)
+          .in("id", attributeIds)
+      : { data: [], error: null };
+  if (attributesError) throw attributesError;
+
+  const attributeValuesById = new Map(
+    attributeValues.filter((value) => value.store_id === storeId).map((value) => [value.id, value]),
+  );
+  const attributesById = new Map(
+    attributes
+      .filter((attribute) => attribute.store_id === storeId)
+      .map((attribute) => [attribute.id, attribute]),
+  );
+  const publicAttributeForValue = (
+    valueId: string,
+    expectedAttributeId?: string,
+  ): PublicProductAttribute | null => {
+    const value = attributeValuesById.get(valueId);
+    if (!value || (expectedAttributeId && value.attribute_id !== expectedAttributeId)) return null;
+    const attribute = attributesById.get(value.attribute_id);
+    if (!attribute) return null;
+    return {
+      id: attribute.id,
+      name: attribute.name,
+      code: attribute.code,
+      displayType: attribute.display_type,
+      value: value.value,
+      label: value.label,
+      swatchValue: value.swatch_value,
+      position: attribute.position,
+      valuePosition: value.position,
+    };
+  };
+  const publicAttributes = validProductAttributeValues.flatMap((row) => {
+    const attribute = publicAttributeForValue(row.attribute_value_id);
+    return attribute ? [attribute] : [];
+  });
+  const publicVariants = variants.map((variant) => ({
+    id: variant.id,
+    sku: variant.sku,
+    price: variant.price,
+    compareAtPrice: variant.compare_at_price,
+    position: variant.position,
+    attributes: validVariantAttributeValues
+      .filter((row) => row.variant_id === variant.id)
+      .flatMap((row) => {
+        const attribute = publicAttributeForValue(row.attribute_value_id, row.attribute_id);
+        return attribute ? [attribute] : [];
+      })
+      .sort(
+        (left, right) =>
+          left.position - right.position ||
+          left.valuePosition - right.valuePosition ||
+          (left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+      ),
+  }));
+  const category = categoryResult.data;
+  return {
+    product: {
+      id: product.id,
+      name: product.name,
+      slug: product.slug,
+      description: product.description,
+      price: product.price,
+      categoryId: product.category_id,
+    },
+    images: (imagesByProduct.get(product.id) ?? []).map((image) => ({
+      ...image,
+      alt: image.alt?.trim() || product.name,
+    })),
+    attributes: publicAttributes.sort(
+      (left, right) =>
+        left.position - right.position ||
+        left.valuePosition - right.valuePosition ||
+        (left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+    ),
+    variants: publicVariants,
+    category:
+      category && category.store_id === storeId
+        ? {
+            id: category.id,
+            name: category.name,
+            slug: category.slug,
+            description: category.description,
           }
         : null,
   };
