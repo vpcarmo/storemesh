@@ -60,6 +60,12 @@ const sectionChoices = [
   ["categories", "Categorias"],
   ["product-grid", "Produtos"],
   ["text-content", "Texto"],
+  ["image-text", "Imagem com texto"],
+  ["benefits", "Benefícios e diferenciais"],
+  ["faq", "FAQ"],
+  ["testimonials", "Depoimentos"],
+  ["partner-brands", "Marcas parceiras"],
+  ["editorial-gallery", "Galeria editorial"],
   ["call-to-action", "Chamada para ação"],
 ] as const;
 
@@ -75,6 +81,18 @@ function sectionSummary(section: StorefrontSectionDefinition) {
       return `Produtos — ${section.products.length} selecionados`;
     case "text-content":
       return `Texto — ${section.title || "Sem título"}`;
+    case "image-text":
+      return `Imagem com texto — ${section.title || "Sem título"}`;
+    case "benefits":
+      return `Benefícios — ${section.benefits.length} itens`;
+    case "faq":
+      return `FAQ — ${section.items.length} perguntas`;
+    case "testimonials":
+      return `Depoimentos — ${section.testimonials.length} itens`;
+    case "partner-brands":
+      return `Marcas parceiras — ${section.brands.length} marcas`;
+    case "editorial-gallery":
+      return `Galeria editorial — ${section.images.length} imagens`;
     case "call-to-action":
       return `Chamada para ação — ${section.title || "Sem título"}`;
   }
@@ -93,6 +111,18 @@ function newSection(type: StorefrontSectionDefinition["type"]): StorefrontSectio
       return { id, type, products: [] };
     case "text-content":
       return { id, type, content: "", contentFormat: "plain" };
+    case "image-text":
+      return { id, type, title: "", description: "", imagePosition: "left" };
+    case "benefits":
+      return { id, type, benefits: [] };
+    case "faq":
+      return { id, type, items: [] };
+    case "testimonials":
+      return { id, type, testimonials: [] };
+    case "partner-brands":
+      return { id, type, brands: [] };
+    case "editorial-gallery":
+      return { id, type, images: [] };
     case "call-to-action":
       return { id, type, title: "", description: "", action: { label: "", href: "" } };
   }
@@ -128,7 +158,11 @@ export function WebsiteSectionsEditor({
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const [showAddOptions, setShowAddOptions] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
-  const [mediaTarget, setMediaTarget] = useState<string | null>(null);
+  const [mediaTarget, setMediaTarget] = useState<{
+    sectionId: string;
+    brandIndex?: number;
+    galleryIndex?: number;
+  } | null>(null);
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -141,7 +175,12 @@ export function WebsiteSectionsEditor({
     (section) => section.type === "categories" || section.type === "product-grid",
   );
   const needsMedia = sections.some(
-    (section) => section.type === "hero" || section.type === "banner",
+    (section) =>
+      section.type === "hero" ||
+      section.type === "banner" ||
+      section.type === "image-text" ||
+      section.type === "partner-brands" ||
+      section.type === "editorial-gallery",
   );
   const catalogQuery = useQuery({
     queryKey: ["store", "current", "catalog", storeSlug],
@@ -359,7 +398,13 @@ export function WebsiteSectionsEditor({
     const sectionLayoutControls =
       section.type === "categories" ||
       section.type === "product-grid" ||
-      section.type === "text-content" ? (
+      section.type === "text-content" ||
+      section.type === "image-text" ||
+      section.type === "benefits" ||
+      section.type === "faq" ||
+      section.type === "testimonials" ||
+      section.type === "partner-brands" ||
+      section.type === "editorial-gallery" ? (
         <div className="grid gap-3 sm:grid-cols-3">
           <Label>
             Espaçamento
@@ -523,7 +568,7 @@ export function WebsiteSectionsEditor({
               title={
                 !canManage ? "Seu perfil permite apenas visualizar estas informações." : undefined
               }
-              onClick={() => setMediaTarget(section.id)}
+              onClick={() => setMediaTarget({ sectionId: section.id })}
             >
               <ImagePlus aria-hidden="true" /> Selecionar mídia
             </Button>
@@ -731,6 +776,629 @@ export function WebsiteSectionsEditor({
               </Label>
             </div>
           );
+        case "image-text":
+          return (
+            <div className="grid gap-4">
+              <FormHelp>Combine uma imagem da Biblioteca de mídia com título e descrição.</FormHelp>
+              {textField("Título", section.title, (title) => replaceSection(section.id, { title }))}
+              {descriptionField(section.description, (description) =>
+                replaceSection(section.id, { description }),
+              )}
+              {mediaField(section.imageMediaAssetId)}
+              <Label>
+                Texto alternativo da imagem
+                <Input
+                  value={section.imageAlt ?? ""}
+                  disabled={!canManage}
+                  onChange={(event) => replaceSection(section.id, { imageAlt: event.target.value })}
+                />
+              </Label>
+              <Label>
+                Posição da imagem
+                <Select
+                  value={section.imagePosition ?? "left"}
+                  onValueChange={(imagePosition) => {
+                    if (imagePosition === "left" || imagePosition === "right")
+                      replaceSection(section.id, { imagePosition });
+                  }}
+                >
+                  <SelectTrigger disabled={!canManage}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="left">Esquerda</SelectItem>
+                    <SelectItem value="right">Direita</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Label>
+            </div>
+          );
+        case "benefits":
+          return (
+            <div className="grid gap-4">
+              {textField("Título da seção (opcional)", section.title ?? "", (title) =>
+                replaceSection(section.id, { title }),
+              )}
+              {descriptionField(section.description, (description) =>
+                replaceSection(section.id, { description }),
+              )}
+              <div className="grid gap-3">
+                {section.benefits.map((benefit, index) => (
+                  <fieldset key={index} className="grid gap-3 rounded-md border p-3">
+                    <legend className="px-1 text-sm font-medium">Benefício {index + 1}</legend>
+                    <Label>
+                      Título
+                      <Input
+                        value={benefit.title}
+                        disabled={!canManage}
+                        onChange={(event) => {
+                          const benefits = [...section.benefits];
+                          benefits[index] = { ...benefit, title: event.target.value };
+                          replaceSection(section.id, { benefits });
+                        }}
+                      />
+                    </Label>
+                    <Label>
+                      Descrição
+                      <Textarea
+                        value={benefit.description}
+                        disabled={!canManage}
+                        onChange={(event) => {
+                          const benefits = [...section.benefits];
+                          benefits[index] = { ...benefit, description: event.target.value };
+                          replaceSection(section.id, { benefits });
+                        }}
+                      />
+                    </Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        aria-label={`Mover benefício ${index + 1} para cima`}
+                        disabled={!canManage || index === 0}
+                        onClick={() => {
+                          const benefits = [...section.benefits];
+                          [benefits[index - 1], benefits[index]] = [
+                            benefits[index]!,
+                            benefits[index - 1]!,
+                          ];
+                          replaceSection(section.id, { benefits });
+                        }}
+                      >
+                        <ArrowUp aria-hidden="true" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        aria-label={`Mover benefício ${index + 1} para baixo`}
+                        disabled={!canManage || index === section.benefits.length - 1}
+                        onClick={() => {
+                          const benefits = [...section.benefits];
+                          [benefits[index], benefits[index + 1]] = [
+                            benefits[index + 1]!,
+                            benefits[index]!,
+                          ];
+                          replaceSection(section.id, { benefits });
+                        }}
+                      >
+                        <ArrowDown aria-hidden="true" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!canManage}
+                        onClick={() =>
+                          replaceSection(section.id, {
+                            benefits: section.benefits.filter(
+                              (_, itemIndex) => itemIndex !== index,
+                            ),
+                          })
+                        }
+                      >
+                        <Trash2 aria-hidden="true" /> Remover
+                      </Button>
+                    </div>
+                  </fieldset>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!canManage || section.benefits.length >= 50}
+                  onClick={() =>
+                    replaceSection(section.id, {
+                      benefits: [...section.benefits, { title: "", description: "" }],
+                    })
+                  }
+                >
+                  <Plus aria-hidden="true" /> Adicionar benefício
+                </Button>
+              </div>
+            </div>
+          );
+        case "faq":
+          return (
+            <div className="grid gap-4">
+              {textField("Título da seção (opcional)", section.title ?? "", (title) =>
+                replaceSection(section.id, { title }),
+              )}
+              {descriptionField(section.description, (description) =>
+                replaceSection(section.id, { description }),
+              )}
+              <div className="grid gap-3">
+                {section.items.map((item, index) => (
+                  <fieldset key={index} className="grid gap-3 rounded-md border p-3">
+                    <legend className="px-1 text-sm font-medium">Pergunta {index + 1}</legend>
+                    <Label>
+                      Pergunta
+                      <Input
+                        value={item.question}
+                        disabled={!canManage}
+                        onChange={(event) => {
+                          const items = [...section.items];
+                          items[index] = { ...item, question: event.target.value };
+                          replaceSection(section.id, { items });
+                        }}
+                      />
+                    </Label>
+                    <Label>
+                      Resposta
+                      <Textarea
+                        value={item.answer}
+                        disabled={!canManage}
+                        onChange={(event) => {
+                          const items = [...section.items];
+                          items[index] = { ...item, answer: event.target.value };
+                          replaceSection(section.id, { items });
+                        }}
+                      />
+                    </Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        aria-label={`Mover pergunta ${index + 1} para cima`}
+                        disabled={!canManage || index === 0}
+                        onClick={() => {
+                          const items = [...section.items];
+                          [items[index - 1], items[index]] = [items[index]!, items[index - 1]!];
+                          replaceSection(section.id, { items });
+                        }}
+                      >
+                        <ArrowUp aria-hidden="true" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        aria-label={`Mover pergunta ${index + 1} para baixo`}
+                        disabled={!canManage || index === section.items.length - 1}
+                        onClick={() => {
+                          const items = [...section.items];
+                          [items[index], items[index + 1]] = [items[index + 1]!, items[index]!];
+                          replaceSection(section.id, { items });
+                        }}
+                      >
+                        <ArrowDown aria-hidden="true" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!canManage}
+                        onClick={() =>
+                          replaceSection(section.id, {
+                            items: section.items.filter((_, itemIndex) => itemIndex !== index),
+                          })
+                        }
+                      >
+                        <Trash2 aria-hidden="true" /> Remover
+                      </Button>
+                    </div>
+                  </fieldset>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!canManage || section.items.length >= 100}
+                  onClick={() =>
+                    replaceSection(section.id, {
+                      items: [...section.items, { question: "", answer: "" }],
+                    })
+                  }
+                >
+                  <Plus aria-hidden="true" /> Adicionar pergunta
+                </Button>
+              </div>
+            </div>
+          );
+        case "testimonials":
+          return (
+            <div className="grid gap-4">
+              {textField("Título da seção (opcional)", section.title ?? "", (title) =>
+                replaceSection(section.id, { title }),
+              )}
+              {descriptionField(section.description, (description) =>
+                replaceSection(section.id, { description }),
+              )}
+              <div className="grid gap-3">
+                {section.testimonials.map((testimonial, index) => (
+                  <fieldset key={index} className="grid gap-3 rounded-md border p-3">
+                    <legend className="px-1 text-sm font-medium">Depoimento {index + 1}</legend>
+                    <Label>
+                      Depoimento
+                      <Textarea
+                        value={testimonial.quote}
+                        disabled={!canManage}
+                        onChange={(event) => {
+                          const testimonials = [...section.testimonials];
+                          testimonials[index] = { ...testimonial, quote: event.target.value };
+                          replaceSection(section.id, { testimonials });
+                        }}
+                      />
+                    </Label>
+                    {textField("Nome", testimonial.name, (name) => {
+                      const testimonials = [...section.testimonials];
+                      testimonials[index] = { ...testimonial, name };
+                      replaceSection(section.id, { testimonials });
+                    })}
+                    {textField("Cargo (opcional)", testimonial.role ?? "", (role) => {
+                      const testimonials = [...section.testimonials];
+                      testimonials[index] = { ...testimonial, role };
+                      replaceSection(section.id, { testimonials });
+                    })}
+                    {textField("Empresa (opcional)", testimonial.company ?? "", (company) => {
+                      const testimonials = [...section.testimonials];
+                      testimonials[index] = { ...testimonial, company };
+                      replaceSection(section.id, { testimonials });
+                    })}
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        aria-label={`Mover depoimento ${index + 1} para cima`}
+                        disabled={!canManage || index === 0}
+                        onClick={() => {
+                          const testimonials = [...section.testimonials];
+                          [testimonials[index - 1], testimonials[index]] = [
+                            testimonials[index]!,
+                            testimonials[index - 1]!,
+                          ];
+                          replaceSection(section.id, { testimonials });
+                        }}
+                      >
+                        <ArrowUp aria-hidden="true" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        aria-label={`Mover depoimento ${index + 1} para baixo`}
+                        disabled={!canManage || index === section.testimonials.length - 1}
+                        onClick={() => {
+                          const testimonials = [...section.testimonials];
+                          [testimonials[index], testimonials[index + 1]] = [
+                            testimonials[index + 1]!,
+                            testimonials[index]!,
+                          ];
+                          replaceSection(section.id, { testimonials });
+                        }}
+                      >
+                        <ArrowDown aria-hidden="true" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!canManage}
+                        onClick={() =>
+                          replaceSection(section.id, {
+                            testimonials: section.testimonials.filter(
+                              (_, itemIndex) => itemIndex !== index,
+                            ),
+                          })
+                        }
+                      >
+                        <Trash2 aria-hidden="true" /> Remover
+                      </Button>
+                    </div>
+                  </fieldset>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!canManage || section.testimonials.length >= 100}
+                  onClick={() =>
+                    replaceSection(section.id, {
+                      testimonials: [...section.testimonials, { quote: "", name: "" }],
+                    })
+                  }
+                >
+                  <Plus aria-hidden="true" /> Adicionar depoimento
+                </Button>
+              </div>
+            </div>
+          );
+        case "partner-brands":
+          return (
+            <div className="grid gap-4">
+              {textField("Título (opcional)", section.title ?? "", (title) =>
+                replaceSection(section.id, { title }),
+              )}
+              <div className="grid gap-3">
+                {section.brands.map((brand, index) => {
+                  const logo = mediaQuery.data?.find(
+                    (asset) => asset.id === brand.logoMediaAssetId,
+                  );
+                  return (
+                    <fieldset key={index} className="grid gap-3 rounded-md border p-3">
+                      <legend className="px-1 text-sm font-medium">Marca {index + 1}</legend>
+                      {textField("Nome da marca", brand.name, (name) => {
+                        const brands = [...section.brands];
+                        brands[index] = { ...brand, name };
+                        replaceSection(section.id, { brands });
+                      })}
+                      <div className="grid gap-2">
+                        <Label>Logo</Label>
+                        {logo ? (
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={logo.imageUrl}
+                              alt=""
+                              className="h-16 max-w-40 rounded border object-contain"
+                            />
+                            <span className="text-sm">{logo.filename}</span>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            {brand.logoMediaAssetId
+                              ? "Mídia não encontrada nesta loja."
+                              : "Nenhum logo selecionado."}
+                          </p>
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={!canManage}
+                          onClick={() =>
+                            setMediaTarget({ sectionId: section.id, brandIndex: index })
+                          }
+                        >
+                          <ImagePlus aria-hidden="true" /> Selecionar logo
+                        </Button>
+                      </div>
+                      <Label>
+                        Texto alternativo do logo
+                        <Input
+                          value={brand.logoAlt}
+                          disabled={!canManage}
+                          onChange={(event) => {
+                            const brands = [...section.brands];
+                            brands[index] = { ...brand, logoAlt: event.target.value };
+                            replaceSection(section.id, { brands });
+                          }}
+                        />
+                      </Label>
+                      <Label>
+                        URL de destino (opcional)
+                        <Input
+                          type="url"
+                          value={brand.href ?? ""}
+                          disabled={!canManage}
+                          placeholder="https://exemplo.com"
+                          onChange={(event) => {
+                            const brands = [...section.brands];
+                            const href = event.target.value;
+                            if (href) brands[index] = { ...brand, href };
+                            else {
+                              const { href: _href, ...brandWithoutHref } = brand;
+                              brands[index] = brandWithoutHref;
+                            }
+                            replaceSection(section.id, { brands });
+                          }}
+                        />
+                        <FormHelp>Use um caminho interno ou uma URL HTTP(S) segura.</FormHelp>
+                      </Label>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="outline"
+                          aria-label={`Mover marca ${index + 1} para cima`}
+                          disabled={!canManage || index === 0}
+                          onClick={() => {
+                            const brands = [...section.brands];
+                            [brands[index - 1], brands[index]] = [
+                              brands[index]!,
+                              brands[index - 1]!,
+                            ];
+                            replaceSection(section.id, { brands });
+                          }}
+                        >
+                          <ArrowUp aria-hidden="true" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="outline"
+                          aria-label={`Mover marca ${index + 1} para baixo`}
+                          disabled={!canManage || index === section.brands.length - 1}
+                          onClick={() => {
+                            const brands = [...section.brands];
+                            [brands[index], brands[index + 1]] = [
+                              brands[index + 1]!,
+                              brands[index]!,
+                            ];
+                            replaceSection(section.id, { brands });
+                          }}
+                        >
+                          <ArrowDown aria-hidden="true" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={!canManage}
+                          onClick={() =>
+                            replaceSection(section.id, {
+                              brands: section.brands.filter((_, itemIndex) => itemIndex !== index),
+                            })
+                          }
+                        >
+                          <Trash2 aria-hidden="true" /> Remover
+                        </Button>
+                      </div>
+                    </fieldset>
+                  );
+                })}
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!canManage || section.brands.length >= 100}
+                  onClick={() =>
+                    replaceSection(section.id, {
+                      brands: [...section.brands, { name: "", logoMediaAssetId: "", logoAlt: "" }],
+                    })
+                  }
+                >
+                  <Plus aria-hidden="true" /> Adicionar marca
+                </Button>
+              </div>
+            </div>
+          );
+        case "editorial-gallery":
+          return (
+            <div className="grid gap-4">
+              {textField("Título (opcional)", section.title ?? "", (title) =>
+                replaceSection(section.id, { title }),
+              )}
+              <div className="grid gap-3">
+                {section.images.map((image, index) => {
+                  const asset = mediaQuery.data?.find((item) => item.id === image.mediaAssetId);
+                  return (
+                    <fieldset key={index} className="grid gap-3 rounded-md border p-3">
+                      <legend className="px-1 text-sm font-medium">Imagem {index + 1}</legend>
+                      {asset ? (
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={asset.imageUrl}
+                            alt=""
+                            className="size-20 rounded border object-contain"
+                          />
+                          <span className="text-sm">{asset.filename}</span>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          {image.mediaAssetId
+                            ? "Mídia não encontrada nesta loja."
+                            : "Nenhuma imagem selecionada."}
+                        </p>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!canManage}
+                        onClick={() =>
+                          setMediaTarget({ sectionId: section.id, galleryIndex: index })
+                        }
+                      >
+                        <ImagePlus aria-hidden="true" /> Selecionar imagem
+                      </Button>
+                      <Label>
+                        Texto alternativo
+                        <Input
+                          value={image.alt}
+                          disabled={!canManage}
+                          onChange={(event) => {
+                            const images = [...section.images];
+                            images[index] = { ...image, alt: event.target.value };
+                            replaceSection(section.id, { images });
+                          }}
+                        />
+                      </Label>
+                      <Label>
+                        Legenda (opcional)
+                        <Input
+                          value={image.caption ?? ""}
+                          disabled={!canManage}
+                          onChange={(event) => {
+                            const images = [...section.images];
+                            const caption = event.target.value;
+                            if (caption) images[index] = { ...image, caption };
+                            else {
+                              const { caption: _caption, ...imageWithoutCaption } = image;
+                              images[index] = imageWithoutCaption;
+                            }
+                            replaceSection(section.id, { images });
+                          }}
+                        />
+                      </Label>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="outline"
+                          aria-label={`Mover imagem ${index + 1} para cima`}
+                          disabled={!canManage || index === 0}
+                          onClick={() => {
+                            const images = [...section.images];
+                            [images[index - 1], images[index]] = [
+                              images[index]!,
+                              images[index - 1]!,
+                            ];
+                            replaceSection(section.id, { images });
+                          }}
+                        >
+                          <ArrowUp aria-hidden="true" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="outline"
+                          aria-label={`Mover imagem ${index + 1} para baixo`}
+                          disabled={!canManage || index === section.images.length - 1}
+                          onClick={() => {
+                            const images = [...section.images];
+                            [images[index], images[index + 1]] = [
+                              images[index + 1]!,
+                              images[index]!,
+                            ];
+                            replaceSection(section.id, { images });
+                          }}
+                        >
+                          <ArrowDown aria-hidden="true" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={!canManage}
+                          onClick={() =>
+                            replaceSection(section.id, {
+                              images: section.images.filter((_, itemIndex) => itemIndex !== index),
+                            })
+                          }
+                        >
+                          <Trash2 aria-hidden="true" /> Remover
+                        </Button>
+                      </div>
+                    </fieldset>
+                  );
+                })}
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!canManage || section.images.length >= 100}
+                  onClick={() =>
+                    replaceSection(section.id, {
+                      images: [...section.images, { mediaAssetId: "", alt: "" }],
+                    })
+                  }
+                >
+                  <Plus aria-hidden="true" /> Adicionar imagem
+                </Button>
+              </div>
+            </div>
+          );
         case "call-to-action":
           return (
             <div className="grid gap-4">
@@ -932,7 +1600,42 @@ export function WebsiteSectionsEditor({
                 type="button"
                 className="flex min-w-0 items-center gap-3 rounded-md border p-2 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => {
-                  if (mediaTarget) replaceSection(mediaTarget, { imageMediaAssetId: asset.id });
+                  if (mediaTarget) {
+                    const target = sections.find((section) => section.id === mediaTarget.sectionId);
+                    if (target?.type === "partner-brands" && mediaTarget.brandIndex !== undefined) {
+                      const brands = [...target.brands];
+                      const brand = brands[mediaTarget.brandIndex];
+                      if (brand) {
+                        brands[mediaTarget.brandIndex] = {
+                          ...brand,
+                          logoMediaAssetId: asset.id,
+                          logoAlt: asset.alt?.trim() ?? "",
+                        };
+                        replaceSection(target.id, { brands });
+                      }
+                    } else if (
+                      target?.type === "editorial-gallery" &&
+                      mediaTarget.galleryIndex !== undefined
+                    ) {
+                      const images = [...target.images];
+                      const image = images[mediaTarget.galleryIndex];
+                      if (image) {
+                        images[mediaTarget.galleryIndex] = {
+                          ...image,
+                          mediaAssetId: asset.id,
+                          alt: asset.alt?.trim() ?? "",
+                        };
+                        replaceSection(target.id, { images });
+                      }
+                    } else {
+                      replaceSection(
+                        mediaTarget.sectionId,
+                        target?.type === "image-text"
+                          ? { imageMediaAssetId: asset.id, imageAlt: asset.alt ?? "" }
+                          : { imageMediaAssetId: asset.id },
+                      );
+                    }
+                  }
                   setMediaTarget(null);
                 }}
               >

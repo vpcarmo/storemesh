@@ -110,9 +110,15 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
       readPublishedPageLinks(supabaseAdmin, result.store.id),
     ]);
     const imageMediaIds = parsedPageSections.flatMap((section) =>
-      (section.type === "hero" || section.type === "banner") && section.imageMediaAssetId
-        ? [section.imageMediaAssetId]
-        : [],
+      section.type === "hero" || section.type === "banner" || section.type === "image-text"
+        ? section.imageMediaAssetId
+          ? [section.imageMediaAssetId]
+          : []
+        : section.type === "partner-brands"
+          ? section.brands.map(({ logoMediaAssetId }) => logoMediaAssetId)
+          : section.type === "editorial-gallery"
+            ? section.images.map(({ mediaAssetId }) => mediaAssetId)
+            : [],
     );
     const backgroundMediaId =
       settings?.designSettings.background.type === "image"
@@ -234,6 +240,156 @@ export const getPublishedStorePage = createServerFn({ method: "GET" })
                 ...(section.contentFormat === undefined
                   ? {}
                   : { contentFormat: section.contentFormat }),
+              },
+            ];
+          case "image-text": {
+            const media = section.imageMediaAssetId
+              ? mediaReferences.get(section.imageMediaAssetId)
+              : null;
+            return [
+              {
+                id: section.id,
+                type: section.type,
+                ...(section.backgroundColor === undefined
+                  ? {}
+                  : { backgroundColor: section.backgroundColor }),
+                ...(section.sectionSpacing === undefined
+                  ? {}
+                  : { sectionSpacing: section.sectionSpacing }),
+                ...(section.contentWidth === undefined
+                  ? {}
+                  : { contentWidth: section.contentWidth }),
+                ...(section.contentAlignment === undefined
+                  ? {}
+                  : { contentAlignment: section.contentAlignment }),
+                title: section.title,
+                description: section.description,
+                ...(section.imagePosition === undefined
+                  ? {}
+                  : { imagePosition: section.imagePosition }),
+                imageUrl: media?.url ?? null,
+                imageAlt: section.imageAlt ?? media?.alt ?? null,
+              },
+            ];
+          }
+          case "benefits":
+            return [
+              {
+                id: section.id,
+                type: section.type,
+                ...(section.backgroundColor === undefined
+                  ? {}
+                  : { backgroundColor: section.backgroundColor }),
+                ...(section.sectionSpacing === undefined
+                  ? {}
+                  : { sectionSpacing: section.sectionSpacing }),
+                ...(section.contentWidth === undefined
+                  ? {}
+                  : { contentWidth: section.contentWidth }),
+                ...(section.contentAlignment === undefined
+                  ? {}
+                  : { contentAlignment: section.contentAlignment }),
+                ...(section.title === undefined ? {} : { title: section.title }),
+                ...(section.description === undefined ? {} : { description: section.description }),
+                benefits: section.benefits,
+              },
+            ];
+          case "faq":
+            return [
+              {
+                id: section.id,
+                type: section.type,
+                ...(section.backgroundColor === undefined
+                  ? {}
+                  : { backgroundColor: section.backgroundColor }),
+                ...(section.sectionSpacing === undefined
+                  ? {}
+                  : { sectionSpacing: section.sectionSpacing }),
+                ...(section.contentWidth === undefined
+                  ? {}
+                  : { contentWidth: section.contentWidth }),
+                ...(section.contentAlignment === undefined
+                  ? {}
+                  : { contentAlignment: section.contentAlignment }),
+                ...(section.title === undefined ? {} : { title: section.title }),
+                ...(section.description === undefined ? {} : { description: section.description }),
+                items: section.items,
+              },
+            ];
+          case "testimonials":
+            return [
+              {
+                id: section.id,
+                type: section.type,
+                ...(section.backgroundColor === undefined
+                  ? {}
+                  : { backgroundColor: section.backgroundColor }),
+                ...(section.sectionSpacing === undefined
+                  ? {}
+                  : { sectionSpacing: section.sectionSpacing }),
+                ...(section.contentWidth === undefined
+                  ? {}
+                  : { contentWidth: section.contentWidth }),
+                ...(section.contentAlignment === undefined
+                  ? {}
+                  : { contentAlignment: section.contentAlignment }),
+                ...(section.title === undefined ? {} : { title: section.title }),
+                ...(section.description === undefined ? {} : { description: section.description }),
+                testimonials: section.testimonials.map(({ role, company, ...testimonial }) => ({
+                  ...testimonial,
+                  ...(role === undefined ? {} : { role }),
+                  ...(company === undefined ? {} : { company }),
+                })),
+              },
+            ];
+          case "partner-brands":
+            return [
+              {
+                id: section.id,
+                type: section.type,
+                ...(section.backgroundColor === undefined
+                  ? {}
+                  : { backgroundColor: section.backgroundColor }),
+                ...(section.sectionSpacing === undefined
+                  ? {}
+                  : { sectionSpacing: section.sectionSpacing }),
+                ...(section.contentWidth === undefined
+                  ? {}
+                  : { contentWidth: section.contentWidth }),
+                ...(section.contentAlignment === undefined
+                  ? {}
+                  : { contentAlignment: section.contentAlignment }),
+                ...(section.title === undefined ? {} : { title: section.title }),
+                brands: section.brands.map(({ logoMediaAssetId, href, ...brand }) => ({
+                  ...brand,
+                  logoUrl: mediaReferences.get(logoMediaAssetId)?.url ?? null,
+                  ...(href === undefined ? {} : { href }),
+                })),
+              },
+            ];
+          case "editorial-gallery":
+            return [
+              {
+                id: section.id,
+                type: section.type,
+                ...(section.backgroundColor === undefined
+                  ? {}
+                  : { backgroundColor: section.backgroundColor }),
+                ...(section.sectionSpacing === undefined
+                  ? {}
+                  : { sectionSpacing: section.sectionSpacing }),
+                ...(section.contentWidth === undefined
+                  ? {}
+                  : { contentWidth: section.contentWidth }),
+                ...(section.contentAlignment === undefined
+                  ? {}
+                  : { contentAlignment: section.contentAlignment }),
+                ...(section.title === undefined ? {} : { title: section.title }),
+                images: section.images.map(({ mediaAssetId, alt, caption }) => ({
+                  imageUrl: mediaReferences.get(mediaAssetId)?.url ?? null,
+                  alt,
+                  ...(caption === undefined ? {} : { caption }),
+                })),
               },
             ];
           case "call-to-action":

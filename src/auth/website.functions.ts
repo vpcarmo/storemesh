@@ -116,9 +116,15 @@ export const getAdminStorePagePreview = createServerFn({ method: "POST" })
       throw new Error("Não foi possível carregar os dados da prévia.");
     });
     const imageMediaIds = page.sections.flatMap((section) =>
-      (section.type === "hero" || section.type === "banner") && section.imageMediaAssetId
-        ? [section.imageMediaAssetId]
-        : [],
+      section.type === "hero" || section.type === "banner" || section.type === "image-text"
+        ? section.imageMediaAssetId
+          ? [section.imageMediaAssetId]
+          : []
+        : section.type === "partner-brands"
+          ? section.brands.map(({ logoMediaAssetId }) => logoMediaAssetId)
+          : section.type === "editorial-gallery"
+            ? section.images.map(({ mediaAssetId }) => mediaAssetId)
+            : [],
     );
     const sectionMediaIds = [...new Set(imageMediaIds)];
     const productSnapshots = page.sections.flatMap((section) =>
@@ -148,10 +154,18 @@ export const getAdminStorePagePreview = createServerFn({ method: "POST" })
     if (sectionMediaIds.some((id) => !mediaReferences.has(id)))
       throw new Error("Não foi possível carregar as mídias da prévia.");
     const sections = page.sections.map((section): PublicStorefrontSectionDefinition => {
-      if (section.type === "hero" || section.type === "banner") {
+      if (section.type === "hero" || section.type === "banner" || section.type === "image-text") {
         const media = section.imageMediaAssetId
           ? mediaReferences.get(section.imageMediaAssetId)
           : null;
+        if (section.type === "image-text") {
+          const { imageMediaAssetId: _imageMediaAssetId, ...publicSection } = section;
+          return {
+            ...publicSection,
+            imageUrl: media?.url ?? null,
+            imageAlt: section.imageAlt ?? media?.alt ?? null,
+          };
+        }
         return { ...section, imageUrl: media?.url ?? null, imageAlt: media?.alt ?? null };
       }
       if (section.type === "product-grid") {
@@ -164,6 +178,26 @@ export const getAdminStorePagePreview = createServerFn({ method: "POST" })
       }
       if (section.type === "categories") {
         return enrichCategoriesSection(section, categoryGridSnapshots.hrefs);
+      }
+      if (section.type === "partner-brands") {
+        return {
+          ...section,
+          brands: section.brands.map(({ logoMediaAssetId, href, ...brand }) => ({
+            ...brand,
+            logoUrl: mediaReferences.get(logoMediaAssetId)?.url ?? null,
+            ...(href === undefined ? {} : { href }),
+          })),
+        };
+      }
+      if (section.type === "editorial-gallery") {
+        return {
+          ...section,
+          images: section.images.map(({ mediaAssetId, alt, caption }) => ({
+            imageUrl: mediaReferences.get(mediaAssetId)?.url ?? null,
+            alt,
+            ...(caption === undefined ? {} : { caption }),
+          })),
+        };
       }
       return section;
     });

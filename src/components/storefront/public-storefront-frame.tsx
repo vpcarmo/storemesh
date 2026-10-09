@@ -7,7 +7,7 @@ import {
 } from "@/components/storefront/storefront-layout";
 import { StorefrontPage } from "@/components/storefront/storefront-page";
 import { StorefrontThemeProvider } from "@/components/storefront/storefront-theme-provider";
-import type { StorefrontNavigationItem, StorefrontPageDefinition } from "@/domain/storefront";
+import type { StorefrontNavigationItem, StorefrontRenderablePage } from "@/domain/storefront";
 import type { PublicStorefrontSettings } from "@/domain/store-settings";
 import { createStorefrontTheme } from "@/domain/storefront-theme";
 
@@ -65,7 +65,7 @@ export function PublicStorefrontPageComposition({
   page,
 }: {
   data: PublicStorefrontFrameData;
-  page: StorefrontPageDefinition;
+  page: StorefrontRenderablePage;
 }) {
   return (
     <PublicStorefrontFrame data={data} currentPageId={page.id}>

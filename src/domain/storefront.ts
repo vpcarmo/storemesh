@@ -150,6 +150,63 @@ export interface TextContentSectionDefinition extends SectionBase, SectionLayout
   contentFormat?: "plain" | "markdown";
 }
 
+export interface ImageTextSectionDefinition extends SectionBase, SectionLayoutDefinition {
+  type: "image-text";
+  title: string;
+  description: string;
+  imageMediaAssetId?: string | null;
+  imageUrl?: string | null;
+  imageAlt?: string | null;
+  imagePosition?: "left" | "right";
+}
+
+export interface BenefitsSectionDefinition extends SectionBase, SectionLayoutDefinition {
+  type: "benefits";
+  title?: string;
+  description?: string;
+  benefits: { title: string; description: string }[];
+}
+
+export interface FaqSectionDefinition extends SectionBase, SectionLayoutDefinition {
+  type: "faq";
+  title?: string;
+  description?: string;
+  items: { question: string; answer: string }[];
+}
+
+export interface TestimonialSectionDefinition extends SectionBase, SectionLayoutDefinition {
+  type: "testimonials";
+  title?: string;
+  description?: string;
+  testimonials: {
+    quote: string;
+    name: string;
+    role?: string;
+    company?: string;
+  }[];
+}
+
+export interface PartnerBrandsSectionDefinition extends SectionBase, SectionLayoutDefinition {
+  type: "partner-brands";
+  title?: string;
+  brands: {
+    name: string;
+    logoMediaAssetId: string;
+    logoAlt: string;
+    href?: string;
+  }[];
+}
+
+export interface EditorialGallerySectionDefinition extends SectionBase, SectionLayoutDefinition {
+  type: "editorial-gallery";
+  title?: string;
+  images: {
+    mediaAssetId: string;
+    alt: string;
+    caption?: string;
+  }[];
+}
+
 export interface CallToActionSectionDefinition extends SectionBase {
   type: "call-to-action";
   title: string;
@@ -163,6 +220,12 @@ export type StorefrontSectionDefinition =
   | CategoriesSectionDefinition
   | ProductGridSectionDefinition
   | TextContentSectionDefinition
+  | ImageTextSectionDefinition
+  | BenefitsSectionDefinition
+  | FaqSectionDefinition
+  | TestimonialSectionDefinition
+  | PartnerBrandsSectionDefinition
+  | EditorialGallerySectionDefinition
   | CallToActionSectionDefinition;
 
 export type PublicStorefrontSectionDefinition =
@@ -173,7 +236,25 @@ export type PublicStorefrontSectionDefinition =
     })
   | ResolvedProductGridSectionDefinition
   | TextContentSectionDefinition
+  | Omit<ImageTextSectionDefinition, "imageMediaAssetId">
+  | BenefitsSectionDefinition
+  | FaqSectionDefinition
+  | TestimonialSectionDefinition
+  | (Omit<PartnerBrandsSectionDefinition, "brands"> & {
+      brands: (Omit<PartnerBrandsSectionDefinition["brands"][number], "logoMediaAssetId"> & {
+        logoUrl: string | null;
+      })[];
+    })
+  | (Omit<EditorialGallerySectionDefinition, "images"> & {
+      images: (Omit<EditorialGallerySectionDefinition["images"][number], "mediaAssetId"> & {
+        imageUrl: string | null;
+      })[];
+    })
   | CallToActionSectionDefinition;
+
+export type StorefrontRenderablePage = Omit<StorefrontPageDefinition, "sections"> & {
+  sections: (StorefrontSectionDefinition | PublicStorefrontSectionDefinition)[];
+};
 
 export interface StorefrontPageDefinition {
   id: string;

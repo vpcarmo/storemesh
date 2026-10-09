@@ -2,13 +2,26 @@ import type { CSSProperties } from "react";
 
 import {
   StorefrontBannerSection,
+  StorefrontBenefitsSection,
   StorefrontCallToActionSection,
   StorefrontCategoriesSection,
+  StorefrontEditorialGallerySection,
   StorefrontHeroSection,
+  StorefrontImageTextSection,
+  StorefrontFaqSection,
+  StorefrontPartnerBrandsSection,
   StorefrontProductGridSection,
+  StorefrontTestimonialsSection,
   StorefrontTextContentSection,
 } from "@/components/storefront/storefront-sections";
-import type { StorefrontPageDefinition, StorefrontSectionDefinition } from "@/domain/storefront";
+import type {
+  PublicStorefrontSectionDefinition,
+  StorefrontRenderablePage,
+  StorefrontSectionDefinition,
+} from "@/domain/storefront";
+
+type StorefrontSectionRenderDefinition =
+  StorefrontSectionDefinition | PublicStorefrontSectionDefinition;
 
 type StorefrontSectionStyle = CSSProperties & {
   "--storefront-section-local-background"?: string;
@@ -17,7 +30,7 @@ type StorefrontSectionStyle = CSSProperties & {
   "--storefront-section-local-content-alignment"?: string;
 };
 
-function getStorefrontSectionStyle(section: StorefrontSectionDefinition) {
+function getStorefrontSectionStyle(section: StorefrontSectionRenderDefinition) {
   const style: StorefrontSectionStyle = {};
   if (section.backgroundColor)
     style["--storefront-section-local-background"] = section.backgroundColor;
@@ -25,7 +38,13 @@ function getStorefrontSectionStyle(section: StorefrontSectionDefinition) {
   if (
     section.type === "categories" ||
     section.type === "product-grid" ||
-    section.type === "text-content"
+    section.type === "text-content" ||
+    section.type === "image-text" ||
+    section.type === "benefits" ||
+    section.type === "faq" ||
+    section.type === "testimonials" ||
+    section.type === "partner-brands" ||
+    section.type === "editorial-gallery"
   ) {
     if (section.sectionSpacing) {
       style["--storefront-section-local-spacing"] = {
@@ -49,7 +68,7 @@ function getStorefrontSectionStyle(section: StorefrontSectionDefinition) {
   return Object.keys(style).length > 0 ? style : undefined;
 }
 
-function StorefrontSection({ section }: { section: StorefrontSectionDefinition }) {
+function StorefrontSection({ section }: { section: StorefrontSectionRenderDefinition }) {
   const style = getStorefrontSectionStyle(section);
   let content;
   switch (section.type) {
@@ -68,6 +87,33 @@ function StorefrontSection({ section }: { section: StorefrontSectionDefinition }
     case "text-content":
       content = <StorefrontTextContentSection {...section} />;
       break;
+    case "image-text":
+      content = <StorefrontImageTextSection {...section} />;
+      break;
+    case "benefits":
+      content = <StorefrontBenefitsSection {...section} />;
+      break;
+    case "faq":
+      content = <StorefrontFaqSection {...section} />;
+      break;
+    case "testimonials":
+      content = <StorefrontTestimonialsSection {...section} />;
+      break;
+    case "partner-brands":
+      content = <StorefrontPartnerBrandsSection {...section} />;
+      break;
+    case "editorial-gallery":
+      content = (
+        <StorefrontEditorialGallerySection
+          {...(section.title === undefined ? {} : { title: section.title })}
+          images={section.images.map((image) => ({
+            imageUrl: "imageUrl" in image ? (image.imageUrl ?? null) : null,
+            alt: image.alt,
+            ...(image.caption === undefined ? {} : { caption: image.caption }),
+          }))}
+        />
+      );
+      break;
     case "call-to-action":
       content = <StorefrontCallToActionSection {...section} />;
       break;
@@ -80,6 +126,6 @@ function StorefrontSection({ section }: { section: StorefrontSectionDefinition }
   );
 }
 
-export function StorefrontPage({ page }: { page: StorefrontPageDefinition }) {
+export function StorefrontPage({ page }: { page: StorefrontRenderablePage }) {
   return page.sections.map((section) => <StorefrontSection key={section.id} section={section} />);
 }

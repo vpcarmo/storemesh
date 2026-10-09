@@ -13,7 +13,7 @@ import { StorefrontPage } from "@/components/storefront/storefront-page";
 import { StorefrontThemeProvider } from "@/components/storefront/storefront-theme-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { StorefrontPageDefinition } from "@/domain/storefront";
+import type { StorefrontRenderablePage } from "@/domain/storefront";
 import { createStorefrontTheme } from "@/domain/storefront-theme";
 
 const statusLabels = {
@@ -219,7 +219,7 @@ export function StorefrontPreviewPanel({
   const { store, settings, navigation, footerNavigation, copyrightYear, backgroundImageUrl } =
     pagePreviewQuery.data;
   const theme = createStorefrontTheme(settings, backgroundImageUrl);
-  const page: StorefrontPageDefinition = {
+  const page: StorefrontRenderablePage = {
     id: storedPage.id,
     kind: "static",
     title: storedPage.title,

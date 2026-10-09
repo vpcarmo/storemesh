@@ -176,6 +176,130 @@ export async function readStorePageForPreview(
           content: section.content,
           ...(section.contentFormat === undefined ? {} : { contentFormat: section.contentFormat }),
         };
+      case "image-text":
+        return {
+          id: section.id,
+          type: section.type,
+          ...(section.backgroundColor === undefined
+            ? {}
+            : { backgroundColor: section.backgroundColor }),
+          ...(section.sectionSpacing === undefined
+            ? {}
+            : { sectionSpacing: section.sectionSpacing }),
+          ...(section.contentWidth === undefined ? {} : { contentWidth: section.contentWidth }),
+          ...(section.contentAlignment === undefined
+            ? {}
+            : { contentAlignment: section.contentAlignment }),
+          title: section.title,
+          description: section.description,
+          ...(section.imageMediaAssetId === undefined
+            ? {}
+            : { imageMediaAssetId: section.imageMediaAssetId }),
+          ...(section.imageUrl === undefined ? {} : { imageUrl: section.imageUrl }),
+          ...(section.imageAlt === undefined ? {} : { imageAlt: section.imageAlt }),
+          ...(section.imagePosition === undefined ? {} : { imagePosition: section.imagePosition }),
+        };
+      case "benefits":
+        return {
+          id: section.id,
+          type: section.type,
+          ...(section.backgroundColor === undefined
+            ? {}
+            : { backgroundColor: section.backgroundColor }),
+          ...(section.sectionSpacing === undefined
+            ? {}
+            : { sectionSpacing: section.sectionSpacing }),
+          ...(section.contentWidth === undefined ? {} : { contentWidth: section.contentWidth }),
+          ...(section.contentAlignment === undefined
+            ? {}
+            : { contentAlignment: section.contentAlignment }),
+          ...(section.title === undefined ? {} : { title: section.title }),
+          ...(section.description === undefined ? {} : { description: section.description }),
+          benefits: section.benefits,
+        };
+      case "faq":
+        return {
+          id: section.id,
+          type: section.type,
+          ...(section.backgroundColor === undefined
+            ? {}
+            : { backgroundColor: section.backgroundColor }),
+          ...(section.sectionSpacing === undefined
+            ? {}
+            : { sectionSpacing: section.sectionSpacing }),
+          ...(section.contentWidth === undefined ? {} : { contentWidth: section.contentWidth }),
+          ...(section.contentAlignment === undefined
+            ? {}
+            : { contentAlignment: section.contentAlignment }),
+          ...(section.title === undefined ? {} : { title: section.title }),
+          ...(section.description === undefined ? {} : { description: section.description }),
+          items: section.items,
+        };
+      case "testimonials":
+        return {
+          id: section.id,
+          type: section.type,
+          ...(section.backgroundColor === undefined
+            ? {}
+            : { backgroundColor: section.backgroundColor }),
+          ...(section.sectionSpacing === undefined
+            ? {}
+            : { sectionSpacing: section.sectionSpacing }),
+          ...(section.contentWidth === undefined ? {} : { contentWidth: section.contentWidth }),
+          ...(section.contentAlignment === undefined
+            ? {}
+            : { contentAlignment: section.contentAlignment }),
+          ...(section.title === undefined ? {} : { title: section.title }),
+          ...(section.description === undefined ? {} : { description: section.description }),
+          testimonials: section.testimonials.map(({ role, company, ...testimonial }) => ({
+            ...testimonial,
+            ...(role === undefined ? {} : { role }),
+            ...(company === undefined ? {} : { company }),
+          })),
+        };
+      case "partner-brands":
+        return {
+          id: section.id,
+          type: section.type,
+          ...(section.backgroundColor === undefined
+            ? {}
+            : { backgroundColor: section.backgroundColor }),
+          ...(section.sectionSpacing === undefined
+            ? {}
+            : { sectionSpacing: section.sectionSpacing }),
+          ...(section.contentWidth === undefined ? {} : { contentWidth: section.contentWidth }),
+          ...(section.contentAlignment === undefined
+            ? {}
+            : { contentAlignment: section.contentAlignment }),
+          ...(section.title === undefined ? {} : { title: section.title }),
+          brands: section.brands.map(({ name, logoMediaAssetId, logoAlt, href }) => ({
+            name,
+            logoMediaAssetId,
+            logoAlt,
+            ...(href === undefined ? {} : { href }),
+          })),
+        };
+      case "editorial-gallery":
+        return {
+          id: section.id,
+          type: section.type,
+          ...(section.backgroundColor === undefined
+            ? {}
+            : { backgroundColor: section.backgroundColor }),
+          ...(section.sectionSpacing === undefined
+            ? {}
+            : { sectionSpacing: section.sectionSpacing }),
+          ...(section.contentWidth === undefined ? {} : { contentWidth: section.contentWidth }),
+          ...(section.contentAlignment === undefined
+            ? {}
+            : { contentAlignment: section.contentAlignment }),
+          ...(section.title === undefined ? {} : { title: section.title }),
+          images: section.images.map(({ mediaAssetId, alt, caption }) => ({
+            mediaAssetId,
+            alt,
+            ...(caption === undefined ? {} : { caption }),
+          })),
+        };
       case "call-to-action":
         return {
           id: section.id,
@@ -238,9 +362,15 @@ export async function updatePageSections(
 
   const sections = parsedSections.data;
   const mediaIds = sections.flatMap((section) =>
-    (section.type === "hero" || section.type === "banner") && section.imageMediaAssetId
-      ? [section.imageMediaAssetId]
-      : [],
+    section.type === "hero" || section.type === "banner" || section.type === "image-text"
+      ? section.imageMediaAssetId
+        ? [section.imageMediaAssetId]
+        : []
+      : section.type === "partner-brands"
+        ? section.brands.map(({ logoMediaAssetId }) => logoMediaAssetId)
+        : section.type === "editorial-gallery"
+          ? section.images.map(({ mediaAssetId }) => mediaAssetId)
+          : [],
   );
   const categoryIds = sections.flatMap((section) =>
     section.type === "categories" ? section.categories.map(({ id }) => id) : [],
@@ -271,7 +401,11 @@ export async function updatePageSections(
     throw new Error("Um produto selecionado não pertence à loja autorizada.");
 
   const persistedSections = sections.map((section) => {
-    if (section.type === "hero" || section.type === "banner") {
+    if (section.type === "hero" || section.type === "banner" || section.type === "image-text") {
+      if (section.type === "image-text") {
+        const { imageUrl: _imageUrl, ...persistentSection } = section;
+        return persistentSection;
+      }
       const { imageUrl: _imageUrl, imageAlt: _imageAlt, ...persistentSection } = section;
       return persistentSection;
     }
@@ -292,6 +426,25 @@ export async function updatePageSections(
           name,
           description,
           price,
+        })),
+      };
+    if (section.type === "partner-brands")
+      return {
+        ...section,
+        brands: section.brands.map(({ name, logoMediaAssetId, logoAlt, href }) => ({
+          name,
+          logoMediaAssetId,
+          logoAlt,
+          ...(href === undefined ? {} : { href }),
+        })),
+      };
+    if (section.type === "editorial-gallery")
+      return {
+        ...section,
+        images: section.images.map(({ mediaAssetId, alt, caption }) => ({
+          mediaAssetId,
+          alt,
+          ...(caption === undefined ? {} : { caption }),
         })),
       };
     return section;
