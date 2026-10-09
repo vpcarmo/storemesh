@@ -388,6 +388,10 @@
     padding: var(--storefront-section-space) var(--storefront-content-space);
   }
 
+  .storefront-section {
+    background: var(--storefront-section-background, transparent);
+  }
+
   .storefront-hero {
     background: var(--storefront-secondary);
   }

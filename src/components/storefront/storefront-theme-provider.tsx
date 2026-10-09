@@ -25,6 +25,9 @@ export function StorefrontThemeProvider({
       theme.colors.muted ?? "color-mix(in oklab, var(--storefront-text) 72%, transparent)",
     "--storefront-mobile-surface": theme.colors.background,
     ...(theme.colors.surface === null ? {} : { "--storefront-surface": theme.colors.surface }),
+    ...(theme.colors.sectionBackground === null
+      ? {}
+      : { "--storefront-section-background": theme.colors.sectionBackground }),
     "--storefront-background": theme.background.value,
     "--storefront-font-body": theme.typography.body,
     "--storefront-font-heading": theme.typography.heading,

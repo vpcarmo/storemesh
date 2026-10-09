@@ -47,6 +47,7 @@ type SettingsForm = {
   accentColor: string;
   linkColor: string;
   surfaceColor: string;
+  sectionBackgroundColor: string;
   textColor: string;
   backgroundColor: string;
   mutedTextColor: string;
@@ -111,6 +112,14 @@ const colorFields = [
     help: "Usada somente nos cards de produtos e categorias. Quando vazia, mantém o fundo atual.",
   },
   {
+    name: "sectionBackgroundColor",
+    label: "Cor de fundo das seções",
+    defaultValue: DEFAULT_STOREFRONT_COLORS.background,
+    emptyValueLabel: "Padrão atual",
+    placeholder: "Padrão atual",
+    help: "Usada no fundo das seções de conteúdo. Quando vazia, mantém o fundo atual.",
+  },
+  {
     name: "backgroundColor",
     label: "Cor do fundo",
     defaultValue: DEFAULT_STOREFRONT_COLORS.background,
@@ -149,6 +158,7 @@ function formFromSettings(settings: StoreSettings | null): SettingsForm {
     accentColor: settings?.accentColor ?? "",
     linkColor: settings?.designSettings.linkColor ?? "",
     surfaceColor: settings?.designSettings.surfaceColor ?? "",
+    sectionBackgroundColor: settings?.designSettings.sectionBackgroundColor ?? "",
     textColor: settings?.textColor ?? "",
     backgroundColor: settings?.backgroundColor ?? "",
     mutedTextColor: settings?.designSettings.mutedTextColor ?? "",
@@ -514,6 +524,7 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
             linkColor: form.linkColor.trim() || undefined,
             mutedTextColor: form.mutedTextColor.trim() || undefined,
             surfaceColor: form.surfaceColor.trim() || undefined,
+            sectionBackgroundColor: form.sectionBackgroundColor.trim() || undefined,
           },
         },
       });
@@ -793,7 +804,12 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                                 form.backgroundColor,
                                 DEFAULT_STOREFRONT_COLORS.background,
                               )
-                            : color.defaultValue
+                            : color.name === "sectionBackgroundColor"
+                              ? effectiveColor(
+                                  form.backgroundColor,
+                                  DEFAULT_STOREFRONT_COLORS.background,
+                                )
+                              : color.defaultValue
                   }
                   value={form[color.name]}
                   error={errors[color.name]}
@@ -804,7 +820,8 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                       color.name,
                       color.name === "accentColor" ||
                         color.name === "linkColor" ||
-                        color.name === "surfaceColor"
+                        color.name === "surfaceColor" ||
+                        color.name === "sectionBackgroundColor"
                         ? ""
                         : color.defaultValue,
                     )

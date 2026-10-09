@@ -47,6 +47,9 @@ function designSettingsJson(settings: StoreSettings["designSettings"]): Json {
     ...(settings.linkColor ? { linkColor: settings.linkColor } : {}),
     ...(settings.mutedTextColor ? { mutedTextColor: settings.mutedTextColor } : {}),
     ...(settings.surfaceColor ? { surfaceColor: settings.surfaceColor } : {}),
+    ...(settings.sectionBackgroundColor
+      ? { sectionBackgroundColor: settings.sectionBackgroundColor }
+      : {}),
     background,
     header: settings.header,
     footer: settings.footer,

@@ -36,6 +36,7 @@ export const StorefrontDesignSettingsSchema = z
     linkColor: hexColor.optional(),
     mutedTextColor: hexColor.optional(),
     surfaceColor: hexColor.optional(),
+    sectionBackgroundColor: hexColor.optional(),
     background: z.discriminatedUnion("type", [
       z.object({ type: z.literal("solid") }),
       z.object({
