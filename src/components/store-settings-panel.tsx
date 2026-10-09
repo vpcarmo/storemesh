@@ -75,7 +75,6 @@ const colorFields = [
   {
     name: "accentColor",
     label: "Cor de destaque",
-    defaultValue: DEFAULT_STOREFRONT_COLORS.primary,
     help: "Usada apenas no botão CTA. Se ficar vazia, usa a cor primária.",
   },
   {
@@ -743,11 +742,18 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                 <ColorField
                   key={color.name}
                   {...color}
+                  defaultValue={
+                    color.name === "accentColor"
+                      ? effectiveColor(form.primaryColor, DEFAULT_STOREFRONT_COLORS.primary)
+                      : color.defaultValue
+                  }
                   value={form[color.name]}
                   error={errors[color.name]}
                   disabled={!canManage}
                   onChange={(value) => updateField(color.name, value)}
-                  onRestore={() => updateField(color.name, color.defaultValue)}
+                  onRestore={() =>
+                    updateField(color.name, color.name === "accentColor" ? "" : color.defaultValue)
+                  }
                 />
               ))}
           </CardContent>

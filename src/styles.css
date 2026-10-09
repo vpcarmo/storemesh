@@ -163,9 +163,10 @@
 
   &.storefront-cta-button {
     background: var(--storefront-accent);
+    color: var(--storefront-accent-foreground);
 
     &:hover {
-      background: color-mix(in oklab, var(--storefront-accent) 88%, black);
+      background: var(--storefront-accent);
     }
   }
 }

@@ -18,6 +18,7 @@ export function StorefrontThemeProvider({
     "--storefront-primary-foreground": theme.colors.primaryForeground,
     "--storefront-secondary": theme.colors.secondary,
     "--storefront-accent": theme.colors.accent,
+    "--storefront-accent-foreground": theme.colors.accentForeground,
     "--storefront-text": theme.colors.text,
     "--storefront-surface": theme.colors.background,
     "--storefront-background": theme.background.value,

@@ -11,6 +11,7 @@ export interface StorefrontTheme {
     primaryForeground: string;
     secondary: string;
     accent: string;
+    accentForeground: string;
     text: string;
     background: string;
   };
@@ -79,11 +80,24 @@ function readableForeground(background: string): string {
   return luminance >= 150 ? "#17202A" : "#FFFFFF";
 }
 
+function highContrastForeground(background: string): string {
+  const linearChannel = (index: number) => {
+    const channel = Number.parseInt(background.slice(index, index + 2), 16) / 255;
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance =
+    0.2126 * linearChannel(1) + 0.7152 * linearChannel(3) + 0.0722 * linearChannel(5);
+  const whiteContrast = 1.05 / (luminance + 0.05);
+  const blackContrast = (luminance + 0.05) / 0.05;
+  return whiteContrast >= blackContrast ? "#FFFFFF" : "#000000";
+}
+
 export function createStorefrontTheme(
   settings: Partial<StoreSettings> | null,
   backgroundImageUrl: string | null = null,
 ): StorefrontTheme {
   const primary = safeColor(settings?.primaryColor ?? null, DEFAULT_STOREFRONT_COLORS.primary);
+  const accent = safeColor(settings?.accentColor ?? null, primary);
   const design = parseStorefrontDesignSettings(
     settings?.designSettings ?? DEFAULT_STOREFRONT_DESIGN_SETTINGS,
   );
@@ -154,7 +168,8 @@ export function createStorefrontTheme(
       primary,
       primaryForeground: readableForeground(primary),
       secondary: safeColor(settings?.secondaryColor ?? null, DEFAULT_STOREFRONT_COLORS.secondary),
-      accent: safeColor(settings?.accentColor ?? null, primary),
+      accent,
+      accentForeground: highContrastForeground(accent),
       text: safeColor(settings?.textColor ?? null, DEFAULT_STOREFRONT_COLORS.text),
       background: backgroundColor,
     },
