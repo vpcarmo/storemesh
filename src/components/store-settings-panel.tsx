@@ -47,6 +47,7 @@ type SettingsForm = {
   accentColor: string;
   textColor: string;
   backgroundColor: string;
+  mutedTextColor: string;
   socialLinks: SocialLinkForm[];
   designSettings: StorefrontDesignSettings;
 };
@@ -82,6 +83,14 @@ const colorFields = [
     label: "Cor do texto",
     defaultValue: DEFAULT_STOREFRONT_COLORS.text,
     help: "Cor padrão dos textos da vitrine.",
+  },
+  {
+    name: "mutedTextColor",
+    label: "Cor do texto secundário",
+    defaultValue: DEFAULT_STOREFRONT_COLORS.text,
+    emptyValueLabel: "Automático",
+    placeholder: "Automático",
+    help: "Quando vazia, mantém o tom atual derivado da cor do texto.",
   },
   {
     name: "backgroundColor",
@@ -122,6 +131,7 @@ function formFromSettings(settings: StoreSettings | null): SettingsForm {
     accentColor: settings?.accentColor ?? "",
     textColor: settings?.textColor ?? "",
     backgroundColor: settings?.backgroundColor ?? "",
+    mutedTextColor: settings?.designSettings.mutedTextColor ?? "",
     socialLinks: socialLinksFromSettings(settings?.socialLinks ?? null),
     designSettings: settings?.designSettings ?? DEFAULT_STOREFRONT_DESIGN_SETTINGS,
   };
@@ -319,10 +329,14 @@ function ColorField({
   onChange,
   onRestore,
   disabled,
+  emptyValueLabel = `${defaultValue} (padrão)`,
+  placeholder = defaultValue,
 }: {
   name: SettingsField;
   label: string;
   defaultValue: string;
+  emptyValueLabel?: string;
+  placeholder?: string;
   help: string;
   value: string;
   error?: string | undefined;
@@ -351,7 +365,7 @@ function ColorField({
           disabled={disabled}
           value={value}
           maxLength={7}
-          placeholder={defaultValue}
+          placeholder={placeholder}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
           onChange={(event) => onChange(event.target.value)}
@@ -363,7 +377,7 @@ function ColorField({
           title={colorPickerValue}
         />
         <span className="text-xs text-muted-foreground">
-          Atual: {value.trim() || `${defaultValue} (padrão)`}
+          Atual: {value.trim() || emptyValueLabel}
         </span>
         <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={onRestore}>
           Restaurar padrão
@@ -475,7 +489,10 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
           textColor: form.textColor,
           backgroundColor: form.backgroundColor,
           socialLinks: form.socialLinks,
-          designSettings: form.designSettings,
+          designSettings: {
+            ...form.designSettings,
+            mutedTextColor: form.mutedTextColor.trim() || undefined,
+          },
         },
       });
       await Promise.all([
@@ -745,7 +762,9 @@ export function StoreSettingsPanel({ storeSlug }: { storeSlug?: string | null })
                   defaultValue={
                     color.name === "accentColor"
                       ? effectiveColor(form.primaryColor, DEFAULT_STOREFRONT_COLORS.primary)
-                      : color.defaultValue
+                      : color.name === "mutedTextColor"
+                        ? effectiveColor(form.textColor, DEFAULT_STOREFRONT_COLORS.text)
+                        : color.defaultValue
                   }
                   value={form[color.name]}
                   error={errors[color.name]}

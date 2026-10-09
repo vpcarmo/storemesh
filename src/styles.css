@@ -449,7 +449,7 @@
   .storefront-footer p {
     margin-top: 0.75rem;
     line-height: 1.65;
-    color: color-mix(in oklab, var(--storefront-text) 72%, transparent);
+    color: var(--storefront-muted);
   }
 
   .storefront-rich-text > h2:first-child,
@@ -463,7 +463,7 @@
   .storefront-rich-text p {
     margin: 0.75rem 0 0;
     line-height: 1.65;
-    color: color-mix(in oklab, var(--storefront-text) 72%, transparent);
+    color: var(--storefront-muted);
   }
 
   .storefront-rich-text h2,
@@ -521,7 +521,7 @@
     margin: 1rem 0 0;
     border-inline-start: 3px solid var(--storefront-primary);
     padding-inline-start: 1rem;
-    color: color-mix(in oklab, var(--storefront-text) 72%, transparent);
+    color: var(--storefront-muted);
   }
 
   .storefront-rich-text a {
@@ -700,7 +700,7 @@
   .storefront-product-breadcrumb li + li::before {
     content: "→";
     margin-right: 0.5rem;
-    color: color-mix(in oklab, var(--storefront-text) 72%, transparent);
+    color: var(--storefront-muted);
   }
 
   .storefront-product-breadcrumb a {
@@ -739,7 +739,7 @@
 
   .storefront-product-image-placeholder {
     padding: 1rem;
-    color: color-mix(in oklab, var(--storefront-text) 72%, transparent);
+    color: var(--storefront-muted);
     text-align: center;
   }
 

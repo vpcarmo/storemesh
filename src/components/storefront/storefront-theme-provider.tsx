@@ -20,6 +20,8 @@ export function StorefrontThemeProvider({
     "--storefront-accent": theme.colors.accent,
     "--storefront-accent-foreground": theme.colors.accentForeground,
     "--storefront-text": theme.colors.text,
+    "--storefront-muted":
+      theme.colors.muted ?? "color-mix(in oklab, var(--storefront-text) 72%, transparent)",
     "--storefront-surface": theme.colors.background,
     "--storefront-background": theme.background.value,
     "--storefront-font-body": theme.typography.body,

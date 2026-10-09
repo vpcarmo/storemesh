@@ -44,6 +44,7 @@ function designSettingsJson(settings: StoreSettings["designSettings"]): Json {
     radius: settings.radius,
     shadow: settings.shadow,
     container: settings.container,
+    ...(settings.mutedTextColor ? { mutedTextColor: settings.mutedTextColor } : {}),
     background,
     header: settings.header,
     footer: settings.footer,

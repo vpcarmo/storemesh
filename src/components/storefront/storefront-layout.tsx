@@ -135,9 +135,7 @@ function StorefrontMobileNavigation({
           >
             Menu
           </SheetTitle>
-          <SheetDescription
-            style={{ color: "color-mix(in oklab, var(--storefront-text) 72%, transparent)" }}
-          >
+          <SheetDescription style={{ color: "var(--storefront-muted)" }}>
             Navegação da loja
           </SheetDescription>
         </SheetHeader>

@@ -13,6 +13,7 @@ export interface StorefrontTheme {
     accent: string;
     accentForeground: string;
     text: string;
+    muted: string | null;
     background: string;
   };
   typography: {
@@ -171,6 +172,7 @@ export function createStorefrontTheme(
       accent,
       accentForeground: highContrastForeground(accent),
       text: safeColor(settings?.textColor ?? null, DEFAULT_STOREFRONT_COLORS.text),
+      muted: design.mutedTextColor ?? null,
       background: backgroundColor,
     },
     typography,
