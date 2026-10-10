@@ -10,10 +10,13 @@ import { resolveMediaReferences } from "@/data/media.repository";
 import { readPublicStorefrontSettings } from "@/data/store-settings.repository";
 import {
   deleteNavigationItem,
+  createHomeBackup,
+  createPageFromTemplate,
   loadStorefrontFooterNavigation,
   readNavigation,
   readPages,
   readStorePageForPreview,
+  restoreHomeSectionsFromBackup,
   saveNavigationItem,
   savePage,
   updatePageSections,
@@ -26,7 +29,13 @@ import {
   type PublicStorefrontSectionDefinition,
 } from "@/domain/storefront";
 import { DEFAULT_STOREFRONT_DESIGN_SETTINGS } from "@/domain/storefront-design.schema";
-import { getStorefrontTemplate, STOREFRONT_TEMPLATE_IDS } from "@/domain/storefront-templates";
+import { storefrontSectionsSchema } from "@/domain/storefront-sections.schema";
+import {
+  getStorefrontPageTemplate,
+  getStorefrontTemplate,
+  STOREFRONT_HOME_TEMPLATE_IDS,
+  STOREFRONT_PAGE_TEMPLATE_IDS,
+} from "@/domain/storefront-templates";
 import { PAGE_STATUSES } from "@/domain/website";
 import type { Permission } from "@/domain/access";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -93,8 +102,12 @@ const navigationInput = storeInput
   );
 const deleteInput = storeInput.extend({ id: z.string().uuid() });
 const applyTemplateInput = storeInput.extend({
-  templateId: z.enum(STOREFRONT_TEMPLATE_IDS),
+  templateId: z.enum(STOREFRONT_HOME_TEMPLATE_IDS),
 });
+const createPageTemplateInput = storeInput.extend({
+  templateId: z.enum(STOREFRONT_PAGE_TEMPLATE_IDS),
+});
+const restoreHomeBackupInput = storeInput.extend({ backupId: z.string().uuid() });
 function email(claims: Record<string, unknown>) {
   return typeof claims["email"] === "string" ? claims["email"] : null;
 }
@@ -123,6 +136,82 @@ export const getCurrentStoreWebsite = createServerFn({ method: "POST" })
       readNavigation(context.supabase, store.id),
     ]);
     return { store, pages, navigation };
+  });
+export const getCurrentStorefrontTemplatePreviewData = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => storeInput.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const store = await authorizedStore(
+      context.supabase,
+      context.userId,
+      context.claims,
+      data.slug,
+      "website.view",
+    );
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [settings, navigation, pages] = await Promise.all([
+      readPublicStorefrontSettings(supabaseAdmin, store.id),
+      readNavigation(context.supabase, store.id),
+      readPages(context.supabase, store.id),
+    ]);
+    const backgroundMediaId =
+      settings?.designSettings.background.type === "image"
+        ? settings.designSettings.background.mediaAssetId
+        : null;
+    const [mediaReferences, footerNavigation] = await Promise.all([
+      resolveMediaReferences(
+        supabaseAdmin,
+        store.id,
+        backgroundMediaId ? [backgroundMediaId] : [],
+        { signedUrlLifetimeSeconds: previewSignedUrlLifetimeSeconds },
+      ),
+      loadStorefrontFooterNavigation(
+        supabaseAdmin,
+        store.id,
+        store.slug,
+        settings?.designSettings.footer ?? DEFAULT_STOREFRONT_DESIGN_SETTINGS.footer,
+      ),
+    ]);
+    const slugByPage = new Map(
+      pages
+        .filter(
+          (page) =>
+            page.status === "published" &&
+            /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(page.slug) &&
+            page.slug.length <= 160,
+        )
+        .map((page) => [page.id, page.slug]),
+    );
+
+    return {
+      store: { name: store.name, slug: store.slug },
+      settings,
+      navigation: navigation
+        .filter((item) => item.isActive)
+        .flatMap((item) => {
+          if (item.externalUrl)
+            return [{ id: item.id, label: item.label, href: item.externalUrl, pageId: null }];
+          const targetSlug = item.pageId ? slugByPage.get(item.pageId) : undefined;
+          return targetSlug
+            ? [
+                {
+                  id: item.id,
+                  label: item.label,
+                  href:
+                    targetSlug === "home"
+                      ? `/store/${store.slug}`
+                      : `/store/${store.slug}/${targetSlug}`,
+                  pageId: item.pageId,
+                },
+              ]
+            : [];
+        }),
+      footerNavigation,
+      copyrightYear: new Date().getUTCFullYear(),
+      backgroundImageUrl: backgroundMediaId
+        ? (mediaReferences.get(backgroundMediaId)?.url ?? null)
+        : null,
+    };
   });
 export const getAdminStorePagePreview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -318,6 +407,8 @@ export const applyCurrentStorefrontTemplate = createServerFn({ method: "POST" })
       throw new Error("As permissões selecionadas não pertencem à mesma loja.");
 
     const template = getStorefrontTemplate(data.templateId);
+    if (template.purpose !== "home")
+      throw new Error("Este modelo não pode ser aplicado como página inicial.");
     const templateSections = template.sections(websiteStore.slug);
     const pages = await readPages(context.supabase, websiteStore.id);
     const existingPage = pages[0];
@@ -361,6 +452,133 @@ export const applyCurrentStorefrontTemplate = createServerFn({ method: "POST" })
         `A página inicial e suas seções foram salvas, mas não foi possível confirmar a aplicação do preset visual. ${detail}`,
       );
     }
+  });
+export const createCurrentStorePageFromTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => createPageTemplateInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const store = await authorizedStore(
+      context.supabase,
+      context.userId,
+      context.claims,
+      data.slug,
+      "website.manage",
+    );
+    const template = getStorefrontPageTemplate(data.templateId);
+    const sections = template.sections(store.slug);
+    const parsedSections = storefrontSectionsSchema.safeParse(sections);
+    if (!parsedSections.success) {
+      const firstIssue = parsedSections.error.issues[0];
+      throw new Error(firstIssue?.message ?? "As seções do modelo são inválidas.");
+    }
+
+    const page = await createPageFromTemplate(
+      context.supabase,
+      store.id,
+      {
+        title: template.page.title,
+        slug: template.page.slug,
+        status: "draft",
+        seoTitle: null,
+        seoDescription: null,
+      },
+      sections,
+    );
+    return { page };
+  });
+export const applyCurrentStorefrontTemplateToExistingHome = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => applyTemplateInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const websiteStore = await authorizedStore(
+      context.supabase,
+      context.userId,
+      context.claims,
+      data.slug,
+      "website.manage",
+    );
+    const settingsStore = await authorizedStore(
+      context.supabase,
+      context.userId,
+      context.claims,
+      data.slug,
+      "settings.manage",
+    );
+    if (websiteStore.id !== settingsStore.id)
+      throw new Error("As permissões selecionadas não pertencem à mesma loja.");
+
+    const pages = await readPages(context.supabase, websiteStore.id);
+    const homePages = pages.filter((page) => page.slug === "home");
+    if (homePages.length !== 1)
+      throw new Error("A aplicação exige exatamente uma página Home nesta loja.");
+    const homePage = homePages[0];
+    if (!homePage) throw new Error("A página Home não foi encontrada.");
+
+    const template = getStorefrontTemplate(data.templateId);
+    if (template.purpose !== "home") throw new Error("Este modelo não pode ser aplicado à Home.");
+    const parsedTemplateSections = storefrontSectionsSchema.safeParse(
+      template.sections(websiteStore.slug),
+    );
+    if (!parsedTemplateSections.success) {
+      const firstIssue = parsedTemplateSections.error.issues[0];
+      throw new Error(firstIssue?.message ?? "As seções do modelo são inválidas.");
+    }
+
+    const backup = await createHomeBackup(context.supabase, websiteStore.id, homePage.id);
+    try {
+      await updatePageSections(
+        context.supabase,
+        websiteStore.id,
+        homePage.id,
+        parsedTemplateSections.data,
+      );
+      const updatedHome = await readStorePageForPreview(context.supabase, websiteStore.id, "home");
+      if (
+        !updatedHome ||
+        JSON.stringify(normalizeJsonValue(updatedHome.sections)) !==
+          JSON.stringify(normalizeJsonValue(parsedTemplateSections.data))
+      )
+        throw new Error("As seções aplicadas não corresponderam ao modelo selecionado.");
+      return { page: updatedHome, backup };
+    } catch (error) {
+      const applicationError = error instanceof Error ? error.message : "Erro desconhecido.";
+      try {
+        await restoreHomeSectionsFromBackup(context.supabase, websiteStore.id, backup.id);
+      } catch (restoreError) {
+        const restoreMessage =
+          restoreError instanceof Error ? restoreError.message : "Erro desconhecido.";
+        throw new Error(
+          `A aplicação falhou (${applicationError}) e a restauração automática também falhou (${restoreMessage}). A cópia permanece disponível em Website > Páginas > Cópias de segurança da Home: /${backup.slug}.`,
+        );
+      }
+      throw new Error(
+        `A aplicação falhou (${applicationError}). As seções originais foram restauradas automaticamente. A cópia de segurança foi mantida em Website > Páginas > Cópias de segurança da Home: /${backup.slug}.`,
+      );
+    }
+  });
+export const restoreCurrentStoreHomeBackup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => restoreHomeBackupInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const websiteStore = await authorizedStore(
+      context.supabase,
+      context.userId,
+      context.claims,
+      data.slug,
+      "website.manage",
+    );
+    const settingsStore = await authorizedStore(
+      context.supabase,
+      context.userId,
+      context.claims,
+      data.slug,
+      "settings.manage",
+    );
+    if (websiteStore.id !== settingsStore.id)
+      throw new Error("As permissões selecionadas não pertencem à mesma loja.");
+
+    await restoreHomeSectionsFromBackup(context.supabase, websiteStore.id, data.backupId);
+    return { restored: true };
   });
 export const saveCurrentStorePageSections = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

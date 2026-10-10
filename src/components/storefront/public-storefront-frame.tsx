@@ -8,7 +8,7 @@ import {
 import { StorefrontPage } from "@/components/storefront/storefront-page";
 import { StorefrontThemeProvider } from "@/components/storefront/storefront-theme-provider";
 import type { StorefrontNavigationItem, StorefrontRenderablePage } from "@/domain/storefront";
-import type { PublicStorefrontSettings } from "@/domain/store-settings";
+import type { PublicStorefrontSettings, StoreSettings } from "@/domain/store-settings";
 import { createStorefrontTheme } from "@/domain/storefront-theme";
 
 export interface PublicStorefrontFrameData {
@@ -27,12 +27,17 @@ export function PublicStorefrontFrame({
   data,
   children,
   currentPageId,
+  themeSettings,
 }: {
   data: PublicStorefrontFrameData;
   children: ReactNode;
   currentPageId?: string;
+  themeSettings?: Partial<StoreSettings> | null;
 }) {
-  const theme = createStorefrontTheme(data.settings, data.backgroundImageUrl);
+  const theme = createStorefrontTheme(
+    themeSettings === undefined ? data.settings : themeSettings,
+    data.backgroundImageUrl,
+  );
   return (
     <StorefrontThemeProvider theme={theme}>
       <StorefrontLayout
@@ -63,12 +68,18 @@ export function PublicStorefrontFrame({
 export function PublicStorefrontPageComposition({
   data,
   page,
+  themeSettings,
 }: {
   data: PublicStorefrontFrameData;
   page: StorefrontRenderablePage;
+  themeSettings?: Partial<StoreSettings> | null;
 }) {
   return (
-    <PublicStorefrontFrame data={data} currentPageId={page.id}>
+    <PublicStorefrontFrame
+      data={data}
+      currentPageId={page.id}
+      {...(themeSettings === undefined ? {} : { themeSettings })}
+    >
       <StorefrontPage page={page} />
     </PublicStorefrontFrame>
   );

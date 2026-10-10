@@ -3,6 +3,12 @@ import type { StorefrontSectionDefinition } from "@/domain/storefront";
 export const PAGE_STATUSES = ["draft", "published", "archived"] as const;
 export type PageStatus = (typeof PAGE_STATUSES)[number];
 
+export const HOME_BACKUP_SLUG_PATTERN = /^home-backup-\d{17}(?:-\d+)?$/;
+
+export function isHomeBackupSlug(slug: string): boolean {
+  return HOME_BACKUP_SLUG_PATTERN.test(slug);
+}
+
 export interface WebsitePage {
   id: string;
   storeId: string;

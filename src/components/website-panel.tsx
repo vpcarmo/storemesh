@@ -5,8 +5,12 @@ import { useServerFn } from "@tanstack/react-start";
 
 import {
   applyCurrentStorefrontTemplate,
+  applyCurrentStorefrontTemplateToExistingHome,
+  createCurrentStorePageFromTemplate,
   deleteCurrentStoreNavigationItem,
+  getCurrentStorefrontTemplatePreviewData,
   getCurrentStoreWebsite,
+  restoreCurrentStoreHomeBackup,
   saveCurrentStoreNavigationItem,
   saveCurrentStorePage,
 } from "@/auth/website.functions";
@@ -25,13 +29,15 @@ import {
 } from "@/components/ui/dialog";
 import { FooterPageGroup } from "@/components/admin/footer-page-group";
 import { FormHelp } from "@/components/admin/form-help";
+import { PublicStorefrontPageComposition } from "@/components/storefront/public-storefront-frame";
 import { WebsiteSectionsEditor } from "@/components/website-sections-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { STOREFRONT_TEMPLATES, type StorefrontTemplateId } from "@/domain/storefront-templates";
-import type { NavigationItem, WebsitePage } from "@/domain/website";
+import { DEFAULT_STOREFRONT_DESIGN_SETTINGS } from "@/domain/storefront-design.schema";
+import { isHomeBackupSlug, type NavigationItem, type WebsitePage } from "@/domain/website";
 
 const emptyPage: Pick<
   WebsitePage,
@@ -73,6 +79,13 @@ export function WebsitePanel({
     queryFn: () => loadSettings({ data: { slug: storeSlug } }),
     enabled: section === "navigation" && Boolean(storeSlug),
   });
+  const loadTemplatePreview = useServerFn(getCurrentStorefrontTemplatePreviewData);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<StorefrontTemplateId | null>(null);
+  const templatePreviewQuery = useQuery({
+    queryKey: ["storefront-template-preview", storeSlug],
+    queryFn: () => loadTemplatePreview({ data: { slug: storeSlug } }),
+    enabled: section === "pages" && Boolean(storeSlug) && selectedTemplateId !== null,
+  });
   const [page, setPage] = useState<(typeof emptyPage & { id: string | null }) | WebsitePage | null>(
     null,
   );
@@ -81,6 +94,9 @@ export function WebsitePanel({
   const [error, setError] = useState<string | null>(null);
   const savePage = useServerFn(saveCurrentStorePage);
   const applyTemplate = useServerFn(applyCurrentStorefrontTemplate);
+  const applyTemplateToHome = useServerFn(applyCurrentStorefrontTemplateToExistingHome);
+  const createPageFromTemplate = useServerFn(createCurrentStorePageFromTemplate);
+  const restoreHomeBackup = useServerFn(restoreCurrentStoreHomeBackup);
   const saveNav = useServerFn(saveCurrentStoreNavigationItem);
   const removeNav = useServerFn(deleteCurrentStoreNavigationItem);
   const saveFooterNavigation = useServerFn(updateCurrentStoreFooterNavigation);
@@ -90,9 +106,13 @@ export function WebsitePanel({
   } | null>(null);
   const [footerError, setFooterError] = useState<string | null>(null);
   const [footerPending, setFooterPending] = useState(false);
-  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [templateConfirmOpen, setTemplateConfirmOpen] = useState(false);
+  const [existingHomeTemplateConfirmOpen, setExistingHomeTemplateConfirmOpen] = useState(false);
+  const [pageTemplateConfirmOpen, setPageTemplateConfirmOpen] = useState(false);
   const [templatePending, setTemplatePending] = useState(false);
   const [templateFeedback, setTemplateFeedback] = useState<string | null>(null);
+  const [restoreBackupId, setRestoreBackupId] = useState<string | null>(null);
+  const [restorePending, setRestorePending] = useState(false);
   const canApplyTemplate = canManage && hasPermission("settings.manage");
   const refresh = () =>
     Promise.all([
@@ -100,13 +120,15 @@ export function WebsitePanel({
       client.invalidateQueries({ queryKey: ["admin-page-preview", storeSlug] }),
     ]);
   const chooseTemplate = async (templateId: StorefrontTemplateId) => {
-    if (!storeSlug || !canApplyTemplate || templatePending) return;
+    if (!storeSlug || !canApplyTemplate || templatePending || query.data?.pages.length !== 0)
+      return;
     setError(null);
     setTemplateFeedback(null);
     setTemplatePending(true);
     try {
       const result = await applyTemplate({ data: { slug: storeSlug, templateId } });
-      setTemplateDialogOpen(false);
+      setTemplateConfirmOpen(false);
+      setSelectedTemplateId(null);
       setPage(result.page);
       setPreviewSlug(result.page.slug);
       setTemplateFeedback(
@@ -122,6 +144,53 @@ export function WebsitePanel({
       setTemplatePending(false);
     }
   };
+  const applyTemplateToExistingHome = async (templateId: StorefrontTemplateId) => {
+    const home = query.data?.pages.find((item) => item.slug === "home");
+    if (!storeSlug || !home || !canApplyTemplate || templatePending) return;
+    setError(null);
+    setTemplateFeedback(null);
+    setTemplatePending(true);
+    try {
+      const result = await applyTemplateToHome({ data: { slug: storeSlug, templateId } });
+      setExistingHomeTemplateConfirmOpen(false);
+      setTemplateFeedback(
+        `Modelo aplicado à Home. Cópia de segurança verificada e mantida como /${result.backup.slug}.`,
+      );
+      await refresh();
+    } catch (e) {
+      setError(message(e));
+      await refresh();
+    } finally {
+      setTemplatePending(false);
+    }
+  };
+  const restoreSelectedHomeBackup = async () => {
+    const backup = query.data?.pages.find((item) => item.id === restoreBackupId);
+    if (
+      !storeSlug ||
+      !backup ||
+      !isHomeBackupSlug(backup.slug) ||
+      !canApplyTemplate ||
+      restorePending
+    )
+      return;
+    setError(null);
+    setTemplateFeedback(null);
+    setRestorePending(true);
+    try {
+      await restoreHomeBackup({ data: { slug: storeSlug, backupId: backup.id } });
+      setRestoreBackupId(null);
+      setTemplateFeedback(
+        `A Home foi restaurada a partir de /${backup.slug}. A cópia foi mantida para recuperações futuras.`,
+      );
+      await refresh();
+    } catch (e) {
+      setError(message(e));
+      await refresh();
+    } finally {
+      setRestorePending(false);
+    }
+  };
   if (requiresStoreSelection && !storeSlug)
     return (
       <p className="text-sm text-muted-foreground">
@@ -131,6 +200,52 @@ export function WebsitePanel({
   if (query.isPending) return <p className="text-sm text-muted-foreground">Carregando…</p>;
   if (query.isError || !query.data)
     return <p className="text-sm text-destructive">{message(query.error)}</p>;
+  const selectedTemplate = STOREFRONT_TEMPLATES.find(
+    (template) => template.id === selectedTemplateId,
+  );
+  const homePage = query.data.pages.find((item) => item.slug === "home");
+  const backupPages = query.data.pages.filter((item) => isHomeBackupSlug(item.slug));
+  const regularPages = query.data.pages.filter((item) => !isHomeBackupSlug(item.slug));
+  const selectedBackup = backupPages.find((item) => item.id === restoreBackupId);
+  const createPageFromSelectedTemplate = async () => {
+    if (
+      !selectedTemplate ||
+      selectedTemplate.purpose !== "page" ||
+      !storeSlug ||
+      !canManage ||
+      templatePending
+    )
+      return;
+
+    setError(null);
+    setTemplateFeedback(null);
+    setTemplatePending(true);
+    let createdPage: WebsitePage;
+    try {
+      const result = await createPageFromTemplate({
+        data: { slug: storeSlug, templateId: selectedTemplate.id },
+      });
+      createdPage = result.page;
+    } catch (e) {
+      setError(message(e));
+      return;
+    } finally {
+      setTemplatePending(false);
+    }
+
+    setPage(createdPage);
+    setPreviewSlug(createdPage.slug);
+    setSelectedTemplateId(null);
+    setPageTemplateConfirmOpen(false);
+    setTemplateFeedback(
+      `Página criada como rascunho em /${createdPage.slug}. Edite suas informações e seções abaixo; nenhum link de navegação foi adicionado.`,
+    );
+    try {
+      await refresh();
+    } catch (e) {
+      setError(`A página foi criada, mas não foi possível atualizar a lista: ${message(e)}`);
+    }
+  };
   const submitPage = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!page || !canManage) return;
@@ -202,6 +317,32 @@ export function WebsitePanel({
     helpPages: savedFooter?.helpPages ?? [],
     institutionalPages: savedFooter?.institutionalPages ?? [],
   };
+  const templateChoices = (templates: typeof STOREFRONT_TEMPLATES) =>
+    templates.map((template) => (
+      <Button
+        key={template.id}
+        type="button"
+        variant="outline"
+        className="h-auto min-h-24 justify-start whitespace-normal p-4 text-left"
+        aria-label={`Pré-visualizar modelo: ${template.name}`}
+        onClick={() => {
+          setTemplateFeedback(null);
+          setSelectedTemplateId(template.id);
+        }}
+      >
+        <span>
+          <span className="block font-medium">{template.name}</span>
+          <span className="mt-1 block text-xs font-normal text-muted-foreground">
+            {template.description}
+          </span>
+          <span className="mt-3 block text-xs font-medium">
+            {template.purpose === "page"
+              ? "Modelo para nova página · Pré-visualizar"
+              : "Modelo para Home · Pré-visualizar"}
+          </span>
+        </span>
+      </Button>
+    ));
   return (
     <section className="space-y-5" aria-label={section === "pages" ? "Páginas" : "Navegação"}>
       <div className="flex items-center justify-between">
@@ -236,33 +377,37 @@ export function WebsitePanel({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 id="website-template-title" className="font-medium">
-                  Modelos iniciais por segmento
+                  Biblioteca de modelos
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Os modelos só iniciam lojas sem páginas e não inventam dados de catálogo ou
-                  depoimentos.
+                  Pré-visualize modelos com a aparência atual da loja. Os modelos internos criam
+                  novas páginas em rascunho; criar é uma ação separada da pré-visualização.
+                  Conteúdos de exemplo são genéricos e editáveis.
                 </p>
               </div>
-              {query.data.pages.length === 0 && canApplyTemplate ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={templatePending || !storeSlug}
-                  onClick={() => setTemplateDialogOpen(true)}
-                >
-                  Escolher modelo
+              {selectedTemplate ? (
+                <Button type="button" variant="outline" onClick={() => setSelectedTemplateId(null)}>
+                  Voltar aos modelos
                 </Button>
               ) : null}
             </div>
-            {query.data.pages.length > 0 ? (
+            {query.data.pages.length > 0 && !homePage ? (
               <p className="mt-3 text-sm text-muted-foreground">
-                Não disponível: esta loja já possui páginas. O conteúdo existente não será
-                substituído.
+                Esta loja ainda não tem uma página Home. Modelos para Home ficam disponíveis apenas
+                para pré-visualização; modelos internos podem criar novas páginas normalmente.
               </p>
             ) : null}
-            {!canApplyTemplate ? (
+            {homePage && !canApplyTemplate ? (
               <p className="mt-3 text-sm text-muted-foreground">
-                É necessário ter permissões para gerenciar Website e Configurações.
+                Para aplicar um modelo à Home existente, são necessárias permissões de gestão de
+                Website e Configurações. A criação de páginas internas exige apenas gestão de
+                Website.
+              </p>
+            ) : null}
+            {query.data.pages.length === 0 && !canApplyTemplate ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                Para aplicar um modelo inicial, são necessárias permissões de gestão de Website e
+                Configurações. A criação de páginas internas exige apenas gestão de Website.
               </p>
             ) : null}
             {templateFeedback ? (
@@ -270,34 +415,220 @@ export function WebsitePanel({
                 {templateFeedback}
               </p>
             ) : null}
+            {selectedTemplate ? (
+              <div className="mt-4 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+                  <div>
+                    <h3 className="font-medium">{selectedTemplate.name}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {selectedTemplate.description}
+                    </p>
+                    {selectedTemplate.purpose === "page" ? (
+                      <p className="mt-1 text-sm font-medium">
+                        Cria uma nova página: {selectedTemplate.page.title} (/
+                        {selectedTemplate.page.slug})
+                      </p>
+                    ) : null}
+                  </div>
+                  {selectedTemplate.purpose === "page" && canManage ? (
+                    <Button
+                      type="button"
+                      disabled={templatePending}
+                      onClick={() => setPageTemplateConfirmOpen(true)}
+                    >
+                      Criar nova página
+                    </Button>
+                  ) : selectedTemplate.purpose === "home" &&
+                    query.data.pages.length === 0 &&
+                    canApplyTemplate ? (
+                    <Button
+                      type="button"
+                      disabled={templatePending}
+                      onClick={() => setTemplateConfirmOpen(true)}
+                    >
+                      Aplicar modelo inicial
+                    </Button>
+                  ) : selectedTemplate.purpose === "home" && homePage && canApplyTemplate ? (
+                    <Button
+                      type="button"
+                      disabled={templatePending}
+                      onClick={() => setExistingHomeTemplateConfirmOpen(true)}
+                    >
+                      Aplicar à Home existente
+                    </Button>
+                  ) : null}
+                </div>
+                <p className="text-sm" role="status">
+                  Simulação de pré-visualização. Selecionar ou visualizar um modelo não altera
+                  páginas, seções, navegação, mídias ou configurações da loja.
+                </p>
+                {templatePreviewQuery.isPending ? (
+                  <p className="text-sm text-muted-foreground">Carregando pré-visualização…</p>
+                ) : templatePreviewQuery.isError || !templatePreviewQuery.data ? (
+                  <p className="text-sm text-destructive">{message(templatePreviewQuery.error)}</p>
+                ) : (
+                  <div className="overflow-hidden rounded-md border">
+                    <PublicStorefrontPageComposition
+                      data={templatePreviewQuery.data}
+                      page={{
+                        id: `template-preview-${selectedTemplate.id}`,
+                        kind: selectedTemplate.purpose === "home" ? "home" : "static",
+                        title:
+                          selectedTemplate.purpose === "home"
+                            ? "Início"
+                            : selectedTemplate.page.title,
+                        sections: selectedTemplate.sections(storeSlug ?? ""),
+                      }}
+                      themeSettings={{
+                        ...(templatePreviewQuery.data.settings ?? {}),
+                        designSettings: {
+                          ...DEFAULT_STOREFRONT_DESIGN_SETTINGS,
+                          ...(templatePreviewQuery.data.settings?.designSettings ?? {}),
+                          ...(selectedTemplate.purpose === "home"
+                            ? { typographyPreset: selectedTemplate.typographyPreset }
+                            : {}),
+                        },
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="mt-4 space-y-5">
+                <section className="space-y-3" aria-labelledby="website-home-template-title">
+                  <h3 id="website-home-template-title" className="font-medium">
+                    Modelos de Home
+                  </h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {templateChoices(
+                      STOREFRONT_TEMPLATES.filter((template) => template.purpose === "home"),
+                    )}
+                  </div>
+                </section>
+                <section className="space-y-3" aria-labelledby="website-page-template-title">
+                  <h3 id="website-page-template-title" className="font-medium">
+                    Modelos para páginas internas
+                  </h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {templateChoices(
+                      STOREFRONT_TEMPLATES.filter((template) => template.purpose === "page"),
+                    )}
+                  </div>
+                </section>
+              </div>
+            )}
           </section>
-          <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+          <Dialog
+            open={pageTemplateConfirmOpen}
+            onOpenChange={(open) => {
+              if (!templatePending) setPageTemplateConfirmOpen(open);
+            }}
+          >
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Escolha um modelo inicial</DialogTitle>
+                <DialogTitle>Criar página a partir do modelo?</DialogTitle>
                 <DialogDescription>
-                  A aplicação cria a página inicial publicada somente se a loja continuar sem
-                  páginas. Catálogo e conteúdo institucional não são inventados.
+                  {selectedTemplate?.purpose === "page"
+                    ? `${selectedTemplate.page.title} será criada como rascunho. Se o endereço /${selectedTemplate.page.slug} já estiver em uso, será escolhido um slug alternativo.`
+                    : ""}
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-2">
-                {STOREFRONT_TEMPLATES.map((template) => (
-                  <Button
-                    key={template.id}
-                    type="button"
-                    variant="outline"
-                    className="h-auto justify-start whitespace-normal p-3 text-left"
-                    disabled={templatePending}
-                    onClick={() => void chooseTemplate(template.id)}
-                  >
-                    <span>
-                      <span className="block font-medium">{template.name}</span>
-                      <span className="mt-1 block text-xs font-normal text-muted-foreground">
-                        {template.description}
-                      </span>
-                    </span>
-                  </Button>
-                ))}
+              <p className="text-sm text-muted-foreground">
+                Nenhuma página existente, configuração da loja ou link de navegação será alterado.
+                Você poderá editar a página e suas seções após a criação.
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={templatePending}
+                  onClick={() => setPageTemplateConfirmOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  disabled={selectedTemplate?.purpose !== "page" || templatePending || !canManage}
+                  onClick={() => void createPageFromSelectedTemplate()}
+                >
+                  {templatePending ? "Criando…" : "Criar página"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={templateConfirmOpen} onOpenChange={setTemplateConfirmOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Aplicar modelo inicial?</DialogTitle>
+                <DialogDescription>
+                  {selectedTemplate?.name} criará a página inicial publicada somente se a loja
+                  continuar sem páginas. Essa ação não pode substituir conteúdo existente.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={templatePending}
+                  onClick={() => setTemplateConfirmOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  disabled={!selectedTemplate || templatePending}
+                  onClick={() => {
+                    if (selectedTemplate) void chooseTemplate(selectedTemplate.id);
+                  }}
+                >
+                  {templatePending ? "Aplicando…" : "Confirmar aplicação"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Dialog
+            open={existingHomeTemplateConfirmOpen}
+            onOpenChange={setExistingHomeTemplateConfirmOpen}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Aplicar modelo à Home existente?</DialogTitle>
+                <DialogDescription>
+                  {selectedTemplate?.name} substituirá somente as seções da página Home.
+                </DialogDescription>
+              </DialogHeader>
+              <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
+                <li>O conteúdo atual da Home será substituído pelas seções do modelo.</li>
+                <li>
+                  Uma cópia de segurança recuperável será criada e verificada antes da alteração.
+                </li>
+                <li>
+                  Se a Home estiver publicada, o novo conteúdo poderá aparecer imediatamente no
+                  site.
+                </li>
+                <li>
+                  As configurações visuais atuais da loja, incluindo cores e fontes personalizadas,
+                  serão preservadas.
+                </li>
+              </ul>
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={templatePending}
+                  onClick={() => setExistingHomeTemplateConfirmOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  disabled={!selectedTemplate || !homePage || templatePending}
+                  onClick={() => {
+                    if (selectedTemplate) void applyTemplateToExistingHome(selectedTemplate.id);
+                  }}
+                >
+                  {templatePending ? "Aplicando…" : "Confirmar aplicação"}
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -312,15 +643,15 @@ export function WebsitePanel({
                 </tr>
               </thead>
               <tbody>
-                {query.data.pages.length === 0 ? (
+                {regularPages.length === 0 ? (
                   <tr className="border-t">
                     <td colSpan={4} className="p-3 text-muted-foreground">
-                      <p>Nenhuma página cadastrada.</p>
-                      <p>Clique em "Nova página" para criar a primeira.</p>
+                      <p>Nenhuma página comum cadastrada.</p>
+                      <p>Clique em "Nova página" para criar uma.</p>
                     </td>
                   </tr>
                 ) : (
-                  query.data.pages.map((item) => (
+                  regularPages.map((item) => (
                     <tr key={item.id} className="border-t">
                       <td className="p-3 font-medium">{item.title}</td>
                       <td>/{item.slug}</td>
@@ -356,6 +687,88 @@ export function WebsitePanel({
               </tbody>
             </table>
           </div>
+          <section className="space-y-3 rounded-lg border p-4" aria-labelledby="home-backups-title">
+            <div>
+              <h2 id="home-backups-title" className="font-medium">
+                Cópias de segurança da Home
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Estas versões são rascunhos protegidos; não podem ser publicadas nem editadas como
+                páginas comuns. Restaurar substitui somente as seções da Home e mantém esta cópia.
+              </p>
+              {!homePage && backupPages.length > 0 ? (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  A restauração está indisponível porque esta loja não possui uma Home.
+                </p>
+              ) : null}
+            </div>
+            {backupPages.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma cópia de segurança da Home disponível.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {backupPages.map((backup) => (
+                  <div
+                    key={backup.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
+                  >
+                    <div>
+                      <p className="font-medium">{backup.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        /{backup.slug} · Rascunho · {backup.sections.length} seções
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!canApplyTemplate || !homePage || restorePending}
+                      onClick={() => setRestoreBackupId(backup.id)}
+                    >
+                      Restaurar esta versão
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+          <Dialog
+            open={restoreBackupId !== null}
+            onOpenChange={(open) => {
+              if (!open && !restorePending) setRestoreBackupId(null);
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Restaurar esta versão?</DialogTitle>
+                <DialogDescription>
+                  As seções da Home serão substituídas pelo conteúdo de{" "}
+                  {selectedBackup?.title ?? "esta cópia"}.
+                </DialogDescription>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">
+                O ID, slug, título, SEO e status atuais da Home serão preservados. A cópia de
+                segurança permanecerá disponível após a restauração.
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={restorePending}
+                  onClick={() => setRestoreBackupId(null)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  disabled={!selectedBackup || !homePage || !canApplyTemplate || restorePending}
+                  onClick={() => void restoreSelectedHomeBackup()}
+                >
+                  {restorePending ? "Restaurando…" : "Confirmar restauração"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
           {page && (
             <form onSubmit={submitPage} className="grid gap-3 rounded-lg border p-4">
               <h2 className="font-medium">{page.id ? "Editar página" : "Nova página"}</h2>

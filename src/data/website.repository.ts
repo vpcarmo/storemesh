@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
   defaultPageSections,
+  isHomeBackupSlug,
   type NavigationItem,
   type PageStatus,
   type WebsitePage,
@@ -92,6 +93,283 @@ function validatePageSectionsForPublication(sections: unknown) {
     const firstIssue = parsedSections.error.issues[0];
     throw new Error(firstIssue?.message ?? "As seções da página são inválidas.");
   }
+}
+
+function normalizeJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(normalizeJsonValue);
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nestedValue]) => [key, normalizeJsonValue(nestedValue)]),
+    );
+  return value;
+}
+
+function sectionsMatch(left: unknown, right: unknown): boolean {
+  const parsedLeft = storefrontSectionsReadSchema.safeParse(left);
+  const parsedRight = storefrontSectionsReadSchema.safeParse(right);
+  return (
+    parsedLeft.success &&
+    parsedRight.success &&
+    JSON.stringify(normalizeJsonValue(parsedLeft.data)) ===
+      JSON.stringify(normalizeJsonValue(parsedRight.data))
+  );
+}
+
+export async function createHomeBackup(
+  client: AppClient,
+  storeId: string,
+  homePageId: string,
+): Promise<WebsitePage> {
+  const { data: home, error: homeError } = await client
+    .from("pages")
+    .select("*")
+    .eq("id", homePageId)
+    .eq("store_id", storeId)
+    .eq("slug", "home")
+    .maybeSingle();
+  if (homeError) throw homeError;
+  if (!home) throw new Error("A Home não foi encontrada na loja autorizada.");
+
+  const parsedSections = storefrontSectionsReadSchema.safeParse(home.sections);
+  if (!parsedSections.success)
+    throw new Error("As seções atuais da Home não podem ser copiadas com segurança.");
+
+  const timestamp = new Date().toISOString();
+  const slugTimestamp = timestamp.replace(/\D/g, "");
+  let suffix = 0;
+  let backupSlug = `home-backup-${slugTimestamp}`;
+  while (true) {
+    const { data: existingBackup, error: lookupError } = await client
+      .from("pages")
+      .select("id")
+      .eq("store_id", storeId)
+      .eq("slug", backupSlug)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    if (!existingBackup) break;
+    suffix += 1;
+    backupSlug = `home-backup-${slugTimestamp}-${suffix}`;
+  }
+
+  const { data: createdBackup, error: createError } = await client
+    .from("pages")
+    .insert({
+      store_id: storeId,
+      title: `Cópia de segurança da Home - ${timestamp}`,
+      slug: backupSlug,
+      status: "draft",
+      seo_title: home.seo_title,
+      seo_description: home.seo_description,
+      sections: parsedSections.data,
+    })
+    .select("id")
+    .single();
+  if (createError) throw createError;
+
+  try {
+    const { data: persistedBackup, error: readError } = await client
+      .from("pages")
+      .select("*")
+      .eq("id", createdBackup.id)
+      .eq("store_id", storeId)
+      .eq("slug", backupSlug)
+      .eq("status", "draft")
+      .maybeSingle();
+    if (readError) throw readError;
+    if (!persistedBackup || !sectionsMatch(persistedBackup.sections, parsedSections.data))
+      throw new Error("A verificação das seções persistidas não correspondeu à Home original.");
+    return pageFromRow(persistedBackup);
+  } catch (error) {
+    const { error: cleanupError } = await client
+      .from("pages")
+      .delete()
+      .eq("id", createdBackup.id)
+      .eq("store_id", storeId);
+    const detail = error instanceof Error ? error.message : "Erro desconhecido.";
+    if (cleanupError)
+      throw new Error(
+        `A cópia ${backupSlug} não pôde ser verificada: ${detail} A cópia não verificada permanece armazenada.`,
+      );
+    throw new Error(`A cópia ${backupSlug} não pôde ser verificada e foi removida: ${detail}`);
+  }
+}
+
+async function persistPageSections(
+  client: AppClient,
+  storeId: string,
+  pageId: string,
+  sectionsInput: unknown,
+  previousSectionsForCompatibility?: unknown,
+  preserveStoredSectionFields = false,
+): Promise<void> {
+  const { data: page, error: pageError } = await client
+    .from("pages")
+    .select("id, slug, sections")
+    .eq("id", pageId)
+    .eq("store_id", storeId)
+    .maybeSingle();
+  if (pageError) throw pageError;
+  if (!page) throw new Error("A página não foi encontrada na loja autorizada.");
+  if (isHomeBackupSlug(page.slug))
+    throw new Error("Cópias de segurança da Home não podem ser editadas como páginas comuns.");
+
+  const parsedSections = parseStorefrontSectionsForSave(
+    sectionsInput,
+    previousSectionsForCompatibility ?? page.sections,
+  );
+  if (!parsedSections.success) {
+    const firstIssue = parsedSections.error.issues[0];
+    throw new Error(firstIssue?.message ?? "As seções da página são inválidas.");
+  }
+
+  const sections = parsedSections.data;
+  const mediaIds = sections.flatMap((section) =>
+    section.type === "hero" || section.type === "banner" || section.type === "image-text"
+      ? section.imageMediaAssetId
+        ? [section.imageMediaAssetId]
+        : []
+      : section.type === "partner-brands"
+        ? section.brands.map(({ logoMediaAssetId }) => logoMediaAssetId)
+        : section.type === "editorial-gallery"
+          ? section.images.map(({ mediaAssetId }) => mediaAssetId)
+          : [],
+  );
+  const categoryIds = sections.flatMap((section) =>
+    section.type === "categories" ? section.categories.map(({ id }) => id) : [],
+  );
+  const productIds = sections.flatMap((section) =>
+    section.type === "product-grid" ? section.products.map(({ id }) => id) : [],
+  );
+
+  const [mediaResult, categoryResult, productResult] = await Promise.all([
+    mediaIds.length
+      ? client.from("media_assets").select("id").eq("store_id", storeId).in("id", mediaIds)
+      : Promise.resolve({ data: [], error: null }),
+    categoryIds.length
+      ? client.from("categories").select("id").eq("store_id", storeId).in("id", categoryIds)
+      : Promise.resolve({ data: [], error: null }),
+    productIds.length
+      ? client.from("products").select("id").eq("store_id", storeId).in("id", productIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (mediaResult.error) throw mediaResult.error;
+  if (categoryResult.error) throw categoryResult.error;
+  if (productResult.error) throw productResult.error;
+  if (new Set(mediaResult.data.map(({ id }) => id)).size !== new Set(mediaIds).size)
+    throw new Error("Uma mídia selecionada não pertence à loja autorizada.");
+  if (new Set(categoryResult.data.map(({ id }) => id)).size !== new Set(categoryIds).size)
+    throw new Error("Uma categoria selecionada não pertence à loja autorizada.");
+  if (new Set(productResult.data.map(({ id }) => id)).size !== new Set(productIds).size)
+    throw new Error("Um produto selecionado não pertence à loja autorizada.");
+
+  const persistedSections = preserveStoredSectionFields
+    ? sections
+    : sections.map((section) => {
+        if (section.type === "hero" || section.type === "banner" || section.type === "image-text") {
+          if (section.type === "image-text") {
+            const { imageUrl: _imageUrl, ...persistentSection } = section;
+            return persistentSection;
+          }
+          const { imageUrl: _imageUrl, imageAlt: _imageAlt, ...persistentSection } = section;
+          return persistentSection;
+        }
+        if (section.type === "categories")
+          return {
+            ...section,
+            categories: section.categories.map(({ id, name, description }) => ({
+              id,
+              name,
+              description,
+            })),
+          };
+        if (section.type === "product-grid")
+          return {
+            ...section,
+            products: section.products.map(({ id, name, description, price }) => ({
+              id,
+              name,
+              description,
+              price,
+            })),
+          };
+        if (section.type === "partner-brands")
+          return {
+            ...section,
+            brands: section.brands.map(({ name, logoMediaAssetId, logoAlt, href }) => ({
+              name,
+              logoMediaAssetId,
+              logoAlt,
+              ...(href === undefined ? {} : { href }),
+            })),
+          };
+        if (section.type === "editorial-gallery")
+          return {
+            ...section,
+            images: section.images.map(({ mediaAssetId, alt, caption }) => ({
+              mediaAssetId,
+              alt,
+              ...(caption === undefined ? {} : { caption }),
+            })),
+          };
+        return section;
+      });
+
+  const { data, error } = await client
+    .from("pages")
+    .update({ sections: persistedSections })
+    .eq("id", pageId)
+    .eq("store_id", storeId)
+    .select("id")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("A página não foi encontrada na loja autorizada.");
+}
+
+export async function restoreHomeSectionsFromBackup(
+  client: AppClient,
+  storeId: string,
+  backupId: string,
+): Promise<void> {
+  const { data: backup, error: backupError } = await client
+    .from("pages")
+    .select("id, slug, status, sections")
+    .eq("id", backupId)
+    .eq("store_id", storeId)
+    .maybeSingle();
+  if (backupError) throw backupError;
+  if (!backup || !isHomeBackupSlug(backup.slug) || backup.status !== "draft")
+    throw new Error("A cópia de segurança não pertence à loja autorizada ou não é válida.");
+
+  const parsedSections = storefrontSectionsReadSchema.safeParse(backup.sections);
+  if (!parsedSections.success) throw new Error("As seções da cópia de segurança são inválidas.");
+  const saveSections = parseStorefrontSectionsForSave(parsedSections.data, backup.sections);
+  if (!saveSections.success) {
+    const firstIssue = saveSections.error.issues[0];
+    throw new Error(firstIssue?.message ?? "As seções da cópia de segurança são inválidas.");
+  }
+
+  const { data: home, error: homeError } = await client
+    .from("pages")
+    .select("id, slug")
+    .eq("store_id", storeId)
+    .eq("slug", "home")
+    .maybeSingle();
+  if (homeError) throw homeError;
+  if (!home) throw new Error("Não existe uma Home nesta loja para receber a restauração.");
+
+  await persistPageSections(client, storeId, home.id, saveSections.data, backup.sections, true);
+  const { data: restoredHome, error: verifyError } = await client
+    .from("pages")
+    .select("sections")
+    .eq("id", home.id)
+    .eq("store_id", storeId)
+    .eq("slug", "home")
+    .maybeSingle();
+  if (verifyError) throw verifyError;
+  if (!restoredHome || !sectionsMatch(restoredHome.sections, parsedSections.data))
+    throw new Error("A Home foi atualizada, mas não foi possível verificar a restauração.");
 }
 
 export async function readPages(client: AppClient, storeId: string): Promise<WebsitePage[]> {
@@ -331,6 +609,8 @@ export async function savePage(
   value: Pick<WebsitePage, "title" | "slug" | "status" | "seoTitle" | "seoDescription">,
   initialSections?: WebsitePage["sections"],
 ): Promise<WebsitePage> {
+  if (isHomeBackupSlug(value.slug))
+    throw new Error("Este slug é reservado para cópias de segurança da Home.");
   const payload = {
     store_id: storeId,
     title: value.title,
@@ -339,16 +619,18 @@ export async function savePage(
     seo_title: value.seoTitle,
     seo_description: value.seoDescription,
   };
-  if (id && value.status === "published") {
+  if (id) {
     const { data: currentPage, error: currentPageError } = await client
       .from("pages")
-      .select("status, sections")
+      .select("slug, status, sections")
       .eq("id", id)
       .eq("store_id", storeId)
       .maybeSingle();
     if (currentPageError) throw currentPageError;
     if (!currentPage) throw new Error("A página não foi encontrada na loja autorizada.");
-    if (currentPage.status !== "published")
+    if (isHomeBackupSlug(currentPage.slug))
+      throw new Error("Cópias de segurança da Home não podem ser editadas como páginas comuns.");
+    if (value.status === "published" && currentPage.status !== "published")
       validatePageSectionsForPublication(currentPage.sections);
   }
   const query = id
@@ -371,126 +653,61 @@ export async function savePage(
   if (error) throw error;
   return pageFromRow(data);
 }
+
+export async function createPageFromTemplate(
+  client: AppClient,
+  storeId: string,
+  value: Pick<WebsitePage, "title" | "slug" | "status" | "seoTitle" | "seoDescription">,
+  sections: WebsitePage["sections"],
+): Promise<WebsitePage> {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value.slug) || value.slug.length > 160)
+    throw new Error("O slug do modelo de página é inválido.");
+
+  let suffix = 1;
+  while (true) {
+    const suffixPart = suffix === 1 ? "" : `-${suffix}`;
+    const candidateSlug =
+      suffix === 1
+        ? value.slug
+        : `${value.slug.slice(0, 160 - suffixPart.length).replace(/-+$/, "")}${suffixPart}`;
+    const { data: existingPage, error: lookupError } = await client
+      .from("pages")
+      .select("id")
+      .eq("store_id", storeId)
+      .eq("slug", candidateSlug)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    if (existingPage) {
+      suffix += 1;
+      continue;
+    }
+
+    try {
+      return await savePage(client, storeId, null, { ...value, slug: candidateSlug }, sections);
+    } catch (error) {
+      if (!(error && typeof error === "object" && "code" in error && error.code === "23505"))
+        throw error;
+
+      const { data: conflictingPage, error: conflictLookupError } = await client
+        .from("pages")
+        .select("id")
+        .eq("store_id", storeId)
+        .eq("slug", candidateSlug)
+        .maybeSingle();
+      if (conflictLookupError) throw conflictLookupError;
+      if (!conflictingPage) throw error;
+      suffix += 1;
+    }
+  }
+}
+
 export async function updatePageSections(
   client: AppClient,
   storeId: string,
   pageId: string,
   sectionsInput: unknown,
 ): Promise<void> {
-  const { data: page, error: pageError } = await client
-    .from("pages")
-    .select("id, sections")
-    .eq("id", pageId)
-    .eq("store_id", storeId)
-    .maybeSingle();
-  if (pageError) throw pageError;
-  if (!page) throw new Error("A página não foi encontrada na loja autorizada.");
-
-  const parsedSections = parseStorefrontSectionsForSave(sectionsInput, page.sections);
-  if (!parsedSections.success) {
-    const firstIssue = parsedSections.error.issues[0];
-    throw new Error(firstIssue?.message ?? "As seções da página são inválidas.");
-  }
-
-  const sections = parsedSections.data;
-  const mediaIds = sections.flatMap((section) =>
-    section.type === "hero" || section.type === "banner" || section.type === "image-text"
-      ? section.imageMediaAssetId
-        ? [section.imageMediaAssetId]
-        : []
-      : section.type === "partner-brands"
-        ? section.brands.map(({ logoMediaAssetId }) => logoMediaAssetId)
-        : section.type === "editorial-gallery"
-          ? section.images.map(({ mediaAssetId }) => mediaAssetId)
-          : [],
-  );
-  const categoryIds = sections.flatMap((section) =>
-    section.type === "categories" ? section.categories.map(({ id }) => id) : [],
-  );
-  const productIds = sections.flatMap((section) =>
-    section.type === "product-grid" ? section.products.map(({ id }) => id) : [],
-  );
-
-  const [mediaResult, categoryResult, productResult] = await Promise.all([
-    mediaIds.length
-      ? client.from("media_assets").select("id").eq("store_id", storeId).in("id", mediaIds)
-      : Promise.resolve({ data: [], error: null }),
-    categoryIds.length
-      ? client.from("categories").select("id").eq("store_id", storeId).in("id", categoryIds)
-      : Promise.resolve({ data: [], error: null }),
-    productIds.length
-      ? client.from("products").select("id").eq("store_id", storeId).in("id", productIds)
-      : Promise.resolve({ data: [], error: null }),
-  ]);
-  if (mediaResult.error) throw mediaResult.error;
-  if (categoryResult.error) throw categoryResult.error;
-  if (productResult.error) throw productResult.error;
-  if (new Set(mediaResult.data.map(({ id }) => id)).size !== new Set(mediaIds).size)
-    throw new Error("Uma mídia selecionada não pertence à loja autorizada.");
-  if (new Set(categoryResult.data.map(({ id }) => id)).size !== new Set(categoryIds).size)
-    throw new Error("Uma categoria selecionada não pertence à loja autorizada.");
-  if (new Set(productResult.data.map(({ id }) => id)).size !== new Set(productIds).size)
-    throw new Error("Um produto selecionado não pertence à loja autorizada.");
-
-  const persistedSections = sections.map((section) => {
-    if (section.type === "hero" || section.type === "banner" || section.type === "image-text") {
-      if (section.type === "image-text") {
-        const { imageUrl: _imageUrl, ...persistentSection } = section;
-        return persistentSection;
-      }
-      const { imageUrl: _imageUrl, imageAlt: _imageAlt, ...persistentSection } = section;
-      return persistentSection;
-    }
-    if (section.type === "categories")
-      return {
-        ...section,
-        categories: section.categories.map(({ id, name, description }) => ({
-          id,
-          name,
-          description,
-        })),
-      };
-    if (section.type === "product-grid")
-      return {
-        ...section,
-        products: section.products.map(({ id, name, description, price }) => ({
-          id,
-          name,
-          description,
-          price,
-        })),
-      };
-    if (section.type === "partner-brands")
-      return {
-        ...section,
-        brands: section.brands.map(({ name, logoMediaAssetId, logoAlt, href }) => ({
-          name,
-          logoMediaAssetId,
-          logoAlt,
-          ...(href === undefined ? {} : { href }),
-        })),
-      };
-    if (section.type === "editorial-gallery")
-      return {
-        ...section,
-        images: section.images.map(({ mediaAssetId, alt, caption }) => ({
-          mediaAssetId,
-          alt,
-          ...(caption === undefined ? {} : { caption }),
-        })),
-      };
-    return section;
-  });
-
-  const { data, error } = await client
-    .from("pages")
-    .update({ sections: persistedSections })
-    .eq("id", pageId)
-    .eq("store_id", storeId)
-    .select("id")
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) throw new Error("A página não foi encontrada na loja autorizada.");
+  await persistPageSections(client, storeId, pageId, sectionsInput);
 }
 
 export async function updatePageStatus(
@@ -499,18 +716,18 @@ export async function updatePageStatus(
   id: string,
   status: PageStatus,
 ) {
-  if (status === "published") {
-    const { data: currentPage, error: currentPageError } = await client
-      .from("pages")
-      .select("status, sections")
-      .eq("id", id)
-      .eq("store_id", storeId)
-      .maybeSingle();
-    if (currentPageError) throw currentPageError;
-    if (!currentPage) throw new Error("A página não foi encontrada na loja autorizada.");
-    if (currentPage.status !== "published")
-      validatePageSectionsForPublication(currentPage.sections);
-  }
+  const { data: currentPage, error: currentPageError } = await client
+    .from("pages")
+    .select("slug, status, sections")
+    .eq("id", id)
+    .eq("store_id", storeId)
+    .maybeSingle();
+  if (currentPageError) throw currentPageError;
+  if (!currentPage) throw new Error("A página não foi encontrada na loja autorizada.");
+  if (isHomeBackupSlug(currentPage.slug))
+    throw new Error("Cópias de segurança da Home não podem ter seu status alterado.");
+  if (status === "published" && currentPage.status !== "published")
+    validatePageSectionsForPublication(currentPage.sections);
   const { data, error } = await client
     .from("pages")
     .update({ status })
