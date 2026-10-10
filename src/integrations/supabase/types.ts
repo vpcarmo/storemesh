@@ -331,6 +331,47 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_store_deletion_operations: {
+        Row: {
+          cleanup_not_before: string | null
+          created_at: string
+          id: string
+          phase: string
+          requested_by: string
+          storage_cleaned_at: string | null
+          store_id: string
+          store_slug: string
+        }
+        Insert: {
+          cleanup_not_before?: string | null
+          created_at?: string
+          id?: string
+          phase: string
+          requested_by: string
+          storage_cleaned_at?: string | null
+          store_id: string
+          store_slug: string
+        }
+        Update: {
+          cleanup_not_before?: string | null
+          created_at?: string
+          id?: string
+          phase?: string
+          requested_by?: string
+          storage_cleaned_at?: string | null
+          store_id?: string
+          store_slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_store_deletion_operations_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_attribute_values: {
         Row: {
           attribute_value_id: string
@@ -790,6 +831,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      begin_platform_store_deletion: {
+        Args: { p_confirmation_slug: string; p_store_id: string }
+        Returns: {
+          cleanup_not_before: string
+          operation_id: string
+          phase: string
+        }[]
+      }
       check_store_permission: {
         Args: { _permission: string; _store_id: string }
         Returns: boolean
@@ -799,20 +848,12 @@ export type Database = {
         Args: { p_operation_id: string }
         Returns: string
       }
-      begin_platform_store_deletion: {
-        Args: { p_confirmation_slug: string; p_store_id: string }
-        Returns: {
-          cleanup_not_before: string | null
-          operation_id: string
-          phase: string
-        }[]
-      }
       has_store_access: { Args: { _store_id: string }; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       list_platform_store_deletions: {
         Args: never
         Returns: {
-          cleanup_not_before: string | null
+          cleanup_not_before: string
           phase: string
           store_id: string
         }[]
@@ -842,15 +883,6 @@ export type Database = {
           p_store_slug: string
         }
         Returns: undefined
-      }
-      schedule_platform_store_storage_cleanup: {
-        Args: {
-          p_max_upload_url_age_seconds: number
-          p_operation_id: string
-          p_store_id: string
-          p_store_slug: string
-        }
-        Returns: string
       }
       save_platform_store: {
         Args: {
@@ -892,6 +924,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      schedule_platform_store_storage_cleanup: {
+        Args: {
+          p_max_upload_url_age_seconds: number
+          p_operation_id: string
+          p_store_id: string
+          p_store_slug: string
+        }
+        Returns: string
       }
     }
     Enums: {
